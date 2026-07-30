@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { PlayerProfile, PlayerStats } from '@shared/types.ts';
 import { xpProgress } from '@shared/xp.ts';
 import { api, ApiFailure } from '../lib/api.ts';
+import { between, usePrefersReducedMotion } from '../lib/motion.ts';
 import {
   getAuthSession,
   isAuthAvailable,
@@ -102,6 +103,7 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
       <div className="stack">
         <div className="profile__identity">
           <div className="profile__hero">
+            <HeroParticles />
             <div className="profile__avatar-wrap">
               <button
                 type="button"
@@ -110,43 +112,43 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
                 aria-label="Ubah avatar"
               >
                 <Avatar config={draft.avatar} size={96} alt="Avatar kamu" />
-                <span className="avatar-edit-btn__overlay" aria-hidden="true">
-                  <EditIcon />
-                </span>
               </button>
+              <span className="avatar-edit-badge" aria-hidden="true">
+                <EditIcon />
+              </span>
               <span className="profile__level-badge">Lv. {level}</span>
             </div>
+
+            {editingName ? (
+              <input
+                ref={nameInputRef}
+                id="display-name"
+                className="identity-name"
+                value={draft.name}
+                maxLength={18}
+                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                onBlur={() => setEditingName(false)}
+                placeholder="Nama kamu"
+                aria-label="Display Name"
+                style={{ width: `${(draft.name.length || 'Nama kamu'.length) + 1.5}ch` }}
+              />
+            ) : (
+              <div className="identity-editable">
+                <span className="identity-name-display">{draft.name || 'Nama kamu'}</span>
+                <button
+                  type="button"
+                  className="identity-editable__icon"
+                  onClick={() => setEditingName(true)}
+                  aria-label="Ubah Display Name"
+                >
+                  <EditIcon />
+                </button>
+              </div>
+            )}
+
+            <UsernameField displayName={profile.name} avatar={profile.avatar} />
+            <BioField displayName={profile.name} avatar={profile.avatar} />
           </div>
-
-          {editingName ? (
-            <input
-              ref={nameInputRef}
-              id="display-name"
-              className="identity-name"
-              value={draft.name}
-              maxLength={18}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-              onBlur={() => setEditingName(false)}
-              placeholder="Nama kamu"
-              aria-label="Display Name"
-              style={{ width: `${(draft.name.length || 'Nama kamu'.length) + 1.5}ch` }}
-            />
-          ) : (
-            <div className="identity-editable">
-              <span className="identity-name-display">{draft.name || 'Nama kamu'}</span>
-              <button
-                type="button"
-                className="identity-editable__icon"
-                onClick={() => setEditingName(true)}
-                aria-label="Ubah Display Name"
-              >
-                <EditIcon />
-              </button>
-            </div>
-          )}
-
-          <UsernameField displayName={profile.name} avatar={profile.avatar} />
-          <BioField displayName={profile.name} avatar={profile.avatar} />
         </div>
 
         <hr className="divider" />
@@ -161,6 +163,42 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
         )}
       </div>
     </Modal>
+  );
+}
+
+const HERO_PARTICLE_COUNT = 7;
+
+function heroParticleVars(): Record<string, string> {
+  return {
+    '--x': `${between(6, 94).toFixed(1)}%`,
+    '--sz': `${between(2, 4).toFixed(1)}px`,
+    '--drift': `${between(-16, 16).toFixed(0)}px`,
+    '--life': `${between(5, 9).toFixed(1)}s`,
+    '--delay': `${between(-9, 0).toFixed(1)}s`,
+  } as Record<string, string>;
+}
+
+/**
+ * Bintik yang naik pelan di dalam kartu hero — versi kecil, di-scope ke
+ * `.profile__hero` saja, dari pola yang sama seperti komponen `Ambient`
+ * layar penuh (lihat `motion.css`). Dibuat sekali (`useMemo`) supaya tidak
+ * tersentak balik ke awal tiap kali `ProfileModal` re-render.
+ */
+function HeroParticles() {
+  const reduced = usePrefersReducedMotion();
+  const particles = useMemo(
+    () => Array.from({ length: HERO_PARTICLE_COUNT }, heroParticleVars),
+    [],
+  );
+
+  if (reduced) return null;
+
+  return (
+    <>
+      {particles.map((style, index) => (
+        <span key={index} className="profile__hero-particle" style={style} aria-hidden="true" />
+      ))}
+    </>
   );
 }
 

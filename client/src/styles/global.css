@@ -531,25 +531,77 @@ h3 {
   gap: var(--s1);
 }
 
-/* Kartu avatar: latar ambient pink samar (tekstur dekoratif, pola sama
+/* Kartu identitas: latar ambient pink samar (tekstur dekoratif, pola sama
    seperti corner-glow `.cell::before`/`.shop-item::before` di beranda) —
    bukan blok pink solid, supaya aksen pink tetap eksklusif milik tombol
-   "Tebak" sesuai DESIGN.md. */
+   "Tebak" sesuai DESIGN.md. Membungkus avatar SAMPAI Bio (bukan cuma
+   avatar) supaya gradiennya tidak terasa terpotong tepat di bawah avatar. */
 .profile__hero {
   position: relative;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
   width: 100%;
-  padding: var(--s5) 0 var(--s4);
+  padding: var(--s5) var(--s4) var(--s4);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  background: radial-gradient(
-      circle at 50% 15%,
-      color-mix(in srgb, var(--brand) 16%, transparent) 0%,
-      transparent 65%
-    ),
-    var(--surface);
+  background-color: var(--surface);
+  /* `background-image` diam-diam dianimasikan lewat `background-position`,
+     bukan lewat `at X% Y%` di dalam `radial-gradient` sendiri (itu tidak
+     bisa dianimasikan) — dan ini tetap latar milik elemen (bukan pseudo-
+     element berposisi), jadi selalu terlukis paling belakang, tidak akan
+     pernah menutupi avatar/teks di atasnya. */
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--brand) 18%, transparent) 0%,
+    transparent 60%
+  );
+  background-size: 160% 160%;
+  background-position: 35% 10%;
+  animation: hero-glow-drift 16s ease-in-out infinite alternate;
   margin-bottom: var(--s1);
+}
+
+@keyframes hero-glow-drift {
+  0% {
+    background-position: 20% 5%;
+  }
+  100% {
+    background-position: 65% 35%;
+  }
+}
+
+/* Bintik kecil yang naik pelan — versi ringkas dari `.ambient__mote` di
+   `motion.css`, di-scope ke tinggi kartu hero (bukan 100vh). */
+.profile__hero-particle {
+  position: absolute;
+  bottom: -6px;
+  left: var(--x);
+  width: var(--sz);
+  height: var(--sz);
+  border-radius: 50%;
+  background: var(--cream);
+  opacity: 0;
+  pointer-events: none;
+  animation: hero-particle-rise var(--life) linear var(--delay) infinite;
+}
+
+@keyframes hero-particle-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  15% {
+    opacity: 0.35;
+  }
+  80% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), -220px, 0);
+  }
 }
 
 /* Bukan anak `.avatar-edit-btn` langsung — tombol itu `overflow: hidden` +
@@ -579,6 +631,11 @@ h3 {
   position: absolute;
   top: -2px;
   right: -8px;
+  /* Tanpa ini, cincin `.profile__avatar-wrap::after` (pseudo-element,
+     digenerasi paling akhir di urutan render meski secara visual "duluan"
+     di JSX) malah tergambar DI ATAS badge ini — potongan garis cincinnya
+     kelihatan menyilang di pojok badge, seolah badge-nya terpotong. */
+  z-index: 1;
   padding: 3px 8px;
   border-radius: var(--radius-sm);
   background: var(--black);
@@ -792,21 +849,31 @@ h3 {
   cursor: pointer;
 }
 
-.avatar-edit-btn__overlay {
+/* Badge pensil selalu terlihat (bukan cuma saat hover) — sibling dari
+   `.avatar-edit-btn`, bukan anaknya, karena tombol itu `overflow: hidden`
+   yang akan ikut memotongnya kalau ditaruh di dalam (pola sama seperti
+   `.profile__level-badge`). `pointer-events: none` supaya klik di area ini
+   tetap tembus ke tombol avatar di bawahnya. */
+.avatar-edit-badge {
   position: absolute;
-  inset: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(0 0 0 / 0.55);
-  color: var(--cream);
-  opacity: 0;
-  transition: opacity 160ms var(--ease);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--black);
+  border: 2px solid var(--surface);
+  color: var(--text);
+  pointer-events: none;
 }
 
-.avatar-edit-btn:hover .avatar-edit-btn__overlay,
-.avatar-edit-btn:focus-visible .avatar-edit-btn__overlay {
-  opacity: 1;
+.avatar-edit-badge svg {
+  width: 14px;
+  height: 14px;
 }
 
 .input:disabled {
