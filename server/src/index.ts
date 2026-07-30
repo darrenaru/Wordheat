@@ -10,6 +10,7 @@ import { attachGateway } from './ws/gateway.ts';
 import { getEngine } from './semantic/engine.ts';
 import { sweepSoloSessions } from './game/solo.ts';
 import { sweepRooms } from './game/rooms.ts';
+import { sweepInvites } from './game/invites.ts';
 import { currentPuzzleDate } from './game/words.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -41,6 +42,7 @@ attachGateway(server);
 const sweeper = setInterval(() => {
   sweepSoloSessions();
   sweepRooms();
+  sweepInvites();
 }, config.sweepIntervalMs);
 sweeper.unref();
 

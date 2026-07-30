@@ -1,11 +1,13 @@
 import type {
   ApiError,
   AvatarConfig,
+  FriendsPayload,
   Guess,
   Leaderboard,
   PlayerStats,
   PowerupInventory,
   SoloSessionState,
+  UserSummary,
 } from '@shared/types.ts';
 import { loadProfile } from './profile.ts';
 import { getAuthToken } from './supabase.ts';
@@ -81,6 +83,46 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ name, avatar }),
     }).then((r) => r.profileId),
+
+  username: () => request<{ username: string | null }>('/username').then((r) => r.username),
+
+  /**
+   * Gagal (mis. sudah dipakai) melempar `ApiFailure` — baca `.code`/`.message`.
+   * `displayName`/`avatar` disegarkan sekalian ke `player_stats` — tanpa ini,
+   * pemain yang belum pernah main/login tidak akan punya nama tampil di sana
+   * sama sekali (baris itu baru disentuh lewat sesi permainan atau login).
+   */
+  setUsername: (username: string, displayName: string, avatar: AvatarConfig) =>
+    request<{ ok: true }>('/username', {
+      method: 'POST',
+      body: JSON.stringify({ username, displayName, avatar }),
+    }),
+
+  searchUsers: (q: string) =>
+    request<{ users: UserSummary[] }>(`/users/search?q=${encodeURIComponent(q)}`).then(
+      (r) => r.users,
+    ),
+
+  friends: () => request<{ ok: true } & FriendsPayload>('/friends'),
+
+  sendFriendRequest: (toProfileId: string) =>
+    request<{ ok: true }>('/friends/request', {
+      method: 'POST',
+      body: JSON.stringify({ toProfileId }),
+    }),
+
+  respondFriendRequest: (id: string, accept: boolean) =>
+    request<{ ok: true }>(`/friends/${id}/${accept ? 'accept' : 'decline'}`, { method: 'POST' }),
+
+  removeFriendship: (id: string) => request<{ ok: true }>(`/friends/${id}/remove`, { method: 'POST' }),
+
+  inviteToRoom: (code: string, toProfileId: string, fromName: string, fromAvatar: AvatarConfig) =>
+    request<{ ok: true }>(`/rooms/${code}/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ toProfileId, fromName, avatar: fromAvatar }),
+    }),
+
+  dismissInvite: (id: string) => request<{ ok: true }>(`/invites/${id}/dismiss`, { method: 'POST' }),
 
   wallet: () => request<{ balance: number }>('/wallet').then((r) => r.balance),
 

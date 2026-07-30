@@ -240,6 +240,46 @@ export interface Leaderboard {
 }
 
 /* ------------------------------------------------------------------ */
+/* Pertemanan & undangan room (berlaku untuk anonim maupun akun, sama   */
+/* seperti coin — diikat ke `profile_id`, bukan `user_id`)              */
+/* ------------------------------------------------------------------ */
+
+/** Identitas publik seorang pemain — dipakai di hasil pencarian, daftar
+ *  teman, dan permintaan pertemanan. Cuma pemain yang sudah mengatur
+ *  username sendiri yang bisa muncul di sini. */
+export interface UserSummary {
+  profileId: string;
+  username: string;
+  displayName: string;
+  avatar: AvatarConfig | null;
+}
+
+export interface FriendSummary {
+  friendshipId: string;
+  user: UserSummary;
+}
+
+export interface FriendRequestSummary {
+  id: string;
+  user: UserSummary;
+  createdAt: number;
+}
+
+export interface RoomInviteSummary {
+  id: string;
+  roomCode: string;
+  from: UserSummary;
+  createdAt: number;
+}
+
+export interface FriendsPayload {
+  friends: FriendSummary[];
+  incoming: FriendRequestSummary[];
+  outgoing: FriendRequestSummary[];
+  invites: RoomInviteSummary[];
+}
+
+/* ------------------------------------------------------------------ */
 /* Coin & powerup (opsional, berlaku untuk anonim maupun akun)          */
 /* ------------------------------------------------------------------ */
 

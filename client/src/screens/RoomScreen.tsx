@@ -16,12 +16,21 @@ import { applyBalance } from '../lib/wallet.ts';
 import { Ambient } from '../components/Ambient.tsx';
 import { Avatar } from '../components/Avatar.tsx';
 import { GuessFxLayer } from '../components/GuessFx.tsx';
+import { InviteFriendsModal } from '../components/InviteFriendsModal.tsx';
 import { GuessInput } from '../components/GuessInput.tsx';
 import { GuessList } from '../components/GuessList.tsx';
 import { HeatMeter } from '../components/HeatMeter.tsx';
 import { PlayerList } from '../components/PlayerList.tsx';
 import { PlayerProfileModal } from '../components/PlayerProfileModal.tsx';
-import { CopyIcon, EyeIcon, FlagIcon, ShareIcon, TargetIcon, useToast } from '../components/ui.tsx';
+import {
+  CopyIcon,
+  EyeIcon,
+  FlagIcon,
+  ShareIcon,
+  TargetIcon,
+  UsersIcon,
+  useToast,
+} from '../components/ui.tsx';
 
 interface RoomScreenProps {
   /** Kode ruang, atau "BARU" untuk membuat ruang baru. */
@@ -210,6 +219,7 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
       {room.status === 'lobby' && (
         <Lobby
           room={room}
+          profile={profile}
           isHost={isHost}
           onStart={() => send({ type: 'start' })}
           onSettings={(settings) => send({ type: 'settings', settings })}
@@ -287,16 +297,19 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
 
 function Lobby({
   room,
+  profile,
   isHost,
   onStart,
   onSettings,
 }: {
   room: RoomState;
+  profile: PlayerProfile;
   isHost: boolean;
   onStart(): void;
   onSettings(settings: Partial<RoomSettings>): void;
 }) {
   const toast = useToast();
+  const [showInviteFriends, setShowInviteFriends] = useState(false);
   const inviteUrl = `${location.origin}/#/ruang/${room.code}`;
 
   const copy = async (text: string, message: string) => {
@@ -340,10 +353,23 @@ function Lobby({
           Bagikan undangan
         </button>
 
+        <button className="btn btn--ghost btn--block btn--sm" onClick={() => setShowInviteFriends(true)}>
+          <UsersIcon />
+          Undang dari daftar teman
+        </button>
+
         <p className="caption" style={{ textAlign: 'center' }}>
           Teman yang membuka tautan ini langsung masuk ke ruangmu.
         </p>
       </div>
+
+      {showInviteFriends && (
+        <InviteFriendsModal
+          roomCode={room.code}
+          profile={profile}
+          onClose={() => setShowInviteFriends(false)}
+        />
+      )}
 
       <div className="card">
         <h2 style={{ marginBottom: 8 }}>Pengaturan ronde</h2>

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { PlayerProfile } from '@shared/types.ts';
+import type { FriendsPayload, PlayerProfile } from '@shared/types.ts';
 import { api } from './lib/api.ts';
 import { registerCoinFxOrigin } from './lib/coinFx.ts';
+import { getFriends, subscribeFriends } from './lib/friends.ts';
 import { applyInventory } from './lib/inventory.ts';
 import { hasChosenSignInMethod, loadProfile, saveProfile } from './lib/profile.ts';
 import { navigate, useRoute } from './lib/router.ts';
@@ -17,10 +18,11 @@ import { applyBalance, getBalance, subscribeWallet } from './lib/wallet.ts';
 import { Avatar } from './components/Avatar.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
 import { CoinFxLayer } from './components/CoinFx.tsx';
+import { ProfileModal } from './components/ProfileModal.tsx';
 import { StatsModal } from './components/StatsModal.tsx';
-import { BackIcon, HelpIcon, SoundOffIcon, SoundOnIcon } from './components/ui.tsx';
+import { BackIcon, HelpIcon, SoundOffIcon, SoundOnIcon, UsersIcon } from './components/ui.tsx';
 import { WelcomeModal } from './components/WelcomeModal.tsx';
-import { AvatarStudio } from './screens/AvatarStudio.tsx';
+import { FriendListScreen } from './screens/FriendListScreen.tsx';
 import { HomeScreen } from './screens/HomeScreen.tsx';
 import { LeaderboardScreen } from './screens/LeaderboardScreen.tsx';
 import { RoomScreen } from './screens/RoomScreen.tsx';
@@ -28,14 +30,18 @@ import { RulesModal } from './screens/RulesModal.tsx';
 import { ShopScreen } from './screens/ShopScreen.tsx';
 import { SoloScreen } from './screens/SoloScreen.tsx';
 
+const EMPTY_FRIENDS: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [] };
+
 export function App() {
   const route = useRoute();
   const [profile, setProfile] = useState<PlayerProfile>(loadProfile);
   const [showRules, setShowRules] = useState(false);
-  const [showStudio, setShowStudio] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const balance = useSyncExternalStore(subscribeWallet, getBalance, () => 0);
+  const friendsPayload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS);
+  const pendingFriendCount = friendsPayload.incoming.length + friendsPayload.invites.length;
   const coinChipRef = useRef<HTMLButtonElement>(null);
   const previousBalance = useRef(balance);
   /** Denyut singkat pada chip saldo tiap kali nilainya berubah — turun
@@ -138,6 +144,21 @@ export function App() {
               <img src="/coin.svg" width={18} height={18} alt="" />
               {balance}
             </button>
+            <button
+              className="btn btn--ghost btn--sm friends-btn"
+              onClick={() => navigate('/teman')}
+              aria-label={
+                pendingFriendCount > 0
+                  ? `Teman — ${pendingFriendCount} menunggu`
+                  : 'Teman'
+              }
+            >
+              <UsersIcon />
+              Teman
+              {pendingFriendCount > 0 && (
+                <span className="friends-btn__badge tnum">{pendingFriendCount}</span>
+              )}
+            </button>
             {isAuthAvailable() &&
               (session ? (
                 <button
@@ -158,8 +179,8 @@ export function App() {
               ))}
             <button
               className="btn btn--ghost avatar-btn"
-              onClick={() => setShowStudio(true)}
-              aria-label={`Ubah avatar dan nama (sekarang: ${profile.name})`}
+              onClick={() => setShowProfile(true)}
+              aria-label={`Profil saya (sekarang: ${profile.name})`}
             >
               <Avatar config={profile.avatar} size={36} />
             </button>
@@ -174,6 +195,7 @@ export function App() {
           )}
           {route.name === 'shop' && <ShopScreen />}
           {route.name === 'leaderboard' && <LeaderboardScreen />}
+          {route.name === 'friends' && <FriendListScreen />}
         </main>
 
         <footer className="footer">
@@ -183,11 +205,11 @@ export function App() {
 
       {showWelcome && <WelcomeModal onContinueAsGuest={() => setShowWelcome(false)} />}
       {showRules && <RulesModal onClose={() => setShowRules(false)} />}
-      {showStudio && (
-        <AvatarStudio
+      {showProfile && (
+        <ProfileModal
           profile={profile}
           onSave={updateProfile}
-          onClose={() => setShowStudio(false)}
+          onClose={() => setShowProfile(false)}
         />
       )}
       {showAuth && (

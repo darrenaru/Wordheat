@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { AvatarConfig, PlayerProfile } from '@shared/types.ts';
+import type { AvatarConfig } from '@shared/types.ts';
 import {
   AVATAR_BACKGROUNDS,
   AVATAR_PART_NONE,
@@ -29,13 +29,13 @@ function backgroundChoices(current: string): string[] {
 }
 
 interface AvatarStudioProps {
-  profile: PlayerProfile;
-  onSave(profile: PlayerProfile): void;
+  avatar: AvatarConfig;
+  onSave(avatar: AvatarConfig): void;
   onClose(): void;
 }
 
-export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
-  const [draft, setDraft] = useState<PlayerProfile>(profile);
+export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioProps) {
+  const [draft, setDraft] = useState<AvatarConfig>(initial);
 
   // Daftar bagian ikut dalam chunk DiceBear yang dimuat terpisah; berlangganan
   // supaya panelnya muncul begitu chunk-nya siap.
@@ -45,7 +45,7 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
 
   // Bagian yang benar-benar terpakai, termasuk yang dipilih seed. Inilah yang
   // membuat nomor pilihan dan tombol panah tetap benar walau belum dipatok.
-  const resolved = avatarResolvedParts(draft.avatar);
+  const resolved = avatarResolvedParts(draft);
 
   const [activeKey, setActiveKey] = useState<string | null>(null);
   useEffect(() => {
@@ -64,18 +64,17 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
 
   const active = parts?.find((part) => part.key === activeKey) ?? null;
 
-  const setAvatar = (next: AvatarConfig) => setDraft((current) => ({ ...current, avatar: next }));
-  const pick = (key: string, value: string | null) => setAvatar(withPart(draft.avatar, key, value));
+  const setAvatar = (next: AvatarConfig) => setDraft(next);
+  const pick = (key: string, value: string | null) => setAvatar(withPart(draft, key, value));
 
-  const dirty =
-    draft.name !== profile.name || avatarKey(draft.avatar) !== avatarKey(profile.avatar);
+  const dirty = avatarKey(draft) !== avatarKey(initial);
 
   /**
    * Varian yang sedang tampil untuk sebuah bagian: yang dipatok kalau ada,
    * kalau tidak yang dipilih seed. `null` berarti bagian itu sedang kosong.
    */
   const currentValue = (part: AvatarPart): string | null => {
-    const pinned = draft.avatar.parts?.[part.key];
+    const pinned = draft.parts?.[part.key];
     if (pinned === AVATAR_PART_NONE) return null;
     return pinned ?? resolved?.[part.key] ?? null;
   };
@@ -100,8 +99,7 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
 
   /**
    * Panah dipasang di seluruh studio, bukan hanya panel pilihan, supaya bisa
-   * dipakai tepat setelah membuka modal. Peristiwa dari kolom nama dilewati —
-   * di sana panah harus tetap memindahkan kursor teks.
+   * dipakai tepat setelah membuka modal.
    */
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.target instanceof HTMLInputElement) return;
@@ -121,7 +119,7 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
 
   return (
     <Modal
-      title="Avatar & nama"
+      title="Ubah Avatar"
       onClose={onClose}
       wide
       bodyClassName="studio__body"
@@ -134,7 +132,7 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
             className="btn btn--primary"
             style={{ flex: 1 }}
             onClick={() => {
-              onSave({ ...draft, name: draft.name.trim() || 'Pemain' });
+              onSave(draft);
               onClose();
             }}
           >
@@ -146,21 +144,7 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
       <div className="studio" onKeyDown={onKeyDown}>
         <div className="studio__side">
           <div className="studio__preview">
-            <Avatar config={draft.avatar} size={196} square alt="Pratinjau avatar" />
-          </div>
-
-          <div className="field">
-            <label className="field__label" htmlFor="nama-pemain">
-              Nama tampilan
-            </label>
-            <input
-              id="nama-pemain"
-              className="input"
-              value={draft.name}
-              maxLength={18}
-              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-              placeholder="Nama kamu"
-            />
+            <Avatar config={draft} size={196} square alt="Pratinjau avatar" />
           </div>
 
           <div className="studio__actions">
@@ -174,7 +158,7 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
 
             <button
               className="btn btn--ghost btn--block btn--sm"
-              onClick={() => setDraft(profile)}
+              onClick={() => setDraft(initial)}
               disabled={!dirty}
               title={dirty ? 'Buang perubahan yang belum disimpan' : 'Belum ada perubahan'}
             >
@@ -218,9 +202,9 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
                   <PartPanel
                     key={active.key}
                     part={active}
-                    avatar={draft.avatar}
+                    avatar={draft}
                     current={currentValue(active)}
-                    pinned={draft.avatar.parts?.[active.key]}
+                    pinned={draft.parts?.[active.key]}
                     onPick={(value) => pick(active.key, value)}
                     onShuffle={() => {
                       const current = currentValue(active);
@@ -233,14 +217,14 @@ export function AvatarStudio({ profile, onSave, onClose }: AvatarStudioProps) {
                 <div className="field">
                   <span className="field__label">Warna latar</span>
                   <div className="swatches">
-                    {backgroundChoices(draft.avatar.backgroundColor).map((color) => (
+                    {backgroundChoices(draft.backgroundColor).map((color) => (
                       <button
                         key={color}
                         className="swatch"
                         style={{ background: `#${color}` }}
-                        aria-pressed={draft.avatar.backgroundColor === color}
+                        aria-pressed={draft.backgroundColor === color}
                         aria-label={`Latar #${color}`}
-                        onClick={() => setAvatar({ ...draft.avatar, backgroundColor: color })}
+                        onClick={() => setAvatar({ ...draft, backgroundColor: color })}
                       />
                     ))}
                   </div>

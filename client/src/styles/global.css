@@ -450,6 +450,22 @@ h3 {
   gap: var(--s4);
 }
 
+.profile__avatar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+}
+
+/* Pengaturan yang belum aktif (tema, username) — dibedakan lewat opasitas
+   saja, bukan disembunyikan, supaya pemain tahu fiturnya sedang disiapkan. */
+.field--soon {
+  opacity: 0.55;
+}
+
+.input:disabled {
+  cursor: not-allowed;
+}
+
 /* Garis di kiri-kanan teks "atau" — pemisah login Google dari form email. */
 .auth-divider {
   display: flex;
@@ -665,6 +681,28 @@ h3 {
 
 .avatar-btn:hover {
   transform: scale(1.06);
+}
+
+/* Tombol topbar "Teman" — posisi relative supaya badge angka bisa menempel
+   presisi di pojok, tanpa mendorong tata letak tombol-tombol di sebelahnya. */
+.friends-btn {
+  position: relative;
+}
+
+.friends-btn__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
 }
 
 /* ---------------------------------------------------------------- lain */

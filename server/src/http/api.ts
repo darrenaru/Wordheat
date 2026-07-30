@@ -13,7 +13,18 @@ import {
   submitSoloGuess,
 } from '../game/solo.ts';
 import { getRoom, roomCount } from '../game/rooms.ts';
+import { dismissInvite, listInvites, sendInvite } from '../game/invites.ts';
 import { addPowerup, getInventory } from '../powerup/store.ts';
+import {
+  areFriends,
+  getUsername,
+  listFriends,
+  removeFriendship,
+  respondToFriendRequest,
+  searchUsers,
+  sendFriendRequest,
+  setUsername,
+} from '../social/store.ts';
 import { getLeaderboard, getStats, linkAccountProfile, verifyToken } from '../stats/store.ts';
 import { getBalance, spendWallet } from '../wallet/store.ts';
 
@@ -178,6 +189,152 @@ export function createApiRouter(): Router {
     const avatar = resolveAvatar(req.body);
     const canonicalProfileId = await linkAccountProfile(userId, profileId, name, avatar);
     res.json({ ok: true, profileId: canonicalProfileId });
+  });
+
+  /** Username pemain sendiri, kalau sudah pernah diatur. */
+  router.get('/username', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const username = await getUsername(profileId);
+    res.json({ ok: true, username });
+  });
+
+  /** Set/ganti username sendiri — identitas unik yang dipakai Add Friend. */
+  router.post('/username', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const username = typeof req.body?.username === 'string' ? req.body.username : '';
+    const displayName =
+      typeof req.body?.displayName === 'string'
+        ? req.body.displayName.trim().slice(0, 32) || undefined
+        : undefined;
+    const avatar = resolveAvatar(req.body);
+    const result = await setUsername(profileId, username, { displayName, avatar });
+    if (!result.ok) {
+      const message =
+        result.code === 'taken'
+          ? 'Username itu sudah dipakai.'
+          : 'Username tidak valid — 3-20 karakter, diawali huruf, boleh angka/underscore.';
+      res.status(400).json({ ok: false, code: result.code, message });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  /** Cari pemain lewat awalan username, buat Add Friend. */
+  router.get('/users/search', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (q.length < 2) {
+      res.json({ ok: true, users: [] });
+      return;
+    }
+    const users = await searchUsers(q, profileId);
+    res.json({ ok: true, users });
+  });
+
+  /** Teman (accepted) + permintaan masuk/keluar + undangan room menunggu. */
+  router.get('/friends', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const [{ friends, incoming, outgoing }, invites] = await Promise.all([
+      listFriends(profileId),
+      Promise.resolve(listInvites(profileId)),
+    ]);
+    res.json({ ok: true, friends, incoming, outgoing, invites });
+  });
+
+  router.post('/friends/request', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const toProfileId = typeof req.body?.toProfileId === 'string' ? req.body.toProfileId : '';
+    if (!toProfileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Pemain tujuan tidak valid.' });
+      return;
+    }
+    const result = await sendFriendRequest(profileId, toProfileId);
+    res.status(result.ok ? 200 : 400).json(result);
+  });
+
+  router.post('/friends/:id/accept', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const result = await respondToFriendRequest(profileId, req.params.id, true);
+    res.status(result.ok ? 200 : 400).json(result);
+  });
+
+  router.post('/friends/:id/decline', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const result = await respondToFriendRequest(profileId, req.params.id, false);
+    res.status(result.ok ? 200 : 400).json(result);
+  });
+
+  /** Batalkan permintaan keluar ATAU hapus pertemanan yang sudah diterima — satu aksi untuk keduanya. */
+  router.post('/friends/:id/remove', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const result = await removeFriendship(profileId, req.params.id);
+    res.status(result.ok ? 200 : 400).json(result);
+  });
+
+  /** Undang teman (harus sudah berteman) ke room yang sedang dibuka — masuk kotak undangan penerima. */
+  router.post('/rooms/:code/invite', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const room = getRoom(req.params.code);
+    if (!room) {
+      res.status(404).json({ ok: false, code: 'not_found', message: 'Kode ruang tidak ditemukan.' });
+      return;
+    }
+    const toProfileId = typeof req.body?.toProfileId === 'string' ? req.body.toProfileId : '';
+    if (!toProfileId || !(await areFriends(profileId, toProfileId))) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Cuma bisa mengundang teman.' });
+      return;
+    }
+    const fromDisplayName =
+      typeof req.body?.fromName === 'string' ? req.body.fromName.trim().slice(0, 32) || 'Pemain' : 'Pemain';
+    const fromAvatar = resolveAvatar(req.body) ?? null;
+    sendInvite(toProfileId, { roomCode: room.code, fromProfileId: profileId, fromDisplayName, fromAvatar });
+    res.json({ ok: true });
+  });
+
+  router.post('/invites/:id/dismiss', (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    dismissInvite(profileId, req.params.id);
+    res.json({ ok: true });
   });
 
   /** Saldo coin pemain (anonim maupun login) — 0 kalau belum pernah main/menang. */
