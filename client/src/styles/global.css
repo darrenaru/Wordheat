@@ -1,0 +1,712 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Angka skor/peringkat pakai tabular figures supaya tidak "melompat" saat berubah. */
+.tnum {
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------ scrollbar */
+
+/* Firefox dan peramban lain yang mendukung properti standar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+/* Chromium dan Safari masih memakai pseudo-element milik WebKit. Jalurnya
+   terpisah, jadi keduanya perlu ditulis. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  /* Border transparan + `background-clip` menyisakan celah di kiri-kanan
+     batang, sehingga tampak melayang alih-alih menempel di tepi. */
+  background: var(--scroll-thumb);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+  background-clip: content-box;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.app {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* `position` + `z-index` wajib: lapisan suasana adalah elemen berposisi, dan
+   tanpa konteks tumpukan eksplisit di sini ia akan terlukis di atas teks. */
+.shell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: 0 var(--s4);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Beranda adalah peluncur, bukan area permainan. Batas 680px di DESIGN.md §6
+   ada untuk menjaga fokus saat menebak; grid bento butuh ruang lebih. */
+.shell--wide {
+  max-width: var(--content-width-wide);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--s5);
+}
+
+.topbar__right {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-size: 19px;
+  color: var(--brand);
+}
+
+.brand__mark {
+  height: 26px;
+  width: auto;
+  aspect-ratio: 4651 / 3385;
+  flex: none;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ---------------------------------------------------------------- teks */
+
+/* Display disetel rapat — leading di bawah 1 dan tracking sedikit negatif.
+   Itulah yang membuat judul terbaca sebagai satu blok padat, bukan baris teks
+   yang kebesaran. */
+h1 {
+  font-size: clamp(28px, 4.4vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.muted {
+  color: var(--text-dim);
+}
+
+.caption {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.small {
+  font-size: 14px;
+}
+
+/* ---------------------------------------------------------------- kartu */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--s5);
+}
+
+.card--tight {
+  padding: var(--s4);
+}
+
+/* Pita krem: layar hasil dibalik jadi tinta hitam di atas kertas krem, meniru
+   pergantian pita penuh-lebar di referensinya. Tokennya ditulis ulang di
+   lingkup ini, jadi semua anak — teks redup, garis, badge — ikut menyesuaikan
+   tanpa perlu satu pun selektor tambahan. */
+.card--cream {
+  --text: var(--black);
+  --text-dim: var(--cream-dim);
+  --border: var(--cream-border);
+  --border-strong: var(--cream-border-strong);
+  --surface: var(--cream-alt);
+  --surface-alt: var(--cream-alt);
+
+  background: var(--cream);
+  border-color: var(--cream-border);
+  color: var(--text);
+}
+
+/* Di atas krem, isian tombol sekunder nyaris seterang kartunya — tepinya
+   dipertegas supaya bentuk tombol tetap terbaca. */
+.card--cream .btn--secondary {
+  border-color: var(--cream-border-strong);
+}
+
+.card--cream .btn--secondary:hover:not(:disabled) {
+  background: var(--cream);
+}
+
+/* ---------------------------------------------------------------- tombol */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  padding: 0 var(--s5);
+  height: 48px;
+  border-radius: var(--radius);
+  font-weight: 700;
+  font-size: 15px;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease),
+    transform 120ms var(--ease), opacity 160ms var(--ease);
+  white-space: nowrap;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Tombol utama: krem padat di atas hitam. Ini aksi "lanjut" yang tenang —
+   pink disimpan untuk satu aksi saja (lihat `.btn--brand`). */
+.btn--primary {
+  background: var(--cream);
+  color: var(--black);
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--cream-alt);
+}
+
+/* Satu-satunya tombol pink di seluruh aplikasi: mengirim tebakan. Warnanya
+   dijaga tetap langka supaya tetap berarti. */
+.btn--brand {
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+
+.btn--brand:hover:not(:disabled) {
+  background: var(--brand-hover);
+}
+
+.btn--secondary {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+}
+
+.btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-alt);
+}
+
+.btn--sm {
+  height: 36px;
+  padding: 0 var(--s3);
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+}
+
+.btn--icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: var(--radius);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--danger:hover:not(:disabled) {
+  color: var(--very-hot);
+}
+
+/* ---------------------------------------------------------------- input */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.field__label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.input {
+  width: 100%;
+  height: 52px;
+  padding: 0 var(--s4);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 160ms var(--ease), background 160ms var(--ease);
+}
+
+.input::placeholder {
+  color: var(--placeholder);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--brand);
+  background: var(--input-bg-focus);
+}
+
+.input--code {
+  text-align: center;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+/* ---------------------------------------------------------------- badge */
+
+/* Chip bersudut kecil, bukan pill — mengikuti sudut tegas di seluruh sistem. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
+  color: var(--temp-color, var(--text-dim));
+  background: color-mix(in srgb, var(--temp-color, var(--text-dim)) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--temp-color, var(--text-dim)) 34%, transparent);
+}
+
+.badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+.badge--plain {
+  color: var(--text-dim);
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+
+/* ---------------------------------------------------------------- toast */
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: var(--s5);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  z-index: 60;
+  width: min(420px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: var(--s3) var(--s4);
+  font-size: 14px;
+  box-shadow: var(--shadow);
+  animation: toast-in 220ms var(--ease);
+}
+
+.toast--error {
+  border-color: color-mix(in srgb, var(--very-hot) 45%, var(--border));
+}
+
+.form-error {
+  color: var(--very-hot);
+  font-size: 13px;
+}
+
+.auth-form,
+.stats-modal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+/* Garis di kiri-kanan teks "atau" — pemisah login Google dari form email. */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ------------------------------------------------------------- coin fx */
+/* Koin terbang dari chip saldo menuju tombol powerup yang baru dibeli —
+   di atas toast supaya selalu terlihat, tapi `pointer-events: none` di
+   semua lapisannya karena ini murni dekorasi, bukan sesuatu yang bisa
+   diklik. */
+
+.coin-fx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  pointer-events: none;
+}
+
+.coin-fx {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  margin-left: -10px;
+  margin-top: -10px;
+  animation: coin-fx-fly 650ms var(--ease) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes coin-fx-fly {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  75% {
+    transform: translate(var(--dx), var(--dy)) scale(0.85);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), var(--dy)) scale(0.25);
+    opacity: 0;
+  }
+}
+
+/* Chip saldo di header berdenyut saat nilainya berubah — turun (dipakai
+   belanja) memakai warna panas, naik (menang) memakai warna "correct". */
+.coin-chip--spend {
+  animation: coin-chip-spend 420ms var(--ease);
+}
+
+.coin-chip--gain {
+  animation: coin-chip-gain 420ms var(--ease);
+}
+
+@keyframes coin-chip-spend {
+  30% {
+    transform: scale(0.88);
+    color: var(--very-hot);
+  }
+}
+
+@keyframes coin-chip-gain {
+  30% {
+    transform: scale(1.15);
+    color: var(--correct);
+  }
+}
+
+/* ---------------------------------------------------------------- modal */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s4);
+  z-index: 50;
+  animation: fade-in 180ms var(--ease);
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  /* Tanpa ini, elemen `position: sticky` di dalam modal (mis. `.studio__side`)
+     bisa membuat seam kompositor GPU saat scroll — celah subpiksel di layer
+     sticky itu menampakkan sekilas halaman di baliknya yang diburamkan
+     `.modal-backdrop`, muncul sebagai garis warna asing (magenta dari glow
+     judul beranda, dst) menyusuri tepi elemen sticky. */
+  overflow: hidden;
+  width: min(560px, 100%);
+  /* `dvh` mengikuti tinggi layar yang BENAR-BENAR terlihat di browser mobile
+     (toolbar alamat yang bisa muncul/hilang ikut diperhitungkan) — `vh` di
+     Safari/Chrome mobile dihitung dari viewport terbesar (toolbar tersembunyi),
+     jadi modal bisa lebih tinggi dari layar yang sebenarnya kelihatan dan
+     bagian bawah isinya terpotong ganjil di tengah baris. Nilai `vh` dibiarkan
+     sebagai fallback untuk browser lama yang belum kenal `dvh`. */
+  max-height: min(86vh, 760px);
+  max-height: min(86dvh, 760px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow);
+  animation: modal-in 220ms var(--ease);
+}
+
+/* Harus setelah `.modal` — kekhususannya sama, jadi urutanlah yang menentukan. */
+.modal--wide {
+  width: min(980px, 100%);
+  max-height: min(90vh, 820px);
+  max-height: min(90dvh, 820px);
+}
+
+.modal__head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s5) var(--s5) var(--s4);
+}
+
+/* Satu-satunya bagian yang menggulir. `min-height: 0` diperlukan karena item
+   flex secara bawaan menolak menyusut di bawah tinggi isinya. */
+.modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 var(--s5) var(--s5);
+  overflow-y: auto;
+}
+
+/* Kaki menempel di dasar modal: `flex: none` menahannya dari ikut menyusut —
+   sebelumnya kaki memakai ulang kelas `.modal__body`, ikut jadi kontainer
+   gulir, dan tombol setinggi 48px terjepit dalam ruang 44px.
+   Garis atas dan latar padatnya menandai bahwa isi menggulir di baliknya. */
+.modal__foot {
+  flex: none;
+  padding: var(--s4) var(--s5);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+}
+
+/* ---------------------------------------------------------------- avatar */
+
+.avatar {
+  border-radius: 50%;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  flex: none;
+  display: block;
+}
+
+.avatar--square {
+  border-radius: var(--radius-lg);
+}
+
+/* Ditampilkan sampai chunk DiceBear selesai dimuat. Ukuran dan bentuknya sama
+   persis dengan avatar asli supaya tata letak tidak bergeser saat berganti. */
+.avatar--placeholder {
+  display: inline-grid;
+  place-items: center;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--black);
+  line-height: 1;
+  user-select: none;
+}
+
+.avatar-btn {
+  padding: 0;
+  border-radius: 50%;
+  line-height: 0;
+  transition: transform 160ms var(--ease);
+}
+
+.avatar-btn:hover {
+  transform: scale(1.06);
+}
+
+/* ---------------------------------------------------------------- lain */
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  border: none;
+  margin: var(--s4) 0;
+}
+
+.empty {
+  text-align: center;
+  color: var(--text-dim);
+  padding: var(--s6) var(--s4);
+  font-size: 14px;
+}
+
+.footer {
+  padding: var(--s5) 0 var(--s6);
+  text-align: center;
+}
+
+.footer__credit {
+  margin-top: var(--s6);
+}
+
+@media (max-width: 520px) {
+  h1 {
+    font-size: 24px;
+  }
+
+  .card {
+    padding: var(--s4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

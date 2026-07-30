@@ -1,0 +1,18 @@
+# Kata yang tidak boleh jadi target dan ditolak sebagai input pemain.
+# Sebagian besar tidak ada di lexicon (jadi otomatis ditolak), daftar ini
+# berfungsi sebagai jaring pengaman kalau kosakata diperluas nanti.
+
+# kasar / makian
+anjing-umpatan, bangsat, bajingan, kampret, keparat, brengsek
+goblok, tolol, idiot, kontol, memek, ngentot, jancok, asu, babi-umpatan
+pukimak, tai, taik, sialan, bacot
+
+# seksual / eksplisit
+seks, telanjang, porno, bugil, bokep, masturbasi, onani, bermasturbasi
+vagina, vaginanya, vaginaku, vaginal, penis, pelacur, pelacuran
+kontolku, kontolnya, memekku, memeknya, horny, sange, coli
+
+# sensitif
+bunuh, mati-bunuh, narkoba, sabu, ganja, heroin, kokain, ekstasi, sabu-sabu, shabu
+perkosaan, diperkosa, memperkosa, memperkosanya, pemerkosaan, pemerkosa
+mutilasi, pedofilia, komunis, pki, kafir

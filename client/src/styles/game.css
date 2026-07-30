@@ -1,0 +1,1268 @@
+/* -------------------------------------------------------------- heat meter */
+
+.heat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+
+.heat__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  min-height: 40px;
+}
+
+.heat__word {
+  font-size: clamp(28px, 6vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  overflow-wrap: anywhere;
+}
+
+.heat__label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--temp-color, var(--text-dim));
+  transition: color var(--dur) var(--ease);
+  white-space: nowrap;
+}
+
+.heat__idle {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.heat__track {
+  position: relative;
+  height: 14px;
+  border-radius: var(--radius-bar);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Skala penuh spektrum suhu, ditampilkan sangat redup sebagai konteks: pemain
+   bisa melihat ke mana bar akan bergerak tanpa membuat layar jadi ramai. */
+.heat__scale {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    var(--freezing),
+    var(--cold),
+    var(--cool),
+    var(--warm),
+    var(--hot),
+    var(--very-hot)
+  );
+  opacity: 0.12;
+}
+
+.heat__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: var(--radius-bar);
+  background: var(--temp-color, var(--freezing));
+  /* Kilau sapuan di dalamnya berhenti di `translateX(100%)` dan tetap ada di
+     DOM sampai tebakan berikutnya. Tanpa pemotongan di sini, ia terparkir
+     sebagai noda putih di sisa track — yang punya `overflow: hidden`, bukan
+     elemen ini. Bayangan glow tidak ikut terpotong: `overflow` hanya
+     memotong anak, bukan box-shadow elemennya sendiri. */
+  overflow: hidden;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--temp-color, var(--freezing)) 55%, transparent);
+  transition: width 380ms var(--ease), background var(--dur) var(--ease);
+}
+
+.heat--won .heat__fill {
+  animation: heat-pulse 1.6s var(--ease) infinite;
+}
+
+@keyframes heat-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 14px color-mix(in srgb, var(--correct) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 26px color-mix(in srgb, var(--correct) 80%, transparent);
+  }
+}
+
+.heat__foot {
+  min-height: 20px;
+}
+
+/* ---------------------------------------------------------------- input */
+
+.guess-form {
+  display: flex;
+  gap: var(--s2);
+}
+
+.guess-form .btn {
+  height: 52px;
+  flex: none;
+}
+
+/* -------------------------------------------------------------- riwayat */
+
+.guesses {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.guess {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 64px 40px auto;
+  align-items: center;
+  gap: var(--s3);
+  padding: 10px var(--s3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  border: 1px solid transparent;
+  animation: guess-in 260ms var(--ease);
+}
+
+.guess--latest {
+  border-color: color-mix(in srgb, var(--temp-color) 45%, transparent);
+  background: color-mix(in srgb, var(--temp-color) 8%, var(--surface-alt));
+}
+
+@keyframes guess-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.guess__order {
+  text-align: right;
+  opacity: 0.6;
+}
+
+.guess__word {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+/* Muncul cuma di papan bersama (ruang) — solo tidak pernah kirim `players`. */
+.guess__players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-top: 2px;
+}
+
+/* Lebih dari satu kalau beberapa pemain kebetulan menebak kata yang sama. */
+.guess__player {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.guess__player .avatar {
+  flex: none;
+}
+
+.guess__bar {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-bar);
+  background: var(--black);
+  overflow: hidden;
+}
+
+.guess__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-bar);
+  background: var(--temp-color, var(--freezing));
+  transition: width 380ms var(--ease);
+}
+
+.guess__rank {
+  text-align: right;
+  color: var(--text-dim);
+}
+
+@media (max-width: 560px) {
+  .guess {
+    grid-template-columns: 22px minmax(0, 1fr) 38px auto;
+    gap: var(--s2);
+  }
+
+  .guess__bar {
+    display: none;
+  }
+}
+
+/* -------------------------------------------------------------- pemain */
+
+.players {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.player {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3);
+  background: var(--surface-alt);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+}
+
+.player--you {
+  border-color: var(--border-strong);
+}
+
+.player--away {
+  opacity: 0.5;
+}
+
+.player__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Membungkus avatar+nama supaya bisa diklik untuk buka profil — dasarnya
+   cuma tata letak flex, tombolnya sendiri di-reset lewat selektor `button`
+   supaya baris yang tidak diberi `onSelectPlayer` (dirender sebagai `div`)
+   tidak ikut kena kursor/hover interaktif. */
+.player__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+button.player__trigger {
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+button.player__trigger:hover {
+  background: var(--surface-hover);
+}
+
+.player__name {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-weight: 500;
+  min-width: 0;
+}
+
+.player__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player__host {
+  color: var(--warm);
+  display: inline-flex;
+  flex: none;
+}
+
+.player__bar {
+  height: 4px;
+  border-radius: var(--radius-bar);
+  background: var(--black);
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.player__bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-bar);
+  background: var(--temp-color, var(--freezing));
+  transition: width 380ms var(--ease);
+}
+
+.player__place {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--temp-color, var(--text-dim));
+  flex: none;
+}
+
+/* ------------------------------------------------------------- profil */
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  text-align: center;
+}
+
+.profile__name {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.profile__badges {
+  display: flex;
+  gap: var(--s2);
+}
+
+.profile__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+  width: 100%;
+  margin: var(--s2) 0 0;
+}
+
+.profile__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s3);
+  background: var(--surface-alt);
+  border-radius: var(--radius);
+  text-align: left;
+}
+
+.profile__stat dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.profile__stat--wide {
+  grid-column: span 2;
+}
+
+/* -------------------------------------------------------------- hasil */
+
+.result {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.result__secret {
+  font-size: clamp(36px, 8vw, 52px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--correct);
+  overflow-wrap: anywhere;
+}
+
+/* Di atas krem, hijau terang cuma 1.5:1 — versi gelapnya yang dipakai. */
+.card--cream .result__secret {
+  color: var(--correct-ink);
+}
+
+.result__secret--lost,
+.card--cream .result__secret--lost {
+  color: var(--text);
+}
+
+.result__stats {
+  display: flex;
+  gap: var(--s5);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Peringkat semua pemain, langsung terlihat begitu ronde berakhir — tidak
+   perlu scroll ke daftar Pemain di bawah untuk tahu hasilnya. */
+.result-ranks {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  text-align: left;
+}
+
+.result-rank {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius-sm);
+  background: rgb(0 0 0 / 0.05);
+}
+
+.result-rank__place {
+  width: 1.5em;
+  flex: none;
+  text-align: center;
+  font-weight: 700;
+}
+
+.result-rank__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat__value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* -------------------------------------------------------------- home */
+
+/* Hallmark · genre: playful · macrostructure: Bento Grid
+ * design-system: DESIGN.md · designed-as-app
+ * pre-emit critique: P5 H5 E4 S5 R4 V5
+ * catatan: genre playful melarang pink jenuh (chroma ≤ 0.16); DESIGN.md
+ * menang, dan pink tetap dijatah ≤ 2 elemen per viewport.
+ */
+
+/* Bento Grid. Wordheat pada dasarnya adalah game untuk main bareng teman,
+   jadi gabung-lewat-kode (`.join-bar`) berdiri sendiri di atas grid sebagai
+   aksi utama — bukan tersembunyi sebagai salah satu sel. Di bawahnya,
+   hierarki empat sel dibawa oleh UKURAN, bukan urutan tumpukan: "Main
+   bareng" dapat sel unggulan karena itu mode utama; "Kata harian", "Main
+   sendiri", dan "Shop" sejajar lebih kecil di baris bawahnya. */
+
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s6);
+}
+
+/* Hero berketinggian tetap, bukan sepenuh layar (lihat 01-bento-grid). */
+.launch {
+  padding: var(--s6) 0 var(--s2);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.hero__title {
+  font-size: clamp(46px, 9vw, 76px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+  /* Judul display harus boleh patah di dalam kata di layar sempit. */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+/* Penekanan dibawa warna, bukan miring — judul miring adalah salah satu
+   penanda template yang paling gampang terbaca. */
+.hero__title em {
+  font-style: normal;
+  color: var(--brand);
+}
+
+.launch__tag {
+  color: var(--text-dim);
+  max-width: 46ch;
+}
+
+/* Chip bergaris di hero — angka nyata dari server, bukan klaim karangan. */
+.launch__chip {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Berdiri sendiri di atas bento grid — aksi utama untuk pemain yang baru
+   menerima kode ruang dari teman, bukan salah satu dari sekian pilihan. */
+.join-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--accent, var(--border));
+  border-radius: var(--radius-lg);
+}
+
+.join-bar__title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.bento {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+.cell {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s5);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  color: inherit;
+  transition: border-color 200ms var(--ease), transform 160ms var(--ease);
+}
+
+/* Warna aksen pindah dari ubin ikon kecil ke cahaya sudut sel itu sendiri.
+   Ini pergantian suara komponen yang sebenarnya: warnanya tidak lagi berupa
+   kotak yang ditempel, melainkan sifat selnya. */
+.cell::before {
+  content: '';
+  position: absolute;
+  top: -55%;
+  left: -35%;
+  width: 90%;
+  height: 150%;
+  background: radial-gradient(circle, var(--accent, var(--brand)) 0%, transparent 68%);
+  opacity: 0.13;
+  pointer-events: none;
+  transition: opacity 200ms var(--ease);
+}
+
+.cell:hover {
+  border-color: var(--accent, var(--border-strong));
+  transform: translateY(-2px);
+}
+
+.cell:hover::before {
+  opacity: 0.24;
+}
+
+.cell > svg {
+  color: var(--accent, var(--text-dim));
+}
+
+.cell__title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+.cell__body {
+  font-size: 14px;
+  color: var(--text-dim);
+  flex: 1;
+}
+
+/* Ditambatkan ke dasar: sel unggulan setinggi dua baris, dan tanpa ini
+   isinya menggantung di atas dengan ruang mati di bawahnya. */
+.cell__foot {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+/* CTA tipografis, bukan tombol di dalam tombol (lihat 01-bento-grid). */
+.cell__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent, var(--text));
+  white-space: nowrap;
+}
+
+.cell__cta svg {
+  transition: transform 200ms var(--ease);
+}
+
+.cell:hover .cell__cta svg {
+  transform: translateX(3px);
+}
+
+/* Sel unggulan: banner selebar penuh, dan judulnya naik satu tingkat skala. */
+.cell--feature {
+  grid-column: span 4;
+}
+
+.cell--feature .cell__title {
+  font-size: clamp(26px, 4vw, 34px);
+  letter-spacing: -0.025em;
+}
+
+.cell--feature .cell__body {
+  font-size: 15px;
+  max-width: 30ch;
+  flex: 0;
+}
+
+.cell__row {
+  display: flex;
+  gap: var(--s2);
+}
+
+.cell__row .input {
+  min-width: 0;
+}
+
+.cell__row .btn {
+  flex: none;
+}
+
+/* Di bawah 720px bento runtuh jadi satu kolom; urutan DOM sudah menempatkan
+   sel unggulan lebih dulu, jadi hierarkinya bertahan tanpa penataan ulang. */
+@media (max-width: 720px) {
+  .bento {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cell--feature {
+    grid-column: span 1;
+  }
+
+  .cell {
+    padding: var(--s4);
+  }
+
+  .join-bar {
+    padding: var(--s4);
+  }
+}
+
+/* -------------------------------------------------------------- shop */
+/* Bahasa visual sel bento dipakai ulang di sini (glow radial dari pojok,
+   ikon di atas judul) supaya katalog powerup terasa satu keluarga dengan
+   beranda — bedanya kartu ini bukan tombol navigasi, jadi tanpa hover-lift. */
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+.shop-item {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  padding: var(--s5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.shop-item::before {
+  content: '';
+  position: absolute;
+  top: -55%;
+  left: -35%;
+  width: 90%;
+  height: 150%;
+  background: radial-gradient(circle, var(--accent, var(--brand)) 0%, transparent 68%);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.shop-item__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s2);
+}
+
+.shop-item__head > svg {
+  width: 28px;
+  height: 28px;
+  color: var(--accent, var(--text-dim));
+}
+
+.shop-item__title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.shop-item__body {
+  font-size: 14px;
+  color: var(--text-dim);
+  margin: 0;
+  /* Mendorong tombol "Beli" ke dasar kartu, supaya sejajar walau deskripsi
+     dua powerup panjangnya beda. */
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .shop-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ------------------------------------------------------ hitung mundur */
+
+.starting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s7) var(--s4);
+  text-align: center;
+}
+
+.starting__label {
+  color: var(--text-dim);
+}
+
+.starting__number {
+  font-size: 72px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--brand);
+  /* Angka baru masuk tiap detik — animasi singkat menegaskan detiknya
+     benar-benar berganti, bukan cuma teks statis yang diam. */
+  animation: starting-tick 380ms var(--ease);
+}
+
+@keyframes starting-tick {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+/* -------------------------------------------------------------- ruang */
+
+.room-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s4);
+  background: var(--surface-alt);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.room-code__value {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1.1;
+  color: var(--brand);
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  padding: var(--s3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.setting:last-child {
+  border-bottom: none;
+}
+
+.setting__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.seg {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  flex: none;
+}
+
+.seg button {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+  transition: background 160ms var(--ease), color 160ms var(--ease);
+}
+
+.seg button[aria-pressed='true'] {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* Di bawah 560px baris label+kontrol tidak lagi muat berdampingan — label
+   tergencet jadi kolom sempit sewaktu `.seg` (flex: none) menahan lebarnya.
+   Susun menumpuk dan lebarkan tombol segmented supaya tetap enak diketuk. */
+@media (max-width: 560px) {
+  .setting {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s2);
+  }
+
+  .seg {
+    width: 100%;
+  }
+
+  .seg button {
+    flex: 1;
+  }
+}
+
+.conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.conn__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.conn--open .conn__dot {
+  background: var(--correct);
+}
+
+.conn--reconnecting .conn__dot {
+  background: var(--warm);
+  animation: blink 1s infinite;
+}
+
+.conn--closed .conn__dot {
+  background: var(--very-hot);
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* -------------------------------------------------------------- avatar studio */
+
+/* Dua panel: identitas di kiri, pilihan di kanan. Daftar rambut cukup panjang
+   untuk membuat pemain menggulir jauh, dan memilih tanpa melihat hasilnya jadi
+   tebak-tebakan — maka panel kiri menempel. */
+.studio {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: var(--s6);
+  align-items: start;
+}
+
+/* Sticky di desktop saja (dua kolom, muat berdampingan): pratinjau tetap
+   terlihat selagi daftar panjang di kanan digulir. Dilepas total di mobile —
+   lihat media query di bawah. */
+.studio__side {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  background: var(--surface);
+  padding-bottom: var(--s3);
+}
+
+.studio__preview {
+  display: flex;
+  justify-content: center;
+}
+
+.studio__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.studio__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+  min-width: 0;
+}
+
+.studio__hint {
+  margin-top: calc(var(--s3) * -1);
+}
+
+/* Transparan di desktop: `.parts__panel`, warna latar, dan hint tetap ikut
+   irama flex `.studio__main` seperti anak langsung, tanpa kotak sendiri.
+   Cuma jadi kontainer gulir sungguhan di layar sempit (media query di
+   bawah) — pembungkusnya sudah ada di JSX sejak awal justru supaya CSS bisa
+   menyalakan/mematikan perannya tanpa mengubah markup. */
+.studio__scroll {
+  display: contents;
+}
+
+/* Dasarnya (desktop): sembilan tab dibiarkan membungkus jadi dua baris.
+   Menggulirnya mendatar memang lebih ringkas, tapi di layar lebar yang
+   ruangnya longgar, bagian yang tersembunyi di luar layar praktis tidak
+   pernah ditemukan pemain — jadi di sini justru membungkus yang menang.
+   Di layar sempit kalkulasinya terbalik (ruang vertikal yang langka, bukan
+   horizontal); media query di bawah mengganti jadi satu baris yang bisa
+   digulir mendatar, khusus mobile.
+
+   Tanpa kotak: sembilan kotak berbobot sama membuat panel ramai dan justru
+   melemahkan penanda mana yang aktif. Teks polos dengan satu garis bawah
+   memberi hierarki yang jauh lebih jelas dengan tinta yang jauh lebih sedikit. */
+.parts__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--s4);
+}
+
+.parts__tab {
+  position: relative;
+  flex: none;
+  padding: 10px 2px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+  white-space: nowrap;
+  transition: color 160ms var(--ease);
+}
+
+/* Garis bawah dipasang lewat pseudo-element, bukan `border-bottom`, supaya
+   ketebalannya tidak ikut menggeser tata letak saat tab berpindah. */
+.parts__tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  height: 2px;
+  border-radius: var(--radius-bar);
+  background: transparent;
+  transition: background 160ms var(--ease);
+}
+
+.parts__tab:hover {
+  color: var(--text);
+}
+
+.parts__tab:hover::after {
+  background: var(--border-strong);
+}
+
+.parts__tab[aria-selected='true'] {
+  color: var(--text);
+}
+
+.parts__tab[aria-selected='true']::after,
+.parts__tab[aria-selected='true']:hover::after {
+  background: var(--brand);
+}
+
+/* Tanpa gulir sendiri: isi modal sudah punya satu area gulir, dan menumpuk
+   dua scrollbar bersarang membuat daftar rambut nyaris tidak bisa dijelajahi. */
+.parts__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+/* Kepala bagian: nama pilihan yang sedang aktif, nomornya, dan dadu untuk
+   mengacak bagian ini saja. */
+.parts__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.parts__head-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.parts__head-label {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.parts__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.parts__option {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  transition: border-color 160ms var(--ease), transform 160ms var(--ease);
+}
+
+.parts__option:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+/* Varian yang sedang tampil tapi belum dipatok — pemain di mode "Acak" tetap
+   tahu sedang di mana. Sengaja lebih redup daripada pilihan yang dipatok. */
+.parts__option[data-current],
+.swatch[data-current] {
+  border-color: var(--border-strong);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+
+.parts__option[aria-pressed='true'],
+.parts__option[aria-pressed='true'][data-current] {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 1px var(--brand);
+}
+
+.parts__option--text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.parts__option--text[aria-pressed='true'] {
+  color: var(--text);
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: transform 160ms var(--ease), border-color 160ms var(--ease);
+}
+
+.swatch[aria-pressed='true'] {
+  border-color: var(--text);
+  transform: scale(1.1);
+}
+
+/* Padanan "Acak" untuk deretan warna: bentuknya bulat seperti swatch lain.
+   Harus berada setelah `.swatch` — shorthand `border` di sana ikut menyetel
+   warna, dan pada kekhususan yang sama urutanlah yang menentukan. */
+.swatch--auto {
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+
+.swatch--auto[aria-pressed='true'] {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.swatch--auto svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Tata letak mobile studio avatar. Ditaruh PALING AKHIR di berkas ini dengan
+   sengaja: harus muncul setelah semua aturan dasar `.parts__tabs`/
+   `.parts__tab`/dst di atas, supaya override-nya menang lewat urutan sumber
+   (kekhususannya sama-sama satu kelas, jadi yang belakangan yang berlaku) —
+   pernah taruh media query ini lebih awal di berkas dan override-nya malah
+   kalah oleh aturan dasar yang posisinya lebih belakang, membuat baris tab
+   diam-diam kembali membungkus dan paddingnya kembali seperti semula di
+   mobile walau kodenya sudah "benar" secara terpisah.
+
+   Di bawah 820px dua panel tidak lagi muat berdampingan. Percobaan sebelumnya
+   menumpuk semuanya ke SATU gulir bareng modal, lalu mencoba `position:
+   sticky` supaya panel identitas atau baris tab tetap terlihat — dua-duanya
+   berujung masalah (saling menutupi, lalu bug rendering WebKit di sisi
+   tab). Modal ini sekarang dapat struktur bertingkat asli, sama seperti
+   `.modal` sendiri (head/body/foot): identitas dipadatkan jadi satu baris,
+   baris tab ada tepat di bawahnya, dan KEDUANYA di luar area gulir —
+   hanya `.studio__scroll` (grid pilihan + warna latar) yang benar-benar
+   menggulir. Tidak ada elemen sticky sama sekali di jalur ini. */
+@media (max-width: 820px) {
+  .studio__body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* `min-width: 0` di sini dan di `.studio__scroll` di bawah: tanpanya, item
+     flex kolom secara bawaan menolak menyusut lebih sempit dari konten
+     terlebarnya (`min-width: auto`) — dan `.parts__grid` di dalamnya, dengan
+     kolom `minmax(76px, 1fr)`, dengan mudah "meminta" lebih lebar dari yang
+     tersedia. Efeknya nyata: kolom grid dan tombol acak per-bagian bisa
+     terdorong keluar tanpa terlihat sama sekali, dipotong diam-diam oleh
+     `overflow: hidden` di `.studio__body` — bukan menyusut mengikuti lebar
+     modal seperti yang dikira. */
+  .studio {
+    display: flex;
+    flex-direction: column;
+    /* Aturan dasar (desktop, grid dua kolom) menyetel `align-items: start`
+       supaya kolom kiri yang sticky tidak ikut merentang setinggi kolom
+       kanan. Nilai itu TIDAK otomatis hilang saat `display` diganti jadi
+       flex di sini — dan `align-items: start` pada flex kolom berarti anak
+       tidak "stretch" mengikuti lebar wadah, melainkan menyusut ke lebar
+       kontennya sendiri. Itulah akar sebenarnya kenapa `.studio__main`
+       (dan tombol acak per-bagian di dalamnya) melebar mengikuti tab yang
+       `nowrap` alih-alih mengikuti lebar modal — `min-width: 0` di bawah
+       ini maupun di keturunannya tidak akan pernah cukup tanpa baris ini. */
+    align-items: stretch;
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    gap: var(--s3);
+  }
+
+  /* Satu baris padat: avatar kecil berdampingan dengan field nama, tombol
+     acak/kembalikan di barisnya sendiri — bukan lagi pratinjau besar
+     bertumpuk di atas seperti di desktop. */
+  .studio__side {
+    position: static;
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2);
+    padding-bottom: 0;
+  }
+
+  .studio__preview {
+    flex: none;
+  }
+
+  /* `!important` diperlukan karena ukurannya dipatok lewat inline style
+     `width`/`height` di `<Avatar size={196} />`, yang tidak bisa dikalahkan
+     aturan CSS biasa. Lebih kecil dari sebelumnya (56px, bukan 64px) —
+     ruang yang direbut kembali di layar sempit langsung menambah tinggi
+     grid pilihan di bawahnya, dan itulah yang sebenarnya dipakai memilih. */
+  .studio__preview .avatar--square {
+    width: 56px !important;
+    height: 56px !important;
+  }
+
+  .studio__side .field {
+    flex: 1 1 160px;
+    min-width: 160px;
+  }
+
+  .studio__actions {
+    flex-basis: 100%;
+    flex-direction: row;
+  }
+
+  .studio__actions .btn--block {
+    flex: 1;
+    width: auto;
+    /* Sama-sama padat (bukan 48px bawaan `.btn`) — baris identitas cuma
+       untuk berangkat, bukan tempat menghabiskan tinggi layar. */
+    height: 40px;
+  }
+
+  .studio__main {
+    flex: 1;
+    min-height: 0;
+    gap: var(--s2);
+  }
+
+  /* Sembilan kategori dibungkus jadi dua baris di desktop (lihat aturan
+     dasar di atas) — di layar sempit itu sendiri makan porsi besar tinggi
+     modal, tersisa terlalu sedikit untuk grid tempat pemain sebenarnya
+     memilih. Satu baris yang bisa digulir mendatar jauh lebih hemat; pudar
+     di tepi kanan jadi isyarat masih ada kategori lain di luar layar,
+     gantinya baris kedua/ketiga yang dulu langsung terlihat tanpa perlu
+     digulir. */
+  .parts__tabs {
+    /* `flex-shrink: 0` — tanpa ini, flexbox mengizinkan baris tab menyusut
+       lebih pendek dari tinggi kontennya begitu `.studio__main` kekurangan
+       ruang, teksnya lalu terpotong vertikal alih-alih baris ini tetap
+       penuh dan `.studio__scroll` (yang memang dirancang menyusut/
+       menggulir) yang menyerap kekurangan ruang itu.
+
+       `min-width: 0` — tanpa ini, sembilan tab yang `white-space: nowrap`
+       membuat KOTAK baris ini sendiri melebar mengikuti total lebar semua
+       tab (bukan lebar wadahnya) — `overflow-x: auto` jadi tidak pernah
+       benar-benar dipakai (tidak ada yang meluber dari kotak yang sudah
+       selebar isinya sendiri), dan lebar berlebih itu mendorong seluruh
+       `.studio__main` di baliknya ikut melebar, membuat tombol acak
+       per-bagian di `.parts__head` terdorong keluar modal sama sekali. */
+    flex-shrink: 0;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
+  }
+
+  .parts__tab {
+    padding-top: 6px;
+    padding-bottom: 8px;
+  }
+
+  .studio__hint {
+    display: none;
+  }
+
+  .studio__scroll {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s4);
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    overflow-y: auto;
+    padding-bottom: var(--s2);
+  }
+}

@@ -1,0 +1,148 @@
+# Kata target yang dikurasi.
+# Dibangun otomatis dari lexicon.lex lama, diiriskan dengan kosakata
+# embedding fastText baru (lihat tools/build-embeddings.ts).
+# Setiap kata di sini WAJIB ada di embeddings.words.txt (dicek saat server start).
+
+# --- hewan ---
+sapi, kambing, kuda, babi, kelinci, tikus, gajah, harimau, singa, monyet
+beruang, rusa, kerbau, domba, serigala, jerapah, zebra, unta, tupai, kucing
+anjing, ayam, bebek, burung, elang, merpati, angsa, bangau, gagak, nuri
+pinguin, ikan, hiu, paus, lumba-lumba, udang, kepiting, cumi, kerang, gurita
+penyu, ular, buaya, kadal, cicak, komodo, kura-kura, semut, nyamuk, lalat
+lebah, kupu-kupu, belalang, capung, laba-laba, kecoa, ulat, cacing, katak
+
+# --- tumbuhan ---
+pohon, bunga, daun, akar, batang, ranting, rumput, biji, duri, kaktus
+bambu, lumut, benih, mawar, melati, anggrek, tulip, kamboja, kelapa, pisang
+mangga, jeruk, apel, semangka, durian, rambutan, nanas, anggur, melon, pepaya
+stroberi, alpukat, jambu, salak, wortel, kentang, tomat, bayam, kangkung, kubis
+terong, timun, jagung, cabai, bawang, sawi, brokoli, labu, buncis
+
+# --- makanan & minuman ---
+nasi, roti, mie, bakso, soto, sate, rendang, tempe, tahu, telur
+daging, keju, mentega, sup, bubur, kue, biskuit, cokelat, permen, sambal
+kecap, madu, bakmi, kerupuk, pempek, martabak, gula, garam, tepung, minyak
+merica, kunyit, jahe, santan, cuka, teh, kopi, jus, sirup, soda
+susu, es, piring, gelas, sendok, garpu, pisau, panci, wajan, mangkuk
+teko, sedotan, botol, termos, ember, kompor, kulkas, oven, blender
+
+# --- rumah & perabot ---
+rumah, kamar, dapur, gudang, garasi, halaman, teras, atap, dinding, lantai
+langit-langit, pondasi, pintu, jendela, tangga, pagar, gerbang, genteng, keramik, kunci
+engsel, kursi, meja, lemari, kasur, bantal, guling, selimut, sofa, rak
+cermin, karpet, tirai, jam, lampu, kipas, sapu, keset, gantungan, sabun
+sikat, deterjen, sampo, handuk, pel, tisu
+
+# --- alat & perkakas ---
+palu, paku, gergaji, obeng, tang, sekop, cangkul, gunting, jarum, benang
+lem, tali, kawat, bor, meteran, sabit
+
+# --- elektronik & teknologi ---
+televisi, radio, telepon, komputer, laptop, kamera, ponsel, kabel, baterai, layar
+printer, speaker, charger, kalkulator, internet, aplikasi, situs, data, pesan, email
+akun, kode, program, robot, sinyal, jaringan, password, unduh
+
+# --- sekolah & alat tulis ---
+buku, pensil, pena, kertas, penghapus, penggaris, spidol, tinta, map, amplop
+kelas, pelajaran, ujian, nilai, perpustakaan, universitas, kampus, kurikulum, tugas, rapor
+wisuda, beasiswa, matematika, fisika, kimia, biologi, sejarah, geografi, bahasa, seni
+ekonomi, filsafat, sains
+
+# --- pakaian & aksesoris ---
+baju, kemeja, celana, rok, jaket, kaos, sarung, jilbab, batik, seragam
+piyama, dasi, sabuk, syal, topi, sepatu, sandal, kacamata, dompet, payung
+tas, ransel, masker, cincin, kalung, gelang, anting, bros, mahkota
+
+# --- tubuh manusia ---
+kepala, leher, bahu, dada, perut, punggung, pinggang, tangan, kaki, jari
+kuku, siku, lutut, tumit, kulit, telapak, paha, betis, mata, hidung
+telinga, mulut, gigi, lidah, bibir, pipi, dagu, alis, kening, rambut
+kumis, jenggot, jantung, paru-paru, hati, ginjal, otak, lambung, usus, darah
+tulang, otot, saraf, nadi
+
+# --- orang, keluarga, sosial ---
+ayah, ibu, anak, kakak, adik, kakek, nenek, paman, bibi, sepupu
+cucu, suami, istri, saudara, keponakan, menantu, mertua, keluarga, teman, sahabat
+tetangga, tamu, bayi, remaja, dewasa, pria, wanita, orang, penduduk, warga
+rakyat, musuh, kekasih, pacar, dokter, perawat, guru, polisi, tentara, petani
+nelayan, pedagang, pilot, sopir, koki, tukang, seniman, penyanyi, pelukis, penulis
+wartawan, hakim, pengacara, insinyur, arsitek, ilmuwan, montir, satpam, pelayan, pengusaha
+presiden, menteri, raja, ratu, murid, mahasiswa, pegawai, buruh, direktur, bidan
+apoteker, masinis, pemadam
+
+# --- tempat & bangunan ---
+kantor, pasar, toko, warung, restoran, hotel, museum, bioskop, mal, bank
+apotek, pabrik, penjara, kafe, salon, bengkel, klinik, sekolah, istana, bandara
+stasiun, terminal, pelabuhan, jembatan, jalan, gang, trotoar, halte, perempatan, masjid
+gereja, pura, vihara, kuil, taman, kebun, sawah, ladang, pantai, gunung
+bukit, lembah, sungai, danau, laut, hutan, gua, pulau, gurun, rawa
+kolam, kota, desa, negara, provinsi, kampung, benua, dunia, kelurahan, ibukota
+daerah, stadion, lapangan, gym
+
+# --- kendaraan ---
+mobil, motor, bus, truk, taksi, ambulans, becak, bajaj, angkot, traktor
+sepeda, kereta, kapal, perahu, pesawat, helikopter, rakit, roda, ban, setir
+rem, bensin, knalpot, klakson, spion, pedal
+
+# --- alam, cuaca, langit ---
+awan, hujan, angin, petir, badai, salju, kabut, pelangi, matahari, bulan
+bintang, planet, langit, halilintar, mendung, api, air, tanah, batu, pasir
+lumpur, debu, asap, embun, udara, lava, kristal, banjir, gempa, tsunami
+longsor, kebakaran, kekeringan, wabah, siang, malam, pagi, sore, senja, fajar
+subuh, musim, jam, menit, detik, hari, minggu, bulan, tahun, abad
+kemarin, besok, sekarang, nanti, dulu, masa, umur, tanggal, kalender, jadwal
+zaman, momen
+
+# --- warna ---
+merah, biru, hijau, kuning, hitam, putih, ungu, jingga, abu-abu, emas
+perak, cokelat, bening
+
+# --- emosi & perasaan ---
+senang, sedih, marah, takut, cemas, kecewa, bangga, malu, bosan, rindu
+cinta, benci, sayang, kaget, tenang, gugup, bahagia, kesal, iri, syukur
+semangat, kesepian, lega, kagum, curiga
+
+# --- sifat ---
+baik, jahat, ramah, sombong, rajin, malas, pintar, bodoh, sabar, tegas
+jujur, bohong, berani, pengecut, setia, dermawan, pelit, licik, lucu, serius
+sopan, besar, kecil, panjang, pendek, tinggi, rendah, tebal, tipis, luas
+sempit, dalam, dangkal, lebar, berat, ringan, cepat, lambat, keras, lembut
+kasar, halus, basah, kering, bersih, kotor, penuh, kosong, tajam, tumpul
+terang, gelap, panas, dingin, kuat, lemah, baru, lama, licin, lengket
+keriting, lurus, mahal, murah, banyak, sedikit, mudah, sulit, penting, sia-sia
+aman, bahaya, benar, salah, indah, jelek, sehat, sakit, bebas, terbatas
+manis, asin, pahit, asam, pedas, gurih, hambar, wangi, bau, segar
+
+# --- aktivitas ---
+makan, minum, tidur, bangun, mandi, berjalan, lari, duduk, berdiri, lompat
+terbang, berenang, menari, jongkok, merangkak, bernapas, berbaring, bekerja, belajar, membaca
+menulis, menggambar, memasak, mencuci, menyapu, membangun, memperbaiki, menjahit, berkebun, menanam
+memancing, berburu, membeli, menjual, memberi, mengambil, membuka, menutup, mendorong, menarik
+melempar, menangkap, memukul, memotong, mengikat, menggenggam, menekan, berbicara, mendengar, melihat
+mencium, menyentuh, berteriak, berbisik, menatap, berpikir, mengingat, lupa, mengerti, ragu
+memilih, berharap, bermimpi, memutuskan, tertawa, menangis, tersenyum, mengeluh, memaafkan, memuji
+datang, pergi, pulang, masuk, keluar, naik, turun, berhenti, mulai, selesai
+menunggu, mencari, menemukan, kehilangan, mengejar, kembali, bermain, berkumpul, menolong, bertengkar
+berjanji, mengundang, merayakan, berkenalan
+
+# --- olahraga, seni, hiburan ---
+bola, basket, badminton, voli, catur, renang, tinju, silat, karate, senam
+sepakbola, tenis, mainan, boneka, layang-layang, gitar, piano, drum, biola, seruling
+musik, lagu, tarian, film, teater, lukisan, patung, foto, novel, cerita
+puisi, komik, kartun, konser
+
+# --- uang, ekonomi, sosial, abstrak ---
+harga, gaji, untung, rugi, utang, pajak, bisnis, dagang, modal, tabungan
+hadiah, kaya, miskin, belanja, uang, koin, kartu, cek, mimpi, harapan
+ide, rencana, masalah, jawaban, pertanyaan, rahasia, kebenaran, keadilan, kebebasan, kemerdekaan
+tujuan, arti, alasan, cara, kesempatan, keberuntungan, takdir, kenangan, pemerintah, hukum
+aturan, hak, kewajiban, pemilu, demokrasi, politik, perang, damai, budaya, adat
+tradisi, upacara, bendera, doa, iman, surga, neraka, jiwa, nyawa, dosa
+pahala, puasa, zakat, tuhan, malaikat, kitab, hidup, mati, lahir, nikah
+pesta, ulangtahun, kematian, kesehatan, obat, vitamin, suntik, demam, batuk, pilek
+luka, penyakit, virus, operasi, sembuh, alergi, pusing, mual, berita, informasi
+kata, kalimat, huruf, angka, nama, judul, iklan, gosip, pidato, surat
+tanda, simbol, peta, daftar, ukuran, jumlah, setengah, bagian, sisa, batas
+kecepatan, suhu, jarak, pedang, pistol, panah, tombak, bom, perisai, meriam
+atas, bawah, depan, belakang, kiri, kanan, tengah, luar, dalam, samping
+utara, selatan, timur, barat

@@ -1,0 +1,23 @@
+# Alias — bentuk lain yang lumrah diketik pemain.
+# Dibangun otomatis dari seksi ALIAS lexicon.lex lama, disaring ke kanonik
+# yang masih ada di kosakata embedding baru.
+
+~ ponsel -> hp, handphone, smartphone, hape
+~ televisi -> tv, tivi
+~ sepakbola -> bola-kaki, sepak-bola
+~ kupu-kupu -> kupukupu
+~ laba-laba -> labalaba
+~ lumba-lumba -> lumbalumba
+~ kura-kura -> kurakura
+~ layang-layang -> layangan
+~ abu-abu -> abuabu
+~ paru-paru -> paruparu
+~ jam -> jam-dinding
+~ pria -> lelaki, laki-laki, cowok
+~ wanita -> perempuan, cewek
+~ uang -> duit
+~ komputer -> pc
+~ ulangtahun -> ultah, ulang tahun
+~ ponsel -> telepon-genggam
+~ sepatu -> sepatu-olahraga
+~ berjalan -> jalan-kaki
