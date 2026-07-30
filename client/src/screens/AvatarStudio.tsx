@@ -15,7 +15,63 @@ import {
   type AvatarPart,
 } from '../lib/avatar.ts';
 import { Avatar } from '../components/Avatar.tsx';
-import { DiceIcon, Modal, UndoIcon } from '../components/ui.tsx';
+import {
+  CheckIcon,
+  DiceIcon,
+  DropletIcon,
+  EarringIcon,
+  EyebrowIcon,
+  EyeIcon,
+  GlassesIcon,
+  HairIcon,
+  Modal,
+  MouthIcon,
+  SparkleIcon,
+  UndoIcon,
+} from '../components/ui.tsx';
+
+/** Satu ikon per bagian, dipakai di baris tab — supaya sembilan tab teks
+ *  polos yang terlihat mirip semua tidak perlu dibedakan cuma lewat kata. */
+const PART_ICONS: Record<string, () => JSX.Element> = {
+  hair: HairIcon,
+  hairColor: DropletIcon,
+  eyebrows: EyebrowIcon,
+  eyes: EyeIcon,
+  mouth: MouthIcon,
+  skinColor: DropletIcon,
+  glasses: GlassesIcon,
+  earrings: EarringIcon,
+  features: SparkleIcon,
+};
+
+/** `hairColor` digabung ke tab "Rambut" (sama-sama soal rambut), `skinColor`
+ *  digabung ke tab "Detail wajah" (features) — sisanya memetakan ke dirinya
+ *  sendiri (satu tab = satu bagian, seperti semula). */
+const TAB_GROUP_OF: Record<string, string> = { hairColor: 'hair', skinColor: 'features' };
+
+interface TabGroup {
+  key: string;
+  label: string;
+  parts: AvatarPart[];
+}
+
+function groupParts(parts: AvatarPart[]): TabGroup[] {
+  const groups: TabGroup[] = [];
+  const byKey = new Map<string, TabGroup>();
+  for (const part of parts) {
+    const groupKey = TAB_GROUP_OF[part.key] ?? part.key;
+    let group = byKey.get(groupKey);
+    if (!group) {
+      // Label tab pakai punya bagian PERTAMA dalam grup (mis. "Rambut", bukan
+      // "Warna rambut") — itulah yang tampil sebagai teks tab.
+      group = { key: groupKey, label: parts.find((p) => p.key === groupKey)?.label ?? part.label, parts: [] };
+      byKey.set(groupKey, group);
+      groups.push(group);
+    }
+    group.parts.push(part);
+  }
+  return groups;
+}
 
 /**
  * Palet latar, ditambah warna yang sedang dipakai bila kebetulan sudah tidak
@@ -42,6 +98,7 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
   useSyncExternalStore(subscribeAvatarEngine, avatarEngineVersion, () => 0);
   ensureAvatarEngine();
   const parts = avatarParts();
+  const groups = parts ? groupParts(parts) : null;
 
   // Bagian yang benar-benar terpakai, termasuk yang dipilih seed. Inilah yang
   // membuat nomor pilihan dan tombol panah tetap benar walau belum dipatok.
@@ -49,8 +106,8 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
 
   const [activeKey, setActiveKey] = useState<string | null>(null);
   useEffect(() => {
-    if (parts && parts.length > 0 && activeKey === null) setActiveKey(parts[0].key);
-  }, [parts, activeKey]);
+    if (groups && groups.length > 0 && activeKey === null) setActiveKey(groups[0].key);
+  }, [groups, activeKey]);
 
   // Di layar sempit baris tab jadi satu baris yang digulir mendatar (lihat
   // `.parts__tabs` di `game.css`) — tanpa ini, berpindah bagian lewat panah
@@ -62,7 +119,11 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
       ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [activeKey]);
 
-  const active = parts?.find((part) => part.key === activeKey) ?? null;
+  const activeGroup = groups?.find((group) => group.key === activeKey) ?? null;
+  // Tab "Rambut" membungkus dua bagian (gaya + warna) — panah kiri/kanan cuma
+  // menyusuri bagian PERTAMA di grup itu (gaya rambut), bukan warnanya. Warna
+  // tetap bisa diganti lewat klik langsung ke swatch-nya.
+  const active = activeGroup?.parts[0] ?? null;
 
   const setAvatar = (next: AvatarConfig) => setDraft(next);
   const pick = (key: string, value: string | null) => setAvatar(withPart(draft, key, value));
@@ -92,9 +153,9 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
   };
 
   const stepPart = (delta: number) => {
-    if (!parts || !active) return;
-    const index = parts.findIndex((part) => part.key === active.key);
-    setActiveKey(parts[(index + delta + parts.length) % parts.length].key);
+    if (!groups || !activeGroup) return;
+    const index = groups.findIndex((group) => group.key === activeGroup.key);
+    setActiveKey(groups[(index + delta + groups.length) % groups.length].key);
   };
 
   /**
@@ -144,7 +205,9 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
       <div className="studio" onKeyDown={onKeyDown}>
         <div className="studio__side">
           <div className="studio__preview">
-            <Avatar config={draft} size={196} square alt="Pratinjau avatar" />
+            <div className="studio__preview-ring">
+              <Avatar config={draft} size={196} square alt="Pratinjau avatar" />
+            </div>
           </div>
 
           <div className="studio__actions">
@@ -155,6 +218,9 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
               <DiceIcon />
               Acak semua
             </button>
+            <p className="caption studio__actions-hint">
+              Acak semua akan memilih kombinasi secara acak dari semua kategori.
+            </p>
 
             <button
               className="btn btn--ghost btn--block btn--sm"
@@ -169,7 +235,7 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
         </div>
 
         <div className="studio__main">
-          {parts === null ? (
+          {groups === null ? (
             <p className="empty">Menyiapkan pilihan avatar...</p>
           ) : (
             <>
@@ -179,17 +245,26 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
                 role="tablist"
                 aria-label="Bagian karakter"
               >
-                {parts.map((part) => (
-                  <button
-                    key={part.key}
-                    role="tab"
-                    className="parts__tab"
-                    aria-selected={part.key === activeKey}
-                    onClick={() => setActiveKey(part.key)}
-                  >
-                    {part.label}
-                  </button>
-                ))}
+                {groups.map((group) => {
+                  const PartIcon = PART_ICONS[group.key];
+                  return (
+                    <button
+                      key={group.key}
+                      role="tab"
+                      className="parts__tab"
+                      aria-selected={group.key === activeKey}
+                      onClick={() => setActiveKey(group.key)}
+                    >
+                      {PartIcon && <PartIcon />}
+                      {group.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="studio__intro">
+                <h3>Kustomisasi Avatar</h3>
+                <p className="caption">Sesuaikan avatar sesuai gayamu!</p>
               </div>
 
               {/* Terpisah dari baris tab di atas: di layar sempit cuma bagian ini
@@ -198,21 +273,21 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
                   tanpa bergantung pada `position: sticky`, yang di percobaan
                   sebelumnya malah memicu bug rendering di WebKit mobile. */}
               <div className="studio__scroll">
-                {active && (
+                {activeGroup?.parts.map((part) => (
                   <PartPanel
-                    key={active.key}
-                    part={active}
+                    key={part.key}
+                    part={part}
                     avatar={draft}
-                    current={currentValue(active)}
-                    pinned={draft.parts?.[active.key]}
-                    onPick={(value) => pick(active.key, value)}
+                    current={currentValue(part)}
+                    pinned={draft.parts?.[part.key]}
+                    onPick={(value) => pick(part.key, value)}
                     onShuffle={() => {
-                      const current = currentValue(active);
-                      const pool = active.values.filter((value) => value !== current);
-                      pick(active.key, pool[Math.floor(Math.random() * pool.length)]);
+                      const current = currentValue(part);
+                      const pool = part.values.filter((value) => value !== current);
+                      pick(part.key, pool[Math.floor(Math.random() * pool.length)]);
                     }}
                   />
-                )}
+                ))}
 
                 <div className="field">
                   <span className="field__label">Warna latar</span>
@@ -338,6 +413,8 @@ function PartPanel({ part, avatar, current, pinned, onPick, onShuffle }: PartPan
             onClick: () => onPick(value),
           };
 
+          const isPinned = pinned === value;
+
           return part.kind === 'color' ? (
             <button
               key={value}
@@ -345,7 +422,13 @@ function PartPanel({ part, avatar, current, pinned, onPick, onShuffle }: PartPan
               className="swatch"
               style={{ background: `#${value}` }}
               aria-label={`${part.label} #${value}`}
-            />
+            >
+              {isPinned && (
+                <span className="option-badge" aria-hidden="true">
+                  <CheckIcon />
+                </span>
+              )}
+            </button>
           ) : (
             <button
               key={value}
@@ -365,6 +448,11 @@ function PartPanel({ part, avatar, current, pinned, onPick, onShuffle }: PartPan
                 }}
                 size={60}
               />
+              {isPinned && (
+                <span className="option-badge" aria-hidden="true">
+                  <CheckIcon />
+                </span>
+              )}
             </button>
           );
         })}

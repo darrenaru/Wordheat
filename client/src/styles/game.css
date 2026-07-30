@@ -1025,10 +1025,28 @@ button.player__trigger:hover {
   justify-content: center;
 }
 
+/* Cincin di sekeliling pratinjau — pola sama seperti "cincin fokus" pink
+   yang sudah dikunci DESIGN.md, ditambah glow lembut supaya pratinjau
+   terasa jadi pusat perhatian panel kiri. */
+.studio__preview-ring {
+  padding: 6px;
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--brand);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--brand) 35%, transparent);
+}
+
 .studio__actions {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
+}
+
+.studio__actions-hint {
+  margin-top: calc(var(--s2) * -1);
+}
+
+.studio__intro h3 {
+  margin-bottom: 2px;
 }
 
 .studio__main {
@@ -1070,6 +1088,9 @@ button.player__trigger:hover {
 
 .parts__tab {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex: none;
   padding: 10px 2px 12px;
   font-size: 14px;
@@ -1077,6 +1098,12 @@ button.player__trigger:hover {
   color: var(--text-dim);
   white-space: nowrap;
   transition: color 160ms var(--ease);
+}
+
+.parts__tab svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 /* Garis bawah dipasang lewat pseudo-element, bukan `border-bottom`, supaya
@@ -1147,6 +1174,7 @@ button.player__trigger:hover {
 }
 
 .parts__option {
+  position: relative;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -1154,6 +1182,29 @@ button.player__trigger:hover {
   border: 1px solid var(--border);
   background: var(--surface-alt);
   transition: border-color 160ms var(--ease), transform 160ms var(--ease);
+}
+
+/* Badge centang di pojok pilihan yang sudah dipatok — pink, konsisten
+   dengan cincin fokus/border pilihan yang sudah pink duluan di sini. */
+.option-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--brand-ink);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.option-badge svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 3;
 }
 
 .parts__option:hover {
@@ -1192,6 +1243,7 @@ button.player__trigger:hover {
 }
 
 .swatch {
+  position: relative;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -1363,6 +1415,22 @@ button.player__trigger:hover {
   }
 
   .studio__hint {
+    display: none;
+  }
+
+  /* Sama alasannya seperti `.studio__hint` di atas: layar sempit sudah ketat
+     ruang vertikalnya untuk grid pilihan sendiri (makanya avatar pratinjau
+     ikut disusutkan ke 56px) — dua baris teks pengantar yang murni hiasan
+     tidak sepadan dengan ruang yang direbutnya di sini. */
+  .studio__intro {
+    display: none;
+  }
+
+  /* Tanpa ini, teks bantuan ini duduk di ANTARA dua tombol dalam baris
+     `.studio__actions` yang di mobile jadi `flex-direction: row` (lihat di
+     atas) — memaksa barisnya membungkus dua baris atau meremas lebar kedua
+     tombol, alih-alih tetap satu baris padat seperti yang dirancang. */
+  .studio__actions-hint {
     display: none;
   }
 

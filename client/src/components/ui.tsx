@@ -223,6 +223,55 @@ export const TargetIcon = () => (
   </svg>
 );
 
+export const HairIcon = () => (
+  <svg {...iconProps}>
+    <path d="M4 11c0-4.5 3.5-8 8-8s8 3.5 8 8v2" />
+    <path d="M6 10.5v6M10 9.5v8M14 9.5v8M18 10.5v6" />
+  </svg>
+);
+
+export const DropletIcon = () => (
+  <svg {...iconProps}>
+    <path d="M12 3s6.5 7 6.5 11.5a6.5 6.5 0 0 1-13 0C5.5 10 12 3 12 3Z" />
+  </svg>
+);
+
+export const EyebrowIcon = () => (
+  <svg {...iconProps}>
+    <path d="M3.5 14.5c2-4 6-6.5 9-6.5s6 1.5 8 4" />
+  </svg>
+);
+
+export const MouthIcon = () => (
+  <svg {...iconProps}>
+    <path d="M3.5 10.5c2.8 2 5.6 3 8.5 3s5.7-1 8.5-3" />
+    <path d="M8 14c1.3 2.3 2.7 3.5 4 3.5s2.7-1.2 4-3.5" />
+  </svg>
+);
+
+export const GlassesIcon = () => (
+  <svg {...iconProps}>
+    <circle cx="6.5" cy="13" r="3.5" />
+    <circle cx="17.5" cy="13" r="3.5" />
+    <path d="M10 13h4M3 13l-1.5-5M21 13l1.5-5M2 8h2.5M19.5 8H22" />
+  </svg>
+);
+
+export const EarringIcon = () => (
+  <svg {...iconProps}>
+    <path d="M12 3v4" />
+    <circle cx="12" cy="11" r="4" />
+    <path d="M9.5 14.5 8 20h8l-1.5-5.5" />
+  </svg>
+);
+
+export const SparkleIcon = () => (
+  <svg {...iconProps}>
+    <path d="M12 3c.6 3.6 2.4 5.4 6 6-3.6.6-5.4 2.4-6 6-.6-3.6-2.4-5.4-6-6 3.6-.6 5.4-2.4 6-6Z" />
+    <path d="M19 15c.3 1.7 1.1 2.5 2.8 2.8-1.7.3-2.5 1.1-2.8 2.8-.3-1.7-1.1-2.5-2.8-2.8 1.7-.3 2.5-1.1 2.8-2.8Z" />
+  </svg>
+);
+
 export const EyeIcon = () => (
   <svg {...iconProps}>
     <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
