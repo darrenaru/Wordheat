@@ -73,96 +73,113 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
     onClose();
   };
 
-  if (showAvatarStudio) {
-    return (
-      <AvatarStudio
-        avatar={draft.avatar}
-        onSave={(avatar) => setDraft({ ...draft, avatar })}
-        onClose={() => setShowAvatarStudio(false)}
-      />
-    );
-  }
-
   return (
-    <Modal
-      title="Profil Saya"
-      onClose={onClose}
-      footer={
-        dirty ? (
-          <div className="row" style={{ gap: 8 }}>
-            <button className="btn btn--secondary" onClick={onClose}>
-              Batal
-            </button>
-            <button className="btn btn--primary" style={{ flex: 1 }} onClick={save}>
-              Simpan
-            </button>
-          </div>
-        ) : undefined
-      }
-    >
-      <div className="stack">
-        <div className="profile__identity">
-          <div className="profile__hero">
-            <HeroParticles />
-            <div className="profile__avatar-wrap">
-              <button
-                type="button"
-                className="avatar-edit-btn"
-                onClick={() => setShowAvatarStudio(true)}
-                aria-label="Ubah avatar"
-              >
-                <Avatar config={draft.avatar} size={96} alt="Avatar kamu" />
+    <>
+      <Modal
+        title="Profil Saya"
+        // Dibuat no-op selagi AvatarStudio terbuka di atasnya — kalau tidak,
+        // menekan Escape akan memanggil KEDUA listener sekaligus (modal ini
+        // ikut menutup, bukan cuma AvatarStudio-nya) karena keduanya tetap
+        // sama-sama terpasang di `window` selama keduanya dirender bersamaan
+        // (lihat komentar di bawah kenapa modal ini tidak lagi di-unmount).
+        onClose={showAvatarStudio ? () => {} : onClose}
+        footer={
+          dirty ? (
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn btn--secondary" onClick={onClose}>
+                Batal
               </button>
-              <span className="avatar-edit-badge" aria-hidden="true">
-                <EditIcon />
-              </span>
-              <span className="profile__level-badge">Lv. {level}</span>
+              <button className="btn btn--primary" style={{ flex: 1 }} onClick={save}>
+                Simpan
+              </button>
             </div>
-
-            {editingName ? (
-              <input
-                ref={nameInputRef}
-                id="display-name"
-                className="identity-name"
-                value={draft.name}
-                maxLength={18}
-                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                onBlur={() => setEditingName(false)}
-                placeholder="Nama kamu"
-                aria-label="Display Name"
-                style={{ width: `${(draft.name.length || 'Nama kamu'.length) + 1.5}ch` }}
-              />
-            ) : (
-              <div className="identity-editable">
-                <span className="identity-name-display">{draft.name || 'Nama kamu'}</span>
+          ) : undefined
+        }
+      >
+        <div className="stack">
+          <div className="profile__identity">
+            <div className="profile__hero">
+              <HeroParticles />
+              <div className="profile__avatar-wrap">
                 <button
                   type="button"
-                  className="identity-editable__icon"
-                  onClick={() => setEditingName(true)}
-                  aria-label="Ubah Display Name"
+                  className="avatar-edit-btn"
+                  onClick={() => setShowAvatarStudio(true)}
+                  aria-label="Ubah avatar"
                 >
-                  <EditIcon />
+                  <Avatar config={draft.avatar} size={96} alt="Avatar kamu" />
                 </button>
+                <span className="avatar-edit-badge" aria-hidden="true">
+                  <EditIcon />
+                </span>
+                <span className="profile__level-badge">Lv. {level}</span>
               </div>
-            )}
 
-            <UsernameField displayName={profile.name} avatar={profile.avatar} />
-            <BioField displayName={profile.name} avatar={profile.avatar} />
+              {editingName ? (
+                <input
+                  ref={nameInputRef}
+                  id="display-name"
+                  className="identity-name"
+                  value={draft.name}
+                  maxLength={18}
+                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                  onBlur={() => setEditingName(false)}
+                  placeholder="Nama kamu"
+                  aria-label="Display Name"
+                  style={{ width: `${(draft.name.length || 'Nama kamu'.length) + 1.5}ch` }}
+                />
+              ) : (
+                <div className="identity-editable">
+                  <span className="identity-name-display">{draft.name || 'Nama kamu'}</span>
+                  <button
+                    type="button"
+                    className="identity-editable__icon"
+                    onClick={() => setEditingName(true)}
+                    aria-label="Ubah Display Name"
+                  >
+                    <EditIcon />
+                  </button>
+                </div>
+              )}
 
-            <LevelSummaryField stats={stats} />
+              <UsernameField displayName={profile.name} avatar={profile.avatar} />
+              <BioField displayName={profile.name} avatar={profile.avatar} />
+
+              <LevelSummaryField stats={stats} />
+            </div>
           </div>
+
+          <StatsGrid stats={stats} />
+
+          {isAuthAvailable() && (
+            <>
+              <hr className="divider" />
+              <AccountField />
+            </>
+          )}
         </div>
-
-        <StatsGrid stats={stats} />
-
-        {isAuthAvailable() && (
-          <>
-            <hr className="divider" />
-            <AccountField />
-          </>
-        )}
-      </div>
-    </Modal>
+      </Modal>
+      {/*
+        Dirender DI ATAS `<Modal>` di atas (bukan menggantikannya lewat early
+        return seperti sebelumnya) — modal ini SENGAJA tetap mounted di
+        belakangnya selagi AvatarStudio terbuka. Alasannya: `UsernameField`/
+        `BioField`/grid statistik masing-masing fetch datanya sendiri sekali
+        saat mount; kalau seluruh modal ini di-unmount (early return), semua
+        field itu ikut lenyap dan begitu AvatarStudio ditutup, semuanya
+        remount dari nol — sempat menampilkan "username_kamu"/"No bio"
+        (placeholder kosong) sebelum fetch ulang selesai, alih-alih langsung
+        menampilkan data yang sudah dimuat sebelumnya. AvatarStudio sendiri
+        juga `<Modal>` dengan backdrop penuh layar, jadi tetap menutupi modal
+        ini secara visual sama seperti sebelumnya.
+      */}
+      {showAvatarStudio && (
+        <AvatarStudio
+          avatar={draft.avatar}
+          onSave={(avatar) => setDraft({ ...draft, avatar })}
+          onClose={() => setShowAvatarStudio(false)}
+        />
+      )}
+    </>
   );
 }
 
