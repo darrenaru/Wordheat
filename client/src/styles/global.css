@@ -531,6 +531,51 @@ h3 {
   gap: var(--s1);
 }
 
+/* Kartu avatar: latar ambient pink samar (tekstur dekoratif, pola sama
+   seperti corner-glow `.cell::before`/`.shop-item::before` di beranda) —
+   bukan blok pink solid, supaya aksen pink tetap eksklusif milik tombol
+   "Tebak" sesuai DESIGN.md. */
+.profile__hero {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: var(--s5) 0 var(--s4);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: radial-gradient(
+      circle at 50% 15%,
+      color-mix(in srgb, var(--brand) 16%, transparent) 0%,
+      transparent 65%
+    ),
+    var(--surface);
+  margin-bottom: var(--s1);
+}
+
+/* Bukan anak `.avatar-edit-btn` langsung — tombol itu `overflow: hidden` +
+   `border-radius: 50%` untuk memotong gambar avatar jadi lingkaran, yang
+   akan ikut memotong badge ini kalau ditaruh di dalamnya. Wrapper terpisah
+   ini cuma sekadar kotak referensi posisi (persis seukuran avatar), tanpa
+   overflow-clip, supaya badge bisa "menggantung" di luar tepi lingkaran. */
+.profile__avatar-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.profile__level-badge {
+  position: absolute;
+  top: -2px;
+  right: -8px;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--black);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 /* Display Name tampil sebagai teks polos (tanpa kotak input terlihat)
    sampai disentuh — tetap `<input>` sungguhan, cuma dibuat berbaur. */
 .identity-name {

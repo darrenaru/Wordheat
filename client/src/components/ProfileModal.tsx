@@ -10,7 +10,19 @@ import {
   subscribeAuth,
 } from '../lib/supabase.ts';
 import { Avatar } from './Avatar.tsx';
-import { CheckIcon, CloseIcon, EditIcon, GoogleIcon, Modal } from './ui.tsx';
+import {
+  BoltIcon,
+  CheckIcon,
+  CloseIcon,
+  EditIcon,
+  GoogleIcon,
+  Modal,
+  PlayIcon,
+  StarIcon,
+  FlameIcon,
+  TargetIcon,
+  TrophyIcon,
+} from './ui.tsx';
 import { AvatarStudio } from '../screens/AvatarStudio.tsx';
 
 interface ProfileModalProps {
@@ -29,11 +41,29 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
   const [draft, setDraft] = useState<PlayerProfile>(profile);
   const [showAvatarStudio, setShowAvatarStudio] = useState(false);
   const [editingName, setEditingName] = useState(false);
+  const [stats, setStats] = useState<PlayerStats | null | undefined>(undefined);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (editingName) nameInputRef.current?.focus();
   }, [editingName]);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .stats()
+      .then((result) => {
+        if (alive) setStats(result);
+      })
+      .catch(() => {
+        if (alive) setStats(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const level = xpProgress(stats?.xp ?? 0).level;
 
   const dirty = draft.name !== profile.name || draft.avatar !== profile.avatar;
 
@@ -71,17 +101,22 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
     >
       <div className="stack">
         <div className="profile__identity">
-          <button
-            type="button"
-            className="avatar-edit-btn"
-            onClick={() => setShowAvatarStudio(true)}
-            aria-label="Ubah avatar"
-          >
-            <Avatar config={draft.avatar} size={96} alt="Avatar kamu" />
-            <span className="avatar-edit-btn__overlay" aria-hidden="true">
-              <EditIcon />
-            </span>
-          </button>
+          <div className="profile__hero">
+            <div className="profile__avatar-wrap">
+              <button
+                type="button"
+                className="avatar-edit-btn"
+                onClick={() => setShowAvatarStudio(true)}
+                aria-label="Ubah avatar"
+              >
+                <Avatar config={draft.avatar} size={96} alt="Avatar kamu" />
+                <span className="avatar-edit-btn__overlay" aria-hidden="true">
+                  <EditIcon />
+                </span>
+              </button>
+              <span className="profile__level-badge">Lv. {level}</span>
+            </div>
+          </div>
 
           {editingName ? (
             <input
@@ -116,7 +151,7 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
 
         <hr className="divider" />
 
-        <StatsSummaryField />
+        <StatsSummaryField stats={stats} />
 
         {isAuthAvailable() && (
           <>
@@ -134,25 +169,11 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
  * modal "Statistik" terpisah yang cuma bisa dibuka setelah login; sekarang
  * ditarik ke sini supaya satu-satunya tempat melihat statistik ya Profil
  * Saya, dan Guest pun bisa melihatnya.
+ *
+ * `stats` diambil sekali di `ProfileModal` (dipakai juga oleh badge "Lv."
+ * di avatar), diteruskan sebagai prop di sini supaya tidak fetch dua kali.
  */
-function StatsSummaryField() {
-  const [stats, setStats] = useState<PlayerStats | null | undefined>(undefined);
-
-  useEffect(() => {
-    let alive = true;
-    api
-      .stats()
-      .then((result) => {
-        if (alive) setStats(result);
-      })
-      .catch(() => {
-        if (alive) setStats(null);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
+function StatsSummaryField({ stats }: { stats: PlayerStats | null | undefined }) {
   const avgGuesses =
     stats && stats.totalGames > 0 ? (stats.totalGuesses / stats.totalGames).toFixed(1) : '—';
 
@@ -167,28 +188,58 @@ function StatsSummaryField() {
 
           <dl className="profile__stats">
             <div className="profile__stat">
-              <dt className="caption">Total main</dt>
-              <dd className="tnum">{stats.totalGames}</dd>
+              <span className="profile__stat-icon">
+                <PlayIcon />
+              </span>
+              <div>
+                <dt className="caption">Total main</dt>
+                <dd className="tnum">{stats.totalGames}</dd>
+              </div>
             </div>
             <div className="profile__stat">
-              <dt className="caption">Menang</dt>
-              <dd className="tnum">{stats.totalWins}</dd>
+              <span className="profile__stat-icon">
+                <TrophyIcon />
+              </span>
+              <div>
+                <dt className="caption">Menang</dt>
+                <dd className="tnum">{stats.totalWins}</dd>
+              </div>
             </div>
             <div className="profile__stat">
-              <dt className="caption">Rata-rata tebakan</dt>
-              <dd className="tnum">{avgGuesses}</dd>
+              <span className="profile__stat-icon">
+                <TargetIcon />
+              </span>
+              <div>
+                <dt className="caption">Rata-rata tebakan</dt>
+                <dd className="tnum">{avgGuesses}</dd>
+              </div>
             </div>
             <div className="profile__stat">
-              <dt className="caption">Tebakan tersedikit</dt>
-              <dd className="tnum">{stats.bestGuessCount ?? '—'}</dd>
+              <span className="profile__stat-icon">
+                <StarIcon />
+              </span>
+              <div>
+                <dt className="caption">Tebakan tersedikit</dt>
+                <dd className="tnum">{stats.bestGuessCount ?? '—'}</dd>
+              </div>
             </div>
             <div className="profile__stat">
-              <dt className="caption">Streak sekarang</dt>
-              <dd className="tnum">{stats.currentStreak}</dd>
+              <span className="profile__stat-icon">
+                <FlameIcon />
+              </span>
+              <div>
+                <dt className="caption">Streak sekarang</dt>
+                <dd className="tnum">{stats.currentStreak}</dd>
+              </div>
             </div>
             <div className="profile__stat">
-              <dt className="caption">Streak terpanjang</dt>
-              <dd className="tnum">{stats.longestStreak}</dd>
+              <span className="profile__stat-icon">
+                <BoltIcon />
+              </span>
+              <div>
+                <dt className="caption">Streak terpanjang</dt>
+                <dd className="tnum">{stats.longestStreak}</dd>
+              </div>
             </div>
           </dl>
         </>
@@ -204,6 +255,7 @@ function StatsSummaryField() {
  */
 function XpBar({ xp }: { xp: number }) {
   const progress = xpProgress(xp);
+  const remaining = progress.nextLevelXp - progress.xp;
   return (
     <div className="xp-summary">
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -215,6 +267,9 @@ function XpBar({ xp }: { xp: number }) {
       <div className="xp-bar">
         <span style={{ width: `${Math.round(progress.progress * 100)}%` }} />
       </div>
+      <p className="xp-summary__caption">
+        {remaining} XP lagi untuk naik ke <strong>Level {progress.level + 1}</strong>
+      </p>
     </div>
   );
 }

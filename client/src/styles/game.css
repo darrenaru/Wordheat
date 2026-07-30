@@ -342,12 +342,36 @@ button.player__trigger:hover {
 
 .profile__stat {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: var(--s3);
   padding: var(--s3);
   background: var(--surface-alt);
   border-radius: var(--radius);
   text-align: left;
+}
+
+.profile__stat dt {
+  margin: 0;
+}
+
+/* Badge ikon monokrom — bukan warna-warni per kategori, supaya aksen pink
+   tetap eksklusif milik tombol "Tebak" (lihat DESIGN.md). */
+.profile__stat-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+
+.profile__stat-icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .profile__stat dd {
@@ -383,6 +407,17 @@ button.player__trigger:hover {
   border-radius: var(--radius-bar);
   background: var(--correct);
   transition: width 380ms var(--ease);
+}
+
+.xp-summary__caption {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.xp-summary__caption strong {
+  color: var(--text);
+  font-weight: 700;
 }
 
 /* -------------------------------------------------------------- hasil */

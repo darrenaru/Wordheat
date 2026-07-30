@@ -258,6 +258,25 @@ export const EditIcon = () => (
   </svg>
 );
 
+export const FlameIcon = () => (
+  <svg {...iconProps}>
+    <path d="M17.7 18.7A8 8 0 0 1 6.3 7.3C7 9 9 10 9 10c0-2 .5-5 3-7 1 2 3 2.8 4.7 4.3A8 8 0 0 1 17.7 18.7Z" />
+    <path d="M9.9 16.1a3 3 0 1 0 2.1-5.1L11 14H9c0 .8.3 1.5.9 2.1Z" />
+  </svg>
+);
+
+export const BoltIcon = () => (
+  <svg {...iconProps}>
+    <path d="M13 3 4 14h6l-1 7 9-11h-6l1-7Z" />
+  </svg>
+);
+
+export const StarIcon = () => (
+  <svg {...iconProps}>
+    <path d="m12 3 2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6-4.5-4.2 6.1-.7L12 3Z" />
+  </svg>
+);
+
 export const CheckIcon = () => (
   <svg {...iconProps}>
     <path d="M5 12.5 9.5 17 19 6.5" />
