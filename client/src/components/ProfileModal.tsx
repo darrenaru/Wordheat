@@ -148,12 +148,12 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
 
             <UsernameField displayName={profile.name} avatar={profile.avatar} />
             <BioField displayName={profile.name} avatar={profile.avatar} />
+
+            <LevelSummaryField stats={stats} />
           </div>
         </div>
 
-        <hr className="divider" />
-
-        <StatsSummaryField stats={stats} />
+        <StatsGrid stats={stats} />
 
         {isAuthAvailable() && (
           <>
@@ -203,85 +203,103 @@ function HeroParticles() {
 }
 
 /**
- * Statistik pribadi (anonim maupun login, sama seperti coin) — dulu ada di
- * modal "Statistik" terpisah yang cuma bisa dibuka setelah login; sekarang
- * ditarik ke sini supaya satu-satunya tempat melihat statistik ya Profil
- * Saya, dan Guest pun bisa melihatnya.
+ * Progres level — bagian ini masuk ke dalam `.profile__hero` (lihat
+ * referensi desain: gradiennya membentang sampai baris "X XP lagi..."),
+ * makanya dipisah dari grid kotak statistik di bawah (`StatsGrid`) yang
+ * tetap di latar polos. Level BUKAN bagian dari "Statistik" — labelnya
+ * ada di `StatsGrid`, bukan di sini.
+ */
+function LevelSummaryField({ stats }: { stats: PlayerStats | null | undefined }) {
+  return (
+    <div className="field">
+      {stats === undefined && <p className="caption">Memuat...</p>}
+      {stats === null && <p className="caption">Belum ada statistik tercatat.</p>}
+      {stats && (
+        <div className="profile__level-card">
+          <XpBar xp={stats.xp} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Grid kotak statistik (anonim maupun login, sama seperti coin) — dulu ada
+ * di modal "Statistik" terpisah yang cuma bisa dibuka setelah login;
+ * sekarang ditarik ke sini supaya satu-satunya tempat melihat statistik ya
+ * Profil Saya, dan Guest pun bisa melihatnya.
  *
  * `stats` diambil sekali di `ProfileModal` (dipakai juga oleh badge "Lv."
- * di avatar), diteruskan sebagai prop di sini supaya tidak fetch dua kali.
+ * di avatar dan `LevelSummaryField`), diteruskan sebagai prop di sini
+ * supaya tidak fetch dua kali.
  */
-function StatsSummaryField({ stats }: { stats: PlayerStats | null | undefined }) {
+function StatsGrid({ stats }: { stats: PlayerStats | null | undefined }) {
   const avgGuesses =
     stats && stats.totalGames > 0 ? (stats.totalGuesses / stats.totalGames).toFixed(1) : '—';
+
+  if (!stats) return null;
 
   return (
     <div className="field">
       <span className="field__label">Statistik</span>
-      {stats === undefined && <p className="caption">Memuat...</p>}
-      {stats === null && <p className="caption">Belum ada statistik tercatat.</p>}
-      {stats && (
-        <>
-          <XpBar xp={stats.xp} />
-
-          <dl className="profile__stats">
-            <div className="profile__stat">
-              <span className="profile__stat-icon">
-                <PlayIcon />
-              </span>
-              <div>
-                <dt className="caption">Total main</dt>
-                <dd className="tnum">{stats.totalGames}</dd>
-              </div>
+      <div className="profile__stats-card">
+        <dl className="profile__stats">
+          <div className="profile__stat">
+            <span className="profile__stat-icon">
+              <PlayIcon />
+            </span>
+            <div>
+              <dt className="caption">Total main</dt>
+              <dd className="tnum">{stats.totalGames}</dd>
             </div>
-            <div className="profile__stat">
-              <span className="profile__stat-icon">
-                <TrophyIcon />
-              </span>
-              <div>
-                <dt className="caption">Menang</dt>
-                <dd className="tnum">{stats.totalWins}</dd>
-              </div>
+          </div>
+          <div className="profile__stat">
+            <span className="profile__stat-icon">
+              <TrophyIcon />
+            </span>
+            <div>
+              <dt className="caption">Menang</dt>
+              <dd className="tnum">{stats.totalWins}</dd>
             </div>
-            <div className="profile__stat">
-              <span className="profile__stat-icon">
-                <TargetIcon />
-              </span>
-              <div>
-                <dt className="caption">Rata-rata tebakan</dt>
-                <dd className="tnum">{avgGuesses}</dd>
-              </div>
+          </div>
+          <div className="profile__stat">
+            <span className="profile__stat-icon">
+              <TargetIcon />
+            </span>
+            <div>
+              <dt className="caption">Rata-rata tebakan</dt>
+              <dd className="tnum">{avgGuesses}</dd>
             </div>
-            <div className="profile__stat">
-              <span className="profile__stat-icon">
-                <StarIcon />
-              </span>
-              <div>
-                <dt className="caption">Tebakan tersedikit</dt>
-                <dd className="tnum">{stats.bestGuessCount ?? '—'}</dd>
-              </div>
+          </div>
+          <div className="profile__stat">
+            <span className="profile__stat-icon">
+              <StarIcon />
+            </span>
+            <div>
+              <dt className="caption">Tebakan tersedikit</dt>
+              <dd className="tnum">{stats.bestGuessCount ?? '—'}</dd>
             </div>
-            <div className="profile__stat">
-              <span className="profile__stat-icon">
-                <FlameIcon />
-              </span>
-              <div>
-                <dt className="caption">Streak sekarang</dt>
-                <dd className="tnum">{stats.currentStreak}</dd>
-              </div>
+          </div>
+          <div className="profile__stat">
+            <span className="profile__stat-icon">
+              <FlameIcon />
+            </span>
+            <div>
+              <dt className="caption">Streak sekarang</dt>
+              <dd className="tnum">{stats.currentStreak}</dd>
             </div>
-            <div className="profile__stat">
-              <span className="profile__stat-icon">
-                <BoltIcon />
-              </span>
-              <div>
-                <dt className="caption">Streak terpanjang</dt>
-                <dd className="tnum">{stats.longestStreak}</dd>
-              </div>
+          </div>
+          <div className="profile__stat">
+            <span className="profile__stat-icon">
+              <BoltIcon />
+            </span>
+            <div>
+              <dt className="caption">Streak terpanjang</dt>
+              <dd className="tnum">{stats.longestStreak}</dd>
             </div>
-          </dl>
-        </>
-      )}
+          </div>
+        </dl>
+      </div>
     </div>
   );
 }

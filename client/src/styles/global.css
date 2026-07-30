@@ -370,6 +370,11 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
+  width: 100%;
+  /* `.profile__hero` (satu-satunya parent yang `text-align: center`) sengaja
+     dilawan di sini — label "Statistik" dan baris Level/XP tetap rata kiri
+     seperti sebelum dipindah ke dalam kartu hero, cuma latarnya yang beda. */
+  text-align: left;
 }
 
 .field__label {
@@ -543,7 +548,18 @@ h3 {
   align-items: center;
   gap: var(--s1);
   width: 100%;
-  padding: var(--s5) var(--s4) var(--s4);
+  /* Padding di semua sisi dilebihkan (bukan cuma bawah) supaya ada ruang
+     kosong di tiap tepi tempat gradiennya benar-benar memudar — avatar,
+     teks, dan kartu Level sendiri tidak boleh jatuh di dalam zona fade
+     (lihat `mask-image` di bawah; jarak fade tiap sisi selalu dijaga
+     lebih kecil dari padding sisi itu, supaya kontennya tidak ikut pudar). */
+  padding: var(--s7) var(--s4) var(--s6);
+  /* Batas kartu, pola sama seperti `.profile__level-card`/`.profile__stats-card`
+     — membingkai seluruh area avatar sampai kartu Level jadi satu kartu utuh,
+     bukan cuma tekstur gradien mengambang tanpa tepi. Tetap ikut memudar di
+     `mask-image` di bawah, jadi garisnya juga melembut di sudut, konsisten
+     dengan efek fade yang sudah ada. */
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
   background-color: var(--surface);
@@ -560,7 +576,23 @@ h3 {
   background-size: 160% 160%;
   background-position: 35% 10%;
   animation: hero-glow-drift 16s ease-in-out infinite alternate;
-  margin-bottom: var(--s1);
+  /* Memudar ke transparan di KEEMPAT tepi — jaraknya selalu dijaga lebih
+     kecil dari padding sisi yang sama (atas: fade 36px vs padding 48px;
+     bawah: fade 26px vs padding 32px; kiri/kanan: fade 14px vs padding
+     16px), supaya avatar/teks/kartu Level tidak pernah ikut memudar, cuma
+     ruang kosong di tepinya yang kena. Jaraknya juga sengaja lebih lebar
+     dari radius sudut kartu (`--radius-lg`) supaya lengkungan sudutnya
+     ikut memudar habis, bukan cuma menipis lalu masih kelihatan sebagai
+     garis lengkung. Dua lapis gradien (vertikal + horizontal) digabung
+     dengan `intersect`/`source-in` supaya alpha-nya jadi nilai TERKECIL
+     dari keduanya di tiap piksel — itulah yang membuat keempat tepi
+     memudar sekaligus, termasuk di sudut-sudutnya. */
+  mask-image: linear-gradient(to bottom, transparent 0, black 36px, black calc(100% - 26px), transparent 100%),
+    linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 36px, black calc(100% - 26px), transparent 100%),
+    linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
+  -webkit-mask-composite: source-in;
 }
 
 @keyframes hero-glow-drift {
@@ -775,10 +807,15 @@ h3 {
   max-width: 320px;
 }
 
+/* `position: relative` + ikon `position: absolute` (bukan flex child
+   biasa) — pola sama seperti `.identity-editable`/`.identity-editable__icon`.
+   Kalau ikonnya ikut dihitung dalam lebar box (flex child normal), teks
+   "No bio"/bio-nya kelihatan geser ke kiri dari titik tengah kartu, karena
+   box yang di-center itu jadi lebih lebar dari teksnya sendiri. */
 .bio-field__display {
+  position: relative;
   display: inline-flex;
   align-items: flex-start;
-  gap: 6px;
   padding: 2px var(--s2);
   border-radius: var(--radius-sm);
   max-width: 100%;
@@ -798,9 +835,11 @@ h3 {
 }
 
 .bio-field__icon {
-  flex: none;
+  position: absolute;
+  left: 100%;
+  top: 2px;
+  margin-left: 6px;
   display: flex;
-  margin-top: 2px;
   color: var(--text-dim);
   opacity: 0;
   transition: opacity 160ms var(--ease), color 160ms var(--ease);

@@ -332,12 +332,24 @@ button.player__trigger:hover {
   gap: var(--s2);
 }
 
+/* Kartu besar yang membungkus seluruh grid statistik. Sengaja `--surface`
+   (bukan `--surface-alt` seperti kotak `.profile__stat` di dalamnya) —
+   kalau warnanya sama, kotak-kotak statistik jadi tidak kelihatan bedanya
+   dari kartu pembungkusnya (bug kontras yang sama seperti pernah terjadi
+   di `.xp-bar`). */
+.profile__stats-card {
+  width: 100%;
+  padding: var(--s4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
 .profile__stats {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s3);
   width: 100%;
-  margin: var(--s2) 0 0;
 }
 
 .profile__stat {
@@ -383,6 +395,17 @@ button.player__trigger:hover {
   grid-column: span 2;
 }
 
+/* Kartu Level — dudukan solid `--surface-alt` di atas gradien
+   `.profile__hero`, biar barisnya (Level/XP + bar + caption) tetap terbaca
+   jelas alih-alih mengambang langsung di atas glow. */
+.profile__level-card {
+  width: 100%;
+  padding: var(--s4);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
 /* Progres level di atas grid statistik Profil Saya — pola visual sama
    seperti `.player__bar` (bar suhu di daftar pemain ruang), cuma di-scope
    terpisah supaya tidak ikut kewarnai `[data-temp]`, dan warnanya hijau
@@ -397,7 +420,10 @@ button.player__trigger:hover {
 .xp-bar {
   height: 8px;
   border-radius: var(--radius-bar);
-  background: var(--surface-alt);
+  /* `--border`, bukan `--surface-alt` — bar ini sekarang duduk di dalam
+     `.profile__level-card` yang latarnya `--surface-alt` juga; kalau
+     dua-duanya sama, trek bar-nya jadi tidak kelihatan sama sekali. */
+  background: var(--border);
   overflow: hidden;
 }
 
