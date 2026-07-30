@@ -5,12 +5,14 @@ import { Ambient } from '../components/Ambient.tsx';
 import {
   ArrowIcon,
   CalendarIcon,
+  HelpIcon,
   PlayIcon,
   ShopIcon,
   TrophyIcon,
   UsersIcon,
   useToast,
 } from '../components/ui.tsx';
+import { RulesModal } from './RulesModal.tsx';
 
 /** Angka yang ditampilkan di chip hero — nyata, datang dari server. */
 interface Health {
@@ -23,6 +25,7 @@ export function HomeScreen() {
   const [code, setCode] = useState('');
   const [checking, setChecking] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
+  const [showRules, setShowRules] = useState(false);
   const toast = useToast();
 
   // Satu GET kecil. Kalau gagal, chip dan tanggalnya sekadar tidak muncul —
@@ -82,6 +85,11 @@ export function HomeScreen() {
             {health.vocabulary} kata di kamus · {health.targets} kata rahasia
           </span>
         )}
+
+        <button className="btn btn--ghost btn--sm" onClick={() => setShowRules(true)}>
+          <HelpIcon />
+          Panduan Bermain
+        </button>
       </header>
 
       <form
@@ -190,6 +198,8 @@ export function HomeScreen() {
           </span>
         </button>
       </div>
+
+      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
     </div>
   );
 }

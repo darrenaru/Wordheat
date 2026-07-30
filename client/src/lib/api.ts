@@ -14,9 +14,13 @@ import { getAuthToken } from './supabase.ts';
 
 export class ApiFailure extends Error {
   readonly code: ApiError['code'];
-  constructor(error: ApiError) {
+  /** Cuma terisi untuk error tertentu (mis. cooldown ganti username) yang
+   *  butuh bawa data tambahan selain kode/pesan. */
+  readonly changeableAt?: string;
+  constructor(error: ApiError & { changeableAt?: string }) {
     super(error.message);
     this.code = error.code;
+    this.changeableAt = error.changeableAt;
   }
 }
 
@@ -89,7 +93,11 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ name, avatar }) },
     ),
 
-  username: () => request<{ username: string | null }>('/username').then((r) => r.username),
+  username: () =>
+    request<{ username: string | null; changeableAt: string | null }>('/username').then((r) => ({
+      username: r.username,
+      changeableAt: r.changeableAt,
+    })),
 
   /**
    * Gagal (mis. sudah dipakai) melempar `ApiFailure` — baca `.code`/`.message`.
@@ -101,6 +109,14 @@ export const api = {
     request<{ ok: true }>('/username', {
       method: 'POST',
       body: JSON.stringify({ username, displayName, avatar }),
+    }),
+
+  bio: () => request<{ bio: string | null }>('/bio').then((r) => r.bio),
+
+  setBio: (bio: string, displayName: string, avatar: AvatarConfig) =>
+    request<{ ok: true }>('/bio', {
+      method: 'POST',
+      body: JSON.stringify({ bio, displayName, avatar }),
     }),
 
   searchUsers: (q: string) =>

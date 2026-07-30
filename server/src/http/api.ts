@@ -17,12 +17,14 @@ import { dismissInvite, listInvites, sendInvite } from '../game/invites.ts';
 import { addPowerup, getInventory } from '../powerup/store.ts';
 import {
   areFriends,
+  getBio,
   getUsername,
   listFriends,
   removeFriendship,
   respondToFriendRequest,
   searchUsers,
   sendFriendRequest,
+  setBio,
   setUsername,
 } from '../social/store.ts';
 import { getLeaderboard, getStats, linkAccountProfile, verifyToken } from '../stats/store.ts';
@@ -196,18 +198,20 @@ export function createApiRouter(): Router {
     });
   });
 
-  /** Username pemain sendiri, kalau sudah pernah diatur. */
+  /** Username pemain sendiri (kalau sudah pernah diatur) + kapan boleh diganti lagi. */
   router.get('/username', async (req, res) => {
     const profileId = resolveProfileId(req);
     if (!profileId) {
       res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
       return;
     }
-    const username = await getUsername(profileId);
-    res.json({ ok: true, username });
+    const { username, changeableAt } = await getUsername(profileId);
+    res.json({ ok: true, username, changeableAt });
   });
 
-  /** Set/ganti username sendiri — identitas unik yang dipakai Add Friend. */
+  /** Set/ganti username sendiri — identitas unik yang dipakai Add Friend.
+   *  Klaim pertama bebas; ganti berikutnya kena cooldown 7 hari (lihat
+   *  `setUsername` di `social/store.ts`). */
   router.post('/username', async (req, res) => {
     const profileId = resolveProfileId(req);
     if (!profileId) {
@@ -222,11 +226,56 @@ export function createApiRouter(): Router {
     const avatar = resolveAvatar(req.body);
     const result = await setUsername(profileId, username, { displayName, avatar });
     if (!result.ok) {
+      if (result.code === 'cooldown') {
+        const days = Math.max(
+          1,
+          Math.ceil((new Date(result.changeableAt).getTime() - Date.now()) / 86_400_000),
+        );
+        res.status(400).json({
+          ok: false,
+          code: result.code,
+          changeableAt: result.changeableAt,
+          message: `Username cuma bisa diganti tiap 7 hari sekali. Coba lagi dalam ${days} hari.`,
+        });
+        return;
+      }
       const message =
         result.code === 'taken'
           ? 'Username itu sudah dipakai.'
           : 'Username tidak valid — 3-20 karakter, diawali huruf, boleh angka/underscore.';
       res.status(400).json({ ok: false, code: result.code, message });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  /** Bio pemain sendiri (kalau sudah pernah diatur). */
+  router.get('/bio', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const { bio } = await getBio(profileId);
+    res.json({ ok: true, bio });
+  });
+
+  /** Set/ganti bio sendiri — bebas kapan saja, tidak ada cooldown. */
+  router.post('/bio', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const bio = typeof req.body?.bio === 'string' ? req.body.bio : '';
+    const displayName =
+      typeof req.body?.displayName === 'string'
+        ? req.body.displayName.trim().slice(0, 32) || undefined
+        : undefined;
+    const avatar = resolveAvatar(req.body);
+    const result = await setBio(profileId, bio, { displayName, avatar });
+    if (!result.ok) {
+      res.status(400).json({ ok: false, code: result.code, message: 'Gagal menyimpan bio.' });
       return;
     }
     res.json({ ok: true });

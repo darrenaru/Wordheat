@@ -19,13 +19,12 @@ import { Avatar } from './components/Avatar.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
 import { CoinFxLayer } from './components/CoinFx.tsx';
 import { ProfileModal } from './components/ProfileModal.tsx';
-import { BackIcon, HelpIcon, SoundOffIcon, SoundOnIcon, UsersIcon } from './components/ui.tsx';
+import { BackIcon, SoundOffIcon, SoundOnIcon, UsersIcon } from './components/ui.tsx';
 import { WelcomeModal } from './components/WelcomeModal.tsx';
 import { FriendListScreen } from './screens/FriendListScreen.tsx';
 import { HomeScreen } from './screens/HomeScreen.tsx';
 import { LeaderboardScreen } from './screens/LeaderboardScreen.tsx';
 import { RoomScreen } from './screens/RoomScreen.tsx';
-import { RulesModal } from './screens/RulesModal.tsx';
 import { ShopScreen } from './screens/ShopScreen.tsx';
 import { SoloScreen } from './screens/SoloScreen.tsx';
 
@@ -34,7 +33,6 @@ const EMPTY_FRIENDS: FriendsPayload = { friends: [], incoming: [], outgoing: [],
 export function App() {
   const route = useRoute();
   const [profile, setProfile] = useState<PlayerProfile>(loadProfile);
-  const [showRules, setShowRules] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const balance = useSyncExternalStore(subscribeWallet, getBalance, () => 0);
@@ -134,13 +132,6 @@ export function App() {
               </button>
             )}
             <button
-              className="btn btn--ghost btn--icon"
-              onClick={() => setShowRules(true)}
-              aria-label="Cara bermain"
-            >
-              <HelpIcon />
-            </button>
-            <button
               ref={coinChipRef}
               className={`btn btn--ghost btn--sm${coinPulse ? ` coin-chip--${coinPulse}` : ''}`}
               onClick={() => navigate('/shop')}
@@ -200,7 +191,6 @@ export function App() {
       </div>
 
       {showWelcome && <WelcomeModal onContinueAsGuest={() => setShowWelcome(false)} />}
-      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
       {showProfile && (
         <ProfileModal
           profile={profile}

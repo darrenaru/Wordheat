@@ -9,12 +9,20 @@ import { getServiceClient } from '../db/client.ts';
 /** 3-20 karakter, harus diawali huruf, sisanya huruf/angka/underscore. */
 const USERNAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{2,19}$/;
 
+/** Username cuma bisa DIGANTI tiap 7 hari sekali — klaim pertama kali
+ *  (dari belum punya sama sekali) selalu bebas, cooldown baru berlaku
+ *  mulai perubahan berikutnya. */
+const USERNAME_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+
 interface StatsRow {
   profile_id: string;
   user_id: string | null;
   display_name: string | null;
   avatar: AvatarConfig | null;
   username: string | null;
+  username_changed_at: string | null;
+  bio: string | null;
+  xp: number;
   total_games: number;
   total_wins: number;
   total_guesses: number;
@@ -22,6 +30,17 @@ interface StatsRow {
   current_streak: number;
   longest_streak: number;
   last_played_date: string | null;
+}
+
+/** Bio bebas diganti kapan saja (bukan identitas unik seperti username),
+ *  jadi tidak ada cooldown — cukup batasi panjangnya. */
+const BIO_MAX_LENGTH = 140;
+
+/** `null` kalau boleh diganti sekarang, atau ISO timestamp kapan boleh lagi. */
+function changeableAtFrom(usernameChangedAt: string | null): string | null {
+  if (!usernameChangedAt) return null;
+  const changeableAt = new Date(usernameChangedAt).getTime() + USERNAME_COOLDOWN_MS;
+  return changeableAt > Date.now() ? new Date(changeableAt).toISOString() : null;
 }
 
 interface UserRow {
@@ -40,7 +59,10 @@ function toUserSummary(row: UserRow): UserSummary {
   };
 }
 
-export type SetUsernameResult = { ok: true } | { ok: false; code: 'invalid' | 'taken' };
+export type SetUsernameResult =
+  | { ok: true }
+  | { ok: false; code: 'invalid' | 'taken' }
+  | { ok: false; code: 'cooldown'; changeableAt: string };
 
 /**
  * Set/ganti username sendiri. Fetch-lalu-upsert baris `player_stats` penuh
@@ -48,6 +70,10 @@ export type SetUsernameResult = { ok: true } | { ok: false; code: 'invalid' | 't
  * lain (statistik, avatar, dst) tidak ikut ter-null-kan oleh upsert parsial.
  * Ini sekaligus menjamin baris `player_stats` pemain ada — prasyarat untuk
  * foreign key `friendships` sebelum dia bisa berteman.
+ *
+ * Klaim pertama kali (belum pernah punya username) selalu bebas — cooldown
+ * 7 hari cuma berlaku begitu pemain sudah punya username dan MENGGANTINYA
+ * jadi nilai yang berbeda.
  */
 export async function setUsername(
   profileId: string,
@@ -73,6 +99,9 @@ export async function setUsername(
       display_name: null,
       avatar: null,
       username: null,
+      username_changed_at: null,
+      bio: null,
+      xp: 0,
       total_games: 0,
       total_wins: 0,
       total_guesses: 0,
@@ -82,9 +111,16 @@ export async function setUsername(
       last_played_date: null,
     };
 
+    const isRealChange = (row.username ?? '').toLowerCase() !== username.toLowerCase();
+    if (isRealChange && row.username !== null) {
+      const changeableAt = changeableAtFrom(row.username_changed_at);
+      if (changeableAt) return { ok: false, code: 'cooldown', changeableAt };
+    }
+
     const { error } = await client.from('player_stats').upsert({
       ...row,
       username,
+      username_changed_at: isRealChange ? new Date().toISOString() : row.username_changed_at,
       // Baris `player_stats` cuma disegarkan lewat sesi permainan atau login
       // (`recordGameResult`/`linkAccountProfile`) — pemain yang baru mengatur
       // username sebelum pernah main tidak akan punya nama/avatar di sini
@@ -105,18 +141,97 @@ export async function setUsername(
   }
 }
 
-export async function getUsername(profileId: string): Promise<string | null> {
+export async function getUsername(
+  profileId: string,
+): Promise<{ username: string | null; changeableAt: string | null }> {
   const client = getServiceClient();
-  if (!client) return null;
+  if (!client) return { username: null, changeableAt: null };
   try {
     const { data } = await client
       .from('player_stats')
-      .select('username')
+      .select('username, username_changed_at')
       .eq('profile_id', profileId)
       .maybeSingle();
-    return (data?.username as string | null | undefined) ?? null;
+    return {
+      username: (data?.username as string | null | undefined) ?? null,
+      changeableAt: changeableAtFrom((data?.username_changed_at as string | null | undefined) ?? null),
+    };
   } catch {
-    return null;
+    return { username: null, changeableAt: null };
+  }
+}
+
+export type SetBioResult = { ok: true } | { ok: false; code: 'invalid' };
+
+/**
+ * Set/ganti bio sendiri. Fetch-lalu-upsert baris penuh — pola sama seperti
+ * `setUsername` di atas, supaya kolom lain tidak ikut ter-null-kan.
+ */
+export async function setBio(
+  profileId: string,
+  rawBio: string,
+  meta?: { displayName?: string; avatar?: AvatarConfig },
+): Promise<SetBioResult> {
+  const bio = rawBio.trim().slice(0, BIO_MAX_LENGTH);
+
+  const client = getServiceClient();
+  if (!client) return { ok: false, code: 'invalid' };
+
+  try {
+    const { data: existing } = await client
+      .from('player_stats')
+      .select('*')
+      .eq('profile_id', profileId)
+      .maybeSingle();
+
+    const row: StatsRow = (existing as StatsRow | null) ?? {
+      profile_id: profileId,
+      user_id: null,
+      display_name: null,
+      avatar: null,
+      username: null,
+      username_changed_at: null,
+      bio: null,
+      xp: 0,
+      total_games: 0,
+      total_wins: 0,
+      total_guesses: 0,
+      best_guess_count: null,
+      current_streak: 0,
+      longest_streak: 0,
+      last_played_date: null,
+    };
+
+    const { error } = await client.from('player_stats').upsert({
+      ...row,
+      bio: bio || null,
+      display_name: meta?.displayName ?? row.display_name,
+      avatar: meta?.avatar ?? row.avatar,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error('setBio: gagal menyimpan bio:', error.message);
+      return { ok: false, code: 'invalid' };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error('setBio: gagal menyimpan bio:', err);
+    return { ok: false, code: 'invalid' };
+  }
+}
+
+export async function getBio(profileId: string): Promise<{ bio: string | null }> {
+  const client = getServiceClient();
+  if (!client) return { bio: null };
+  try {
+    const { data } = await client
+      .from('player_stats')
+      .select('bio')
+      .eq('profile_id', profileId)
+      .maybeSingle();
+    return { bio: (data?.bio as string | null | undefined) ?? null };
+  } catch {
+    return { bio: null };
   }
 }
 

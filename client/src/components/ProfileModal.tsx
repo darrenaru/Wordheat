@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { PlayerProfile, PlayerStats } from '@shared/types.ts';
 import { xpProgress } from '@shared/xp.ts';
 import { api, ApiFailure } from '../lib/api.ts';
@@ -28,6 +28,12 @@ interface ProfileModalProps {
 export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
   const [draft, setDraft] = useState<PlayerProfile>(profile);
   const [showAvatarStudio, setShowAvatarStudio] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingName) nameInputRef.current?.focus();
+  }, [editingName]);
 
   const dirty = draft.name !== profile.name || draft.avatar !== profile.avatar;
 
@@ -51,48 +57,62 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
       title="Profil Saya"
       onClose={onClose}
       footer={
-        <div className="row" style={{ gap: 8 }}>
-          <button className="btn btn--secondary" onClick={onClose}>
-            Batal
-          </button>
-          <button
-            className="btn btn--primary"
-            style={{ flex: 1 }}
-            onClick={save}
-            disabled={!dirty}
-          >
-            Simpan
-          </button>
-        </div>
+        dirty ? (
+          <div className="row" style={{ gap: 8 }}>
+            <button className="btn btn--secondary" onClick={onClose}>
+              Batal
+            </button>
+            <button className="btn btn--primary" style={{ flex: 1 }} onClick={save}>
+              Simpan
+            </button>
+          </div>
+        ) : undefined
       }
     >
       <div className="stack">
-        <div className="profile__avatar-row">
-          <Avatar config={draft.avatar} size={84} square alt="Avatar kamu" />
-          <div className="field">
-            <label className="field__label" htmlFor="display-name">
-              Display Name
-            </label>
+        <div className="profile__identity">
+          <button
+            type="button"
+            className="avatar-edit-btn"
+            onClick={() => setShowAvatarStudio(true)}
+            aria-label="Ubah avatar"
+          >
+            <Avatar config={draft.avatar} size={96} alt="Avatar kamu" />
+            <span className="avatar-edit-btn__overlay" aria-hidden="true">
+              <EditIcon />
+            </span>
+          </button>
+
+          {editingName ? (
             <input
+              ref={nameInputRef}
               id="display-name"
-              className="input"
+              className="identity-name"
               value={draft.name}
               maxLength={18}
               onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              onBlur={() => setEditingName(false)}
               placeholder="Nama kamu"
+              aria-label="Display Name"
+              style={{ width: `${(draft.name.length || 'Nama kamu'.length) + 1.5}ch` }}
             />
-            <button
-              className="btn btn--ghost btn--sm"
-              style={{ alignSelf: 'flex-start' }}
-              onClick={() => setShowAvatarStudio(true)}
-            >
-              <EditIcon />
-              Ubah Avatar
-            </button>
-          </div>
-        </div>
+          ) : (
+            <div className="identity-editable">
+              <span className="identity-name-display">{draft.name || 'Nama kamu'}</span>
+              <button
+                type="button"
+                className="identity-editable__icon"
+                onClick={() => setEditingName(true)}
+                aria-label="Ubah Display Name"
+              >
+                <EditIcon />
+              </button>
+            </div>
+          )}
 
-        <UsernameField displayName={profile.name} avatar={profile.avatar} />
+          <UsernameField displayName={profile.name} avatar={profile.avatar} />
+          <BioField displayName={profile.name} avatar={profile.avatar} />
+        </div>
 
         <hr className="divider" />
 
@@ -255,6 +275,11 @@ function AccountField() {
   );
 }
 
+function cooldownMessage(changeableAt: string): string {
+  const days = Math.max(1, Math.ceil((new Date(changeableAt).getTime() - Date.now()) / 86_400_000));
+  return `Username cuma bisa diganti tiap 7 hari sekali. Coba lagi dalam ${days} hari.`;
+}
+
 /**
  * Identitas unik yang dipakai teman untuk menemukanmu lewat Add Friend —
  * diperiksa dan disimpan otomatis begitu pemain berhenti mengetik sejenak
@@ -263,8 +288,15 @@ function AccountField() {
 function UsernameField({ displayName, avatar }: { displayName: string; avatar: PlayerProfile['avatar'] }) {
   const [value, setValue] = useState('');
   const [saved, setSaved] = useState<string | null>(null);
+  const [changeableAt, setChangeableAt] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
 
   useEffect(() => {
     let alive = true;
@@ -272,8 +304,9 @@ function UsernameField({ displayName, avatar }: { displayName: string; avatar: P
       .username()
       .then((current) => {
         if (!alive) return;
-        setValue(current ?? '');
-        setSaved(current);
+        setValue(current.username ?? '');
+        setSaved(current.username);
+        setChangeableAt(current.changeableAt);
       })
       .catch(() => {});
     return () => {
@@ -282,10 +315,19 @@ function UsernameField({ displayName, avatar }: { displayName: string; avatar: P
   }, []);
 
   const trimmed = value.trim();
+  const locked = changeableAt !== null && new Date(changeableAt).getTime() > Date.now();
 
   useEffect(() => {
     if (trimmed === (saved ?? '') || trimmed.length < 3) {
       setError(null);
+      setBusy(false);
+      return;
+    }
+    // Cooldown dicek duluan di sini (sebelum debounce jalan) supaya pesannya
+    // langsung muncul saat pengguna mencoba mengubah, bukan menunggu 600ms
+    // cuma untuk dapat penolakan yang sudah pasti dari server.
+    if (locked) {
+      setError(cooldownMessage(changeableAt!));
       setBusy(false);
       return;
     }
@@ -295,9 +337,18 @@ function UsernameField({ displayName, avatar }: { displayName: string; avatar: P
     const timer = window.setTimeout(async () => {
       try {
         await api.setUsername(trimmed, displayName, avatar);
-        if (alive) setSaved(trimmed);
+        if (alive) {
+          setSaved(trimmed);
+          // Server baru saja mencatat waktu ganti ini — 7 hari dari sekarang
+          // dihitung ulang secara lokal, tidak perlu fetch ulang.
+          setChangeableAt(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString());
+        }
       } catch (err) {
-        if (alive) setError(err instanceof ApiFailure ? err.message : 'Gagal menyimpan username.');
+        if (!alive) return;
+        if (err instanceof ApiFailure && err.code === 'cooldown') {
+          setChangeableAt(err.changeableAt ?? null);
+        }
+        setError(err instanceof ApiFailure ? err.message : 'Gagal menyimpan username.');
       } finally {
         if (alive) setBusy(false);
       }
@@ -309,22 +360,41 @@ function UsernameField({ displayName, avatar }: { displayName: string; avatar: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trimmed]);
 
+  if (!editing) {
+    return (
+      <div className="identity-username">
+        <div className="identity-editable">
+          <span className="identity-username-display">@{saved || 'username_kamu'}</span>
+          <button
+            type="button"
+            className="identity-editable__icon"
+            onClick={() => setEditing(true)}
+            aria-label="Ubah username"
+          >
+            <EditIcon />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="field">
-      <label className="field__label" htmlFor="username">
-        Username
-      </label>
-      <div className="input-status">
+    <div className="identity-username">
+      <div className="identity-username__row">
+        <span className="identity-username__at">@</span>
         <input
+          ref={inputRef}
           id="username"
-          className="input"
+          className="identity-username__input"
           value={value}
           maxLength={20}
           onChange={(event) => setValue(event.target.value)}
+          onBlur={() => setEditing(false)}
           placeholder="username_kamu"
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
+          aria-label="Username"
         />
         {busy && <span className="spinner" aria-hidden="true" />}
         {!busy && !error && saved !== null && trimmed === saved && trimmed.length >= 3 && (
@@ -338,13 +408,122 @@ function UsernameField({ displayName, avatar }: { displayName: string; avatar: P
           </span>
         )}
       </div>
-      {error ? (
-        <p className="form-error">{error}</p>
-      ) : (
-        <p className="caption">
-          {saved
-            ? 'Dipakai teman untuk menemukanmu lewat Add Friend.'
-            : '3-20 karakter, diawali huruf, boleh angka/underscore.'}
+      {error && (
+        <p className="form-error" style={{ textAlign: 'center' }}>
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const BIO_MAX_LENGTH = 140;
+
+/**
+ * Bio bebas, tidak ada cooldown (beda dari username) — disimpan otomatis
+ * begitu pemain berhenti mengetik sejenak, pola debounce sama seperti
+ * `UsernameField` tapi tanpa validasi keunikan.
+ */
+function BioField({ displayName, avatar }: { displayName: string; avatar: PlayerProfile['avatar'] }) {
+  const [value, setValue] = useState('');
+  const [saved, setSaved] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editing) textareaRef.current?.focus();
+  }, [editing]);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .bio()
+      .then((bio) => {
+        if (!alive) return;
+        setValue(bio ?? '');
+        setSaved(bio ?? '');
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const trimmed = value.trim();
+
+  useEffect(() => {
+    if (trimmed === saved) {
+      setError(null);
+      setBusy(false);
+      return;
+    }
+    let alive = true;
+    setError(null);
+    setBusy(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        await api.setBio(trimmed, displayName, avatar);
+        if (alive) setSaved(trimmed);
+      } catch (err) {
+        if (alive) setError(err instanceof ApiFailure ? err.message : 'Gagal menyimpan bio.');
+      } finally {
+        if (alive) setBusy(false);
+      }
+    }, 600);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trimmed]);
+
+  if (!editing) {
+    return (
+      <div className="bio-field">
+        <button
+          type="button"
+          className="bio-field__display"
+          onClick={() => setEditing(true)}
+          aria-label="Ubah bio"
+        >
+          <span className="bio-field__text">{saved || 'No bio'}</span>
+          <span className="bio-field__icon" aria-hidden="true">
+            <EditIcon />
+          </span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bio-field">
+      <textarea
+        ref={textareaRef}
+        className="bio-field__textarea"
+        value={value}
+        maxLength={BIO_MAX_LENGTH}
+        rows={2}
+        onChange={(event) => setValue(event.target.value)}
+        onBlur={() => setEditing(false)}
+        placeholder="Tulis bio singkat tentang kamu..."
+        aria-label="Bio"
+      />
+      <div className="row" style={{ justifyContent: 'center', gap: 6 }}>
+        {busy && <span className="spinner" aria-hidden="true" />}
+        {!busy && !error && trimmed === saved && (
+          <span className="input-status__icon input-status__icon--ok" aria-hidden="true">
+            <CheckIcon />
+          </span>
+        )}
+        <span className="caption">
+          {value.length} / {BIO_MAX_LENGTH}
+        </span>
+      </div>
+      {error && (
+        <p className="form-error" style={{ textAlign: 'center' }}>
+          {error}
         </p>
       )}
     </div>

@@ -595,11 +595,17 @@ button.player__trigger:hover {
 .cell::before {
   content: '';
   position: absolute;
-  top: -55%;
-  left: -35%;
-  width: 90%;
-  height: 150%;
-  background: radial-gradient(circle, var(--accent, var(--brand)) 0%, transparent 68%);
+  /* Dulu kotaknya sengaja dipersempit (90%×150%, digeser ke pojok) supaya
+     radial-gradient-nya terasa seperti cahaya dari sudut — tapi radiusnya
+     tidak selalu sempat pudar sampai transparan sebelum mencapai TEPI kotak
+     itu sendiri, jadi tepinya sendiri kelihatan sebagai garis tegas
+     (persegi, bukan bundar) begitu keluar dari area kotak yang dipersempit.
+     `inset: 0` menutupi seluruh sel; posisi lingkaran di dekat sudut kiri
+     atas (`circle at ...`) tetap memberi kesan "cahaya sudut", tapi
+     pudarnya sekarang murni ditentukan oleh gradiennya sendiri — selalu
+     mencapai transparan jauh sebelum tepi kotak manapun. */
+  inset: 0;
+  background: radial-gradient(circle at 20% 15%, var(--accent, var(--brand)) 0%, transparent 60%);
   opacity: 0.13;
   pointer-events: none;
   transition: opacity 200ms var(--ease);
@@ -736,11 +742,11 @@ button.player__trigger:hover {
 .shop-item::before {
   content: '';
   position: absolute;
-  top: -55%;
-  left: -35%;
-  width: 90%;
-  height: 150%;
-  background: radial-gradient(circle, var(--accent, var(--brand)) 0%, transparent 68%);
+  /* Sama seperti `.cell::before` — kotak penuh (`inset: 0`), lingkaran
+     diposisikan dekat sudut kiri atas, supaya pudarnya murni ditentukan
+     gradiennya sendiri, bukan terpotong tegas oleh tepi kotak. */
+  inset: 0;
+  background: radial-gradient(circle at 20% 15%, var(--accent, var(--brand)) 0%, transparent 60%);
   opacity: 0.16;
   pointer-events: none;
 }

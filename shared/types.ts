@@ -129,7 +129,8 @@ export interface ApiError {
     | 'invalid'
     | 'blocked'
     | 'insufficient_funds'
-    | 'out_of_stock';
+    | 'out_of_stock'
+    | 'cooldown';
   message: string;
 }
 
