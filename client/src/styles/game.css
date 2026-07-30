@@ -361,8 +361,8 @@ button.player__trigger:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius);
   background: var(--surface);
   border: 1px solid var(--border);
@@ -370,8 +370,8 @@ button.player__trigger:hover {
 }
 
 .profile__stat-icon svg {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .profile__stat dd {

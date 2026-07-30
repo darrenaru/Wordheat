@@ -562,6 +562,19 @@ h3 {
   display: inline-flex;
 }
 
+/* Cincin di sekeliling avatar — pseudo-element terpisah (bukan box-shadow di
+   `.avatar-edit-btn` sendiri), karena tombol itu `overflow: hidden` yang
+   ikut memotong box-shadow-nya sendiri. Warnanya campuran pink+abu netral
+   (bukan pink solid), pola sama seperti tekstur ambient `.profile__hero`. */
+.profile__avatar-wrap::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--brand) 40%, var(--border-strong));
+  pointer-events: none;
+}
+
 .profile__level-badge {
   position: absolute;
   top: -2px;
