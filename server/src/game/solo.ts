@@ -134,12 +134,13 @@ export async function submitSoloGuess(
   let balance: number | undefined;
   if (guess.temperature === 'correct') {
     if (profileId) {
+      const coins = winReward(session.guesses.length);
       void recordGameResult(
         profileId,
-        { won: true, guessCount: session.guesses.length },
+        { won: true, guessCount: session.guesses.length, xpEarned: coins * 2 },
         { userId, displayName: name },
       );
-      balance = await creditWallet(profileId, winReward(session.guesses.length));
+      balance = await creditWallet(profileId, coins);
     }
   }
   return { ok: true, guess, state: toState(session), balance };

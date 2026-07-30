@@ -359,6 +359,32 @@ button.player__trigger:hover {
   grid-column: span 2;
 }
 
+/* Progres level di atas grid statistik Profil Saya — pola visual sama
+   seperti `.player__bar` (bar suhu di daftar pemain ruang), cuma di-scope
+   terpisah supaya tidak ikut kewarnai `[data-temp]`, dan warnanya hijau
+   `--correct` — pink `--brand` terkunci cuma untuk tombol "Tebak". */
+.xp-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  width: 100%;
+}
+
+.xp-bar {
+  height: 8px;
+  border-radius: var(--radius-bar);
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+
+.xp-bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-bar);
+  background: var(--correct);
+  transition: width 380ms var(--ease);
+}
+
 /* -------------------------------------------------------------- hasil */
 
 .result {
@@ -419,6 +445,24 @@ button.player__trigger:hover {
   flex: none;
   text-align: center;
   font-weight: 700;
+}
+
+/* Podium leaderboard — peringkat 1 dapat aksen `--warm` (warna yang sama
+   dipakai mahkota host di ruang, jadi sudah punya arti "istimewa" di app
+   ini); 2 dan 3 sekadar diangkat dari latar polos, tanpa warna baru. */
+.result-rank[data-rank='1'] {
+  background: color-mix(in srgb, var(--warm) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warm) 32%, transparent);
+}
+
+.result-rank[data-rank='1'] .result-rank__place {
+  color: var(--warm);
+}
+
+.result-rank[data-rank='2'],
+.result-rank[data-rank='3'] {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
 }
 
 .result-rank__name {

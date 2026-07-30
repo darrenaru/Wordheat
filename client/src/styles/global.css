@@ -16,6 +16,15 @@ body,
   height: 100%;
 }
 
+/* Jaring pengaman: kalau ada elemen yang meluber (topbar sempit, dekorasi
+   Ambient, dst) ini mencegahnya membuat scroll horizontal di seluruh
+   halaman. `clip`, bukan `hidden` — tidak membuat konteks scroll baru yang
+   bisa mengganggu `position: sticky`. */
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -131,6 +140,26 @@ a {
   display: flex;
   align-items: center;
   gap: var(--s2);
+}
+
+/* Logo/tombol Beranda di kiri + enam tombol aksi di kanan tidak pernah
+   cukup di satu baris pada layar ponsel — dulu diam-diam meluber horizontal
+   (lihat komentar `overflow-x: clip` di atas) sampai avatar dan tombol
+   Masuk hilang begitu saja dari layar. Dibungkus jadi dua baris di sini,
+   bukan disembunyikan sebagian: baris aksi tetap rata kanan mengikuti
+   bahasa visual yang sama seperti sebelumnya. */
+@media (max-width: 560px) {
+  .topbar {
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
+
+  .topbar__right {
+    flex: 1 0 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    row-gap: var(--s2);
+  }
 }
 
 .brand {
@@ -377,6 +406,59 @@ h3 {
   font-size: 20px;
 }
 
+/* Input dengan indikator status di kanan (mis. cek ketersediaan username
+   sambil mengetik, tanpa tombol Simpan terpisah). */
+.input-status {
+  position: relative;
+}
+
+.input-status .input {
+  padding-right: 44px;
+}
+
+.spinner {
+  position: absolute;
+  top: 50%;
+  right: var(--s3);
+  width: 16px;
+  height: 16px;
+  margin-top: -8px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--text-dim);
+  border-radius: var(--radius-pill);
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Hasil pemeriksaan ketersediaan — muncul di posisi yang sama dengan
+   spinner begitu pemeriksaan selesai. */
+.input-status__icon {
+  position: absolute;
+  top: 50%;
+  right: var(--s3);
+  transform: translateY(-50%);
+  display: flex;
+  line-height: 0;
+}
+
+.input-status__icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.input-status__icon--ok {
+  color: var(--correct);
+}
+
+.input-status__icon--error {
+  color: var(--very-hot);
+}
+
 /* ---------------------------------------------------------------- badge */
 
 /* Chip bersudut kecil, bukan pill — mengikuti sudut tegas di seluruh sistem. */
@@ -450,10 +532,30 @@ h3 {
   gap: var(--s4);
 }
 
+/* Header identitas Profil Saya: avatar tetap ukurannya, field Display Name
+   mengisi sisa lebar di sebelahnya — bukan dua blok terpisah bertumpuk. */
 .profile__avatar-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--s4);
+}
+
+.profile__avatar-row .field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Layar sempit: avatar+nama sejajar jadi sesak — kembali bertumpuk,
+   pelajaran langsung dari perbaikan mobile AvatarStudio sebelumnya. */
+@media (max-width: 480px) {
+  .profile__avatar-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .profile__avatar-row .field {
+    width: 100%;
+  }
 }
 
 .input:disabled {
@@ -681,6 +783,23 @@ h3 {
    presisi di pojok, tanpa mendorong tata letak tombol-tombol di sebelahnya. */
 .friends-btn {
   position: relative;
+}
+
+/* Layar sempit: topbar sudah punya enam elemen di kanan (suara, bantuan,
+   saldo, Teman, Masuk, avatar) — tanpa ini jumlahnya meluber melewati
+   tepi layar dan avatar/Masuk hilang begitu saja tanpa scroll. Label
+   "Teman" (elemen terlebar) disembunyikan dulu, tombolnya jadi ikon saja
+   selebar tombol suara/bantuan di sebelahnya. */
+@media (max-width: 480px) {
+  .friends-btn__label {
+    display: none;
+  }
+
+  .friends-btn {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
 }
 
 .friends-btn__badge {

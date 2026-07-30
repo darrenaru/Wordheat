@@ -10,9 +10,10 @@ const CATEGORIES: Array<{ key: Category; label: string; unit: string }> = [
   { key: 'wins', label: 'Jumlah Kemenangan', unit: 'menang' },
   { key: 'streak', label: 'Streak Terpanjang', unit: 'hari' },
   { key: 'guesses', label: 'Jumlah Tebakan', unit: 'tebakan' },
+  { key: 'xp', label: 'XP Terbanyak', unit: 'XP' },
 ];
 
-const EMPTY: Leaderboard = { coins: [], wins: [], streak: [], guesses: [] };
+const EMPTY: Leaderboard = { coins: [], wins: [], streak: [], guesses: [], xp: [] };
 
 /** Placeholder avatar netral untuk baris tanpa data avatar (mis. profil lama). */
 const FALLBACK_AVATAR = { seed: 'pemain', backgroundColor: '2A2A2E' };
@@ -64,7 +65,11 @@ export function LeaderboardScreen() {
         {!error && entries.length > 0 && (
           <ol className="result-ranks">
             {entries.map((entry, index) => (
-              <li key={`${entry.name}-${index}`} className="result-rank">
+              <li
+                key={`${entry.name}-${index}`}
+                className="result-rank"
+                data-rank={index < 3 ? index + 1 : undefined}
+              >
                 <span className="result-rank__place tnum">{index + 1}</span>
                 <Avatar config={entry.avatar ?? FALLBACK_AVATAR} size={28} />
                 <span className="result-rank__name">{entry.name}</span>

@@ -14,6 +14,7 @@ interface StatsRow {
   current_streak: number;
   longest_streak: number;
   last_played_date: string | null;
+  xp: number;
 }
 
 function toPlayerStats(row: StatsRow): PlayerStats {
@@ -25,6 +26,7 @@ function toPlayerStats(row: StatsRow): PlayerStats {
     currentStreak: row.current_streak,
     longestStreak: row.longest_streak,
     lastPlayedDate: row.last_played_date,
+    xp: row.xp,
   };
 }
 
@@ -69,7 +71,7 @@ export async function getStats(profileId: string): Promise<PlayerStats | null> {
  */
 export async function recordGameResult(
   profileId: string,
-  outcome: { won: boolean; guessCount: number },
+  outcome: { won: boolean; guessCount: number; xpEarned?: number },
   meta?: { userId?: string | null; displayName?: string; avatar?: AvatarConfig },
 ): Promise<void> {
   const client = getServiceClient();
@@ -94,6 +96,7 @@ export async function recordGameResult(
       current_streak: 0,
       longest_streak: 0,
       last_played_date: null,
+      xp: 0,
     };
 
     const today = currentPuzzleDate();
@@ -125,6 +128,7 @@ export async function recordGameResult(
       current_streak: currentStreak,
       longest_streak: Math.max(row.longest_streak, currentStreak),
       last_played_date: today,
+      xp: row.xp + (outcome.xpEarned ?? 0),
       updated_at: new Date().toISOString(),
     });
     if (error) console.error('recordGameResult: gagal upsert statistik:', error.message);
@@ -201,7 +205,7 @@ export async function linkAccountProfile(
 }
 
 const LEADERBOARD_LIMIT = 20;
-const EMPTY_LEADERBOARD: Leaderboard = { coins: [], wins: [], streak: [], guesses: [] };
+const EMPTY_LEADERBOARD: Leaderboard = { coins: [], wins: [], streak: [], guesses: [], xp: [] };
 
 interface NamedStatsRow {
   profile_id: string;
@@ -210,6 +214,7 @@ interface NamedStatsRow {
   total_wins: number;
   longest_streak: number;
   total_guesses: number;
+  xp: number;
 }
 
 function toEntry(row: { display_name: string | null; avatar: AvatarConfig | null }, value: number): LeaderboardEntry {
@@ -227,7 +232,7 @@ export async function getLeaderboard(): Promise<Leaderboard> {
   if (!client) return EMPTY_LEADERBOARD;
 
   try {
-    const [walletsRes, winsRes, streakRes, guessesRes] = await Promise.all([
+    const [walletsRes, winsRes, streakRes, guessesRes, xpRes] = await Promise.all([
       client
         .from('wallets')
         .select('profile_id, balance')
@@ -236,21 +241,27 @@ export async function getLeaderboard(): Promise<Leaderboard> {
         .limit(LEADERBOARD_LIMIT),
       client
         .from('player_stats')
-        .select('profile_id, display_name, avatar, total_wins, longest_streak, total_guesses')
+        .select('profile_id, display_name, avatar, total_wins, longest_streak, total_guesses, xp')
         .gt('total_wins', 0)
         .order('total_wins', { ascending: false })
         .limit(LEADERBOARD_LIMIT),
       client
         .from('player_stats')
-        .select('profile_id, display_name, avatar, total_wins, longest_streak, total_guesses')
+        .select('profile_id, display_name, avatar, total_wins, longest_streak, total_guesses, xp')
         .gt('longest_streak', 0)
         .order('longest_streak', { ascending: false })
         .limit(LEADERBOARD_LIMIT),
       client
         .from('player_stats')
-        .select('profile_id, display_name, avatar, total_wins, longest_streak, total_guesses')
+        .select('profile_id, display_name, avatar, total_wins, longest_streak, total_guesses, xp')
         .gt('total_guesses', 0)
         .order('total_guesses', { ascending: false })
+        .limit(LEADERBOARD_LIMIT),
+      client
+        .from('player_stats')
+        .select('profile_id, display_name, avatar, total_wins, longest_streak, total_guesses, xp')
+        .gt('xp', 0)
+        .order('xp', { ascending: false })
         .limit(LEADERBOARD_LIMIT),
     ]);
 
@@ -278,8 +289,9 @@ export async function getLeaderboard(): Promise<Leaderboard> {
     const wins = ((winsRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r, r.total_wins));
     const streak = ((streakRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r, r.longest_streak));
     const guesses = ((guessesRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r, r.total_guesses));
+    const xp = ((xpRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r, r.xp));
 
-    return { coins, wins, streak, guesses };
+    return { coins, wins, streak, guesses, xp };
   } catch (err) {
     console.error('getLeaderboard: gagal mengambil data:', err);
     return EMPTY_LEADERBOARD;

@@ -19,7 +19,6 @@ import { Avatar } from './components/Avatar.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
 import { CoinFxLayer } from './components/CoinFx.tsx';
 import { ProfileModal } from './components/ProfileModal.tsx';
-import { StatsModal } from './components/StatsModal.tsx';
 import { BackIcon, HelpIcon, SoundOffIcon, SoundOnIcon, UsersIcon } from './components/ui.tsx';
 import { WelcomeModal } from './components/WelcomeModal.tsx';
 import { FriendListScreen } from './screens/FriendListScreen.tsx';
@@ -38,7 +37,6 @@ export function App() {
   const [showRules, setShowRules] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [showStats, setShowStats] = useState(false);
   const balance = useSyncExternalStore(subscribeWallet, getBalance, () => 0);
   const friendsPayload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS);
   const pendingFriendCount = friendsPayload.incoming.length + friendsPayload.invites.length;
@@ -161,29 +159,20 @@ export function App() {
               }
             >
               <UsersIcon />
-              Teman
+              <span className="friends-btn__label">Teman</span>
               {pendingFriendCount > 0 && (
                 <span className="friends-btn__badge tnum">{pendingFriendCount}</span>
               )}
             </button>
-            {isAuthAvailable() &&
-              (session ? (
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => setShowStats(true)}
-                  aria-label="Statistik saya"
-                >
-                  Statistik
-                </button>
-              ) : (
-                <button
-                  className="btn btn--ghost btn--sm"
-                  onClick={() => setShowAuth(true)}
-                  aria-label="Masuk"
-                >
-                  Masuk
-                </button>
-              ))}
+            {isAuthAvailable() && !session && (
+              <button
+                className="btn btn--ghost btn--sm"
+                onClick={() => setShowAuth(true)}
+                aria-label="Masuk"
+              >
+                Masuk
+              </button>
+            )}
             <button
               className="btn btn--ghost avatar-btn"
               onClick={() => setShowProfile(true)}
@@ -221,13 +210,6 @@ export function App() {
       )}
       {showAuth && (
         <AuthModal onClose={() => setShowAuth(false)} onSignedIn={() => setShowAuth(false)} />
-      )}
-      {showStats && session && (
-        <StatsModal
-          email={session.user.email ?? ''}
-          onClose={() => setShowStats(false)}
-          onSignedOut={() => setShowStats(false)}
-        />
       )}
       <CoinFxLayer />
     </div>

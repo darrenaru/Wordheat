@@ -220,6 +220,8 @@ export interface PlayerStats {
   longestStreak: number;
   /** Tanggal WIB (YYYY-MM-DD) terakhir kali main. `null` bila belum pernah. */
   lastPlayedDate: string | null;
+  /** Total XP terkumpul — didapat cuma saat menang, sama seperti coin. */
+  xp: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -237,6 +239,7 @@ export interface Leaderboard {
   wins: LeaderboardEntry[];
   streak: LeaderboardEntry[];
   guesses: LeaderboardEntry[];
+  xp: LeaderboardEntry[];
 }
 
 /* ------------------------------------------------------------------ */

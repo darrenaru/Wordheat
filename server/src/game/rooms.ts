@@ -392,12 +392,13 @@ async function applyRoomGuess(
     player.solvedInMs = Date.now() - (room.startedAt ?? Date.now());
     player.placement = countFinishers(room);
     player.score += scoreFor(player);
+    const coins = roomWinReward(player);
     void recordGameResult(
       player.id,
-      { won: true, guessCount: player.guesses.length },
+      { won: true, guessCount: player.guesses.length, xpEarned: coins * 2 },
       { userId: player.userId, displayName: player.name, avatar: player.avatar },
     );
-    balance = await creditWallet(player.id, roomWinReward(player));
+    balance = await creditWallet(player.id, coins);
     broadcast(room, {
       type: 'notice',
       level: 'info',

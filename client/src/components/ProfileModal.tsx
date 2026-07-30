@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { PlayerProfile } from '@shared/types.ts';
+import type { PlayerProfile, PlayerStats } from '@shared/types.ts';
+import { xpProgress } from '@shared/xp.ts';
 import { api, ApiFailure } from '../lib/api.ts';
 import {
   getAuthSession,
@@ -9,7 +10,7 @@ import {
   subscribeAuth,
 } from '../lib/supabase.ts';
 import { Avatar } from './Avatar.tsx';
-import { GoogleIcon, Modal } from './ui.tsx';
+import { CheckIcon, CloseIcon, EditIcon, GoogleIcon, Modal } from './ui.tsx';
 import { AvatarStudio } from '../screens/AvatarStudio.tsx';
 
 interface ProfileModalProps {
@@ -67,31 +68,134 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
     >
       <div className="stack">
         <div className="profile__avatar-row">
-          <Avatar config={draft.avatar} size={64} square alt="Avatar kamu" />
-          <button className="btn btn--secondary" onClick={() => setShowAvatarStudio(true)}>
-            Ubah Avatar
-          </button>
-        </div>
-
-        <div className="field">
-          <label className="field__label" htmlFor="display-name">
-            Display Name
-          </label>
-          <input
-            id="display-name"
-            className="input"
-            value={draft.name}
-            maxLength={18}
-            onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-            placeholder="Nama kamu"
-          />
+          <Avatar config={draft.avatar} size={84} square alt="Avatar kamu" />
+          <div className="field">
+            <label className="field__label" htmlFor="display-name">
+              Display Name
+            </label>
+            <input
+              id="display-name"
+              className="input"
+              value={draft.name}
+              maxLength={18}
+              onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+              placeholder="Nama kamu"
+            />
+            <button
+              className="btn btn--ghost btn--sm"
+              style={{ alignSelf: 'flex-start' }}
+              onClick={() => setShowAvatarStudio(true)}
+            >
+              <EditIcon />
+              Ubah Avatar
+            </button>
+          </div>
         </div>
 
         <UsernameField displayName={profile.name} avatar={profile.avatar} />
 
-        {isAuthAvailable() && <AccountField />}
+        <hr className="divider" />
+
+        <StatsSummaryField />
+
+        {isAuthAvailable() && (
+          <>
+            <hr className="divider" />
+            <AccountField />
+          </>
+        )}
       </div>
     </Modal>
+  );
+}
+
+/**
+ * Statistik pribadi (anonim maupun login, sama seperti coin) — dulu ada di
+ * modal "Statistik" terpisah yang cuma bisa dibuka setelah login; sekarang
+ * ditarik ke sini supaya satu-satunya tempat melihat statistik ya Profil
+ * Saya, dan Guest pun bisa melihatnya.
+ */
+function StatsSummaryField() {
+  const [stats, setStats] = useState<PlayerStats | null | undefined>(undefined);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .stats()
+      .then((result) => {
+        if (alive) setStats(result);
+      })
+      .catch(() => {
+        if (alive) setStats(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const avgGuesses =
+    stats && stats.totalGames > 0 ? (stats.totalGuesses / stats.totalGames).toFixed(1) : '—';
+
+  return (
+    <div className="field">
+      <span className="field__label">Statistik</span>
+      {stats === undefined && <p className="caption">Memuat...</p>}
+      {stats === null && <p className="caption">Belum ada statistik tercatat.</p>}
+      {stats && (
+        <>
+          <XpBar xp={stats.xp} />
+
+          <dl className="profile__stats">
+            <div className="profile__stat">
+              <dt className="caption">Total main</dt>
+              <dd className="tnum">{stats.totalGames}</dd>
+            </div>
+            <div className="profile__stat">
+              <dt className="caption">Menang</dt>
+              <dd className="tnum">{stats.totalWins}</dd>
+            </div>
+            <div className="profile__stat">
+              <dt className="caption">Rata-rata tebakan</dt>
+              <dd className="tnum">{avgGuesses}</dd>
+            </div>
+            <div className="profile__stat">
+              <dt className="caption">Tebakan tersedikit</dt>
+              <dd className="tnum">{stats.bestGuessCount ?? '—'}</dd>
+            </div>
+            <div className="profile__stat">
+              <dt className="caption">Streak sekarang</dt>
+              <dd className="tnum">{stats.currentStreak}</dd>
+            </div>
+            <div className="profile__stat">
+              <dt className="caption">Streak terpanjang</dt>
+              <dd className="tnum">{stats.longestStreak}</dd>
+            </div>
+          </dl>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Progres level — dihitung dari `stats.xp` lewat kurva di `shared/xp.ts`,
+ * tidak ada kolom "level" terpisah di database supaya tidak ada dua sumber
+ * kebenaran yang bisa tidak sinkron.
+ */
+function XpBar({ xp }: { xp: number }) {
+  const progress = xpProgress(xp);
+  return (
+    <div className="xp-summary">
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span className="caption">Level {progress.level}</span>
+        <span className="caption tnum">
+          {progress.xp} / {progress.nextLevelXp} XP
+        </span>
+      </div>
+      <div className="xp-bar">
+        <span style={{ width: `${Math.round(progress.progress * 100)}%` }} />
+      </div>
+    </div>
   );
 }
 
@@ -129,12 +233,14 @@ function AccountField() {
     <div className="field">
       <span className="field__label">Akun</span>
       {session ? (
-        <>
-          <p className="caption">{session.user.email}</p>
-          <button className="btn btn--secondary btn--block" onClick={logout} disabled={busy}>
+        <div className="row" style={{ flexWrap: 'nowrap' }}>
+          <p className="caption" style={{ flex: 1, minWidth: 0, margin: 0 }}>
+            {session.user.email}
+          </p>
+          <button className="btn btn--ghost btn--sm" onClick={logout} disabled={busy}>
             {busy ? 'Keluar...' : 'Logout'}
           </button>
-        </>
+        </div>
       ) : (
         <>
           <p className="caption">Kamu main sebagai Guest.</p>
@@ -151,8 +257,8 @@ function AccountField() {
 
 /**
  * Identitas unik yang dipakai teman untuk menemukanmu lewat Add Friend —
- * disimpan sendiri, terpisah dari tombol Simpan utama Display Name/avatar,
- * supaya gagal karena sudah dipakai orang lain tidak mengganggu alur itu.
+ * diperiksa dan disimpan otomatis begitu pemain berhenti mengetik sejenak
+ * (tanpa tombol Simpan terpisah), ikon berputar menandai lagi diperiksa.
  */
 function UsernameField({ displayName, avatar }: { displayName: string; avatar: PlayerProfile['avatar'] }) {
   const [value, setValue] = useState('');
@@ -176,31 +282,42 @@ function UsernameField({ displayName, avatar }: { displayName: string; avatar: P
   }, []);
 
   const trimmed = value.trim();
-  const dirty = trimmed !== (saved ?? '');
 
-  const save = async () => {
+  useEffect(() => {
+    if (trimmed === (saved ?? '') || trimmed.length < 3) {
+      setError(null);
+      setBusy(false);
+      return;
+    }
+    let alive = true;
     setError(null);
     setBusy(true);
-    try {
-      await api.setUsername(trimmed, displayName, avatar);
-      setSaved(trimmed);
-    } catch (err) {
-      setError(err instanceof ApiFailure ? err.message : 'Gagal menyimpan username.');
-    } finally {
-      setBusy(false);
-    }
-  };
+    const timer = window.setTimeout(async () => {
+      try {
+        await api.setUsername(trimmed, displayName, avatar);
+        if (alive) setSaved(trimmed);
+      } catch (err) {
+        if (alive) setError(err instanceof ApiFailure ? err.message : 'Gagal menyimpan username.');
+      } finally {
+        if (alive) setBusy(false);
+      }
+    }, 600);
+    return () => {
+      alive = false;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trimmed]);
 
   return (
     <div className="field">
       <label className="field__label" htmlFor="username">
         Username
       </label>
-      <div className="row" style={{ gap: 8, flexWrap: 'nowrap' }}>
+      <div className="input-status">
         <input
           id="username"
           className="input"
-          style={{ flex: 1 }}
           value={value}
           maxLength={20}
           onChange={(event) => setValue(event.target.value)}
@@ -209,14 +326,17 @@ function UsernameField({ displayName, avatar }: { displayName: string; avatar: P
           autoCorrect="off"
           spellCheck={false}
         />
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          onClick={save}
-          disabled={!dirty || busy || trimmed.length < 3}
-        >
-          {busy ? 'Menyimpan...' : 'Simpan'}
-        </button>
+        {busy && <span className="spinner" aria-hidden="true" />}
+        {!busy && !error && saved !== null && trimmed === saved && trimmed.length >= 3 && (
+          <span className="input-status__icon input-status__icon--ok" aria-hidden="true">
+            <CheckIcon />
+          </span>
+        )}
+        {!busy && error && (
+          <span className="input-status__icon input-status__icon--error" aria-hidden="true">
+            <CloseIcon />
+          </span>
+        )}
       </div>
       {error ? (
         <p className="form-error">{error}</p>
