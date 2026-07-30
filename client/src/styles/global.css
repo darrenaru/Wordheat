@@ -456,12 +456,6 @@ h3 {
   gap: var(--s4);
 }
 
-/* Pengaturan yang belum aktif (tema, username) — dibedakan lewat opasitas
-   saja, bukan disembunyikan, supaya pemain tahu fiturnya sedang disiapkan. */
-.field--soon {
-  opacity: 0.55;
-}
-
 .input:disabled {
   cursor: not-allowed;
 }

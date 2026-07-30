@@ -80,10 +80,12 @@ export function App() {
   };
 
   // Ditautkan sekali tiap kali akun berbeda login — kalau akun itu sudah
-  // pernah dipakai di perangkat lain, server menggabung saldo/statistik
-  // profil perangkat ini ke profil kanonik akun tersebut dan membalas
-  // `profileId` yang wajib dipakai ke depan. `linkedUserId` menjaga supaya
-  // ini tidak diulang tiap render selama sesinya masih akun yang sama.
+  // pernah dipakai sebelumnya (di perangkat ini atau lain), server membalas
+  // `profileId` kanonik akun itu SEKALIGUS `displayName`/`avatar` yang
+  // tersimpan untuknya, supaya identitas akun yang dipulihkan ke layar,
+  // bukan cuma id-nya yang berganti sementara nama/avatar tetap punya
+  // profil device yang lama. `linkedUserId` menjaga supaya ini tidak
+  // diulang tiap render selama sesinya masih akun yang sama.
   const linkedUserId = useRef<string | null>(null);
   useEffect(() => {
     const userId = session?.user.id ?? null;
@@ -91,9 +93,14 @@ export function App() {
     linkedUserId.current = userId;
     api
       .linkAccount(profile.name, profile.avatar)
-      .then((canonicalProfileId) => {
-        if (canonicalProfileId === profile.id) return;
-        updateProfile({ ...profile, id: canonicalProfileId });
+      .then((linked) => {
+        if (linked.profileId === profile.id) return;
+        updateProfile({
+          ...profile,
+          id: linked.profileId,
+          name: linked.displayName ?? profile.name,
+          avatar: linked.avatar ?? profile.avatar,
+        });
         void api.wallet().then(applyBalance).catch(() => {});
         void api.inventory().then(applyInventory).catch(() => {});
       })

@@ -77,12 +77,17 @@ export const api = {
 
   leaderboard: () => request<{ leaderboard: Leaderboard }>('/leaderboard').then((r) => r.leaderboard),
 
-  /** Dipanggil sekali tiap login — balikannya `profileId` yang wajib dipakai ke depan. */
+  /**
+   * Dipanggil sekali tiap login. `profileId` wajib dipakai ke depan;
+   * `displayName`/`avatar` adalah identitas TERSIMPAN milik akun itu
+   * (`null` kalau akun belum pernah menyimpan apa pun) — dipakai memulihkan
+   * nama/avatar akun ke UI, bukan cuma mengikuti profil device saat ini.
+   */
   linkAccount: (name: string, avatar: AvatarConfig) =>
-    request<{ profileId: string }>('/account/link', {
-      method: 'POST',
-      body: JSON.stringify({ name, avatar }),
-    }).then((r) => r.profileId),
+    request<{ profileId: string; displayName: string | null; avatar: AvatarConfig | null }>(
+      '/account/link',
+      { method: 'POST', body: JSON.stringify({ name, avatar }) },
+    ),
 
   username: () => request<{ username: string | null }>('/username').then((r) => r.username),
 

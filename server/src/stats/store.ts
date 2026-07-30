@@ -133,17 +133,30 @@ export async function recordGameResult(
   }
 }
 
+export interface LinkedProfile {
+  profileId: string;
+  /** Nama/avatar TERSIMPAN milik akun ini — `null` kalau akun itu belum
+   *  pernah menyimpan apa pun. Dipakai client memulihkan identitas akun,
+   *  bukan sekadar mengikuti profil device saat ini. */
+  displayName: string | null;
+  avatar: AvatarConfig | null;
+}
+
 /**
  * Dipanggil begitu pemain login — menautkan profil perangkat ini ke akun.
- * Kalau akun ini sudah pernah dipakai di perangkat lain sebelumnya, saldo
- * coin/stok powerup/statistik profil perangkat ini DIGABUNG ke profil
- * kanonik akun tersebut (lewat RPC `link_account_profile`, atomik di sisi
- * database), dan profil perangkat ini sendiri dikosongkan.
  *
- * Balikannya adalah `profile_id` yang seharusnya dipakai KE DEPAN — kalau
- * beda dari yang dikirim, client wajib menggantikan `profile_id` lokalnya
- * dengan ini, supaya request-request berikutnya membaca data yang sudah
- * digabung, bukan profil lama yang baru saja dikosongkan.
+ * RPC `link_account_profile` (atomik di sisi database) menangani tiga
+ * kasus: akun ini sudah pernah dipakai (gabung progres device KALAU device
+ * ini masih murni tamu, atau langsung pindah ke profil kanonik kalau device
+ * ini kebetulan sedang dipegang akun lain — progres akun lain itu tidak
+ * boleh ikut tertarik), atau akun ini belum pernah dipakai sama sekali
+ * (device tamu jadi miliknya, atau baris baru dibuat kalau device ini juga
+ * sedang dipegang akun lain).
+ *
+ * Balikannya bukan cuma `profile_id` yang wajib dipakai client ke depan,
+ * tapi juga `displayName`/`avatar` TERSIMPAN milik profil itu — supaya
+ * client bisa memulihkan identitas akun ke UI, bukan cuma mengganti id
+ * sambil tetap menampilkan nama/avatar device yang lama.
  *
  * Best-effort: kegagalan di sini tidak boleh menggagalkan proses login itu
  * sendiri, jadi profil ID asli dikembalikan apa adanya kalau terjadi error.
@@ -153,9 +166,10 @@ export async function linkAccountProfile(
   profileId: string,
   displayName?: string,
   avatar?: AvatarConfig,
-): Promise<string> {
+): Promise<LinkedProfile> {
   const client = getServiceClient();
-  if (!client) return profileId;
+  const fallback: LinkedProfile = { profileId, displayName: null, avatar: null };
+  if (!client) return fallback;
   try {
     const { data, error } = await client.rpc('link_account_profile', {
       p_user_id: userId,
@@ -165,12 +179,24 @@ export async function linkAccountProfile(
     });
     if (error) {
       console.error('linkAccountProfile: gagal menautkan profil:', error.message);
-      return profileId;
+      return fallback;
     }
-    return (data as string | null) ?? profileId;
+    const canonicalProfileId = (data as string | null) ?? profileId;
+
+    const { data: row } = await client
+      .from('player_stats')
+      .select('display_name, avatar')
+      .eq('profile_id', canonicalProfileId)
+      .maybeSingle();
+
+    return {
+      profileId: canonicalProfileId,
+      displayName: (row?.display_name as string | null | undefined) ?? null,
+      avatar: (row?.avatar as AvatarConfig | null | undefined) ?? null,
+    };
   } catch (err) {
     console.error('linkAccountProfile: gagal menautkan profil:', err);
-    return profileId;
+    return fallback;
   }
 }
 

@@ -187,8 +187,13 @@ export function createApiRouter(): Router {
     const name =
       typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 32) || undefined : undefined;
     const avatar = resolveAvatar(req.body);
-    const canonicalProfileId = await linkAccountProfile(userId, profileId, name, avatar);
-    res.json({ ok: true, profileId: canonicalProfileId });
+    const linked = await linkAccountProfile(userId, profileId, name, avatar);
+    res.json({
+      ok: true,
+      profileId: linked.profileId,
+      displayName: linked.displayName,
+      avatar: linked.avatar,
+    });
   });
 
   /** Username pemain sendiri, kalau sudah pernah diatur. */

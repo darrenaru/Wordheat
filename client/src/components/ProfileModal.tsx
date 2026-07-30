@@ -89,18 +89,6 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
 
         <UsernameField displayName={profile.name} avatar={profile.avatar} />
 
-        <div className="field field--soon">
-          <span className="field__label">Tema</span>
-          <div className="row">
-            <button className="btn btn--secondary" disabled>
-              Light
-            </button>
-            <button className="btn btn--secondary" disabled>
-              Dark
-            </button>
-          </div>
-        </div>
-
         {isAuthAvailable() && <AccountField />}
       </div>
     </Modal>
