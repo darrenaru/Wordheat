@@ -8,8 +8,12 @@ const TOKEN_PATTERN = /:([a-z0-9-]+):/g;
  * (`emojis.ts`) dan render jadi ikon inline — token yang tidak dikenal
  * (atau sekadar teks berisi titik dua, mis. "05:00") dibiarkan sebagai
  * teks apa adanya, bukan ikut terpotong.
+ *
+ * `emojiSize` dilebihkan untuk pesan yang isinya MURNI emoji (lihat
+ * `isEmojiOnlyMessage` di `chatGrouping.ts`) — ikonnya jadi jauh lebih
+ * besar, pola lazim di aplikasi chat modern untuk reaksi emoji tunggal.
  */
-export function renderChatText(body: string): ReactNode[] {
+export function renderChatText(body: string, emojiSize = 20): ReactNode[] {
   const nodes: ReactNode[] = [];
   let lastIndex = 0;
   let key = 0;
@@ -25,8 +29,8 @@ export function renderChatText(body: string): ReactNode[] {
         className="chat-emoji"
         src={emojiIconUrl(slug)}
         alt={`:${slug}:`}
-        width={20}
-        height={20}
+        width={emojiSize}
+        height={emojiSize}
       />,
     );
     lastIndex = start + match[0].length;

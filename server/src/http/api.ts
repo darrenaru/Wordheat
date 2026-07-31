@@ -26,6 +26,7 @@ import {
   searchUsers,
   sendFriendRequest,
   setBio,
+  setDisplayProfile,
   setUsername,
 } from '../social/store.ts';
 import {
@@ -294,6 +295,29 @@ export function createApiRouter(): Router {
     const result = await setBio(profileId, bio, { displayName, avatar });
     if (!result.ok) {
       res.status(400).json({ ok: false, code: result.code, message: 'Gagal menyimpan bio.' });
+      return;
+    }
+    res.json({ ok: true });
+  });
+
+  /** Simpan Display Name + avatar sendiri (tombol "Simpan" di Profil
+   *  Saya) — tanpa ini perubahannya cuma tersimpan di localStorage, tidak
+   *  pernah sampai ke server sampai pemain main atau ganti username/bio. */
+  router.post('/profile', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const displayName = typeof req.body?.displayName === 'string' ? req.body.displayName : '';
+    const avatar = resolveAvatar(req.body);
+    if (!avatar) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Avatar tidak valid.' });
+      return;
+    }
+    const result = await setDisplayProfile(profileId, displayName, avatar);
+    if (!result.ok) {
+      res.status(400).json({ ok: false, code: result.code, message: 'Gagal menyimpan profil.' });
       return;
     }
     res.json({ ok: true });

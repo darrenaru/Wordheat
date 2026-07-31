@@ -58,7 +58,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 /* ------------------------------------------------------------------ modal */
 
 interface ModalProps {
-  title: string;
+  /** Biasanya string, tapi boleh elemen (mis. `ChatModal` menaruh
+   *  avatar+nama+username langsung di sini) — kalau bukan string, isi
+   *  `ariaLabel` supaya dialog tetap punya label yang bisa dibaca. */
+  title: ReactNode;
+  /** Label aksesibilitas saat `title` bukan string polos. Diabaikan kalau
+   *  `title` string (string-nya sendiri sudah dipakai apa adanya). */
+  ariaLabel?: string;
   onClose(): void;
   children: ReactNode;
   footer?: ReactNode;
@@ -67,15 +73,20 @@ interface ModalProps {
   /** Kelas tambahan pada `.modal__body` — dipakai isi yang mau mengatur area
    *  gulirnya sendiri (mis. `AvatarStudio`) alih-alih memakai satu gulir bawaan. */
   bodyClassName?: string;
+  /** Kelas tambahan pada `.modal__head` — dipakai judul kaya yang perlu
+   *  pemisah visual dari isi di bawahnya (mis. header kontak `ChatModal`). */
+  headClassName?: string;
 }
 
 export function Modal({
   title,
+  ariaLabel,
   onClose,
   children,
   footer,
   wide = false,
   bodyClassName,
+  headClassName,
 }: ModalProps) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -96,10 +107,14 @@ export function Modal({
         className={`modal${wide ? ' modal--wide' : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={ariaLabel ?? (typeof title === 'string' ? title : undefined)}
       >
-        <div className="modal__head">
-          <h2>{title}</h2>
+        <div className={`modal__head${headClassName ? ` ${headClassName}` : ''}`}>
+          {/* String tetap dibungkus `<h2>` (judul biasa). Elemen kaya
+              (mis. header kontak `ChatModal`) dirender apa adanya — sudah
+              punya struktur semantiknya sendiri, membungkusnya dalam
+              `<h2>` cuma akan salah kaprah (h2 isinya bukan cuma teks). */}
+          {typeof title === 'string' ? <h2>{title}</h2> : title}
           <button className="btn btn--ghost btn--icon" onClick={onClose} aria-label="Tutup">
             <CloseIcon />
           </button>
@@ -191,6 +206,13 @@ export const UsersIcon = () => (
 export const MessageIcon = () => (
   <svg {...iconProps}>
     <path d="M4 5.5h16a1 1 0 0 1 1 1V16a1 1 0 0 1-1 1H9l-4.5 3.5V17H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z" />
+  </svg>
+);
+
+export const SendIcon = () => (
+  <svg {...iconProps}>
+    <path d="M4.5 12 20 4l-4.5 16-4-6.5-6.5-1.5Z" />
+    <path d="m11.5 13.5 4-5.5" />
   </svg>
 );
 

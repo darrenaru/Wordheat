@@ -6,8 +6,7 @@ export type Route =
   | { name: 'room'; code: string }
   | { name: 'shop' }
   | { name: 'leaderboard' }
-  | { name: 'friends' }
-  | { name: 'chat'; profileId: string };
+  | { name: 'friends' };
 
 /**
  * Router hash sederhana. Cukup untuk empat layar, dan yang lebih penting:
@@ -24,7 +23,6 @@ export function parseHash(hash: string): Route {
   if (head === 'shop') return { name: 'shop' };
   if (head === 'leaderboard') return { name: 'leaderboard' };
   if (head === 'teman') return { name: 'friends' };
-  if (head === 'chat' && param) return { name: 'chat', profileId: param };
   return { name: 'home' };
 }
 

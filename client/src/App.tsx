@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { FriendsPayload, PlayerProfile } from '@shared/types.ts';
 import { api } from './lib/api.ts';
 import { registerCoinFxOrigin } from './lib/coinFx.ts';
-import { getFriends, subscribeFriends } from './lib/friends.ts';
+import { getFriends, refreshFriends, subscribeFriends } from './lib/friends.ts';
 import { applyInventory } from './lib/inventory.ts';
-import { hasChosenSignInMethod, loadProfile, saveProfile } from './lib/profile.ts';
+import { hasChosenSignInMethod, loadProfile, resetProfile, saveProfile } from './lib/profile.ts';
 import { navigate, useRoute } from './lib/router.ts';
 import {
   initSoundtrack,
@@ -21,7 +21,6 @@ import { CoinFxLayer } from './components/CoinFx.tsx';
 import { ProfileModal } from './components/ProfileModal.tsx';
 import { BackIcon, SoundOffIcon, SoundOnIcon, UsersIcon } from './components/ui.tsx';
 import { WelcomeModal } from './components/WelcomeModal.tsx';
-import { ChatScreen } from './screens/ChatScreen.tsx';
 import { FriendListScreen } from './screens/FriendListScreen.tsx';
 import { HomeScreen } from './screens/HomeScreen.tsx';
 import { LeaderboardScreen } from './screens/LeaderboardScreen.tsx';
@@ -101,8 +100,31 @@ export function App() {
         });
         void api.wallet().then(applyBalance).catch(() => {});
         void api.inventory().then(applyInventory).catch(() => {});
+        refreshFriends();
       })
       .catch(() => {});
+  }, [session]);
+
+  // Logout tidak boleh sekadar mengosongkan sesi Supabase — `profile.id`
+  // di localStorage harus ikut diganti ke tamu baru, kalau tidak permainan
+  // "tamu" berikutnya di device ini diam-diam masih tercatat ke akun yang
+  // baru saja logout (header `x-player-id` tidak pernah berubah dengan
+  // sendirinya). `wasSignedIn` membedakan transisi logout SUNGGUHAN dari
+  // render pertama yang memang belum ada sesi sama sekali.
+  const wasSignedIn = useRef(false);
+  useEffect(() => {
+    const signedIn = session !== null;
+    const justSignedOut = wasSignedIn.current && !signedIn;
+    wasSignedIn.current = signedIn;
+    if (!justSignedOut) return;
+
+    linkedUserId.current = null;
+    setProfile(resetProfile());
+    void api.wallet().then(applyBalance).catch(() => {});
+    void api.inventory().then(applyInventory).catch(() => {});
+    refreshFriends();
+    setShowProfile(false);
+    setShowWelcome(true);
   }, [session]);
 
   return (
@@ -185,7 +207,6 @@ export function App() {
           {route.name === 'shop' && <ShopScreen />}
           {route.name === 'leaderboard' && <LeaderboardScreen />}
           {route.name === 'friends' && <FriendListScreen />}
-          {route.name === 'chat' && <ChatScreen profileId={route.profileId} />}
         </main>
 
         <footer className="footer">

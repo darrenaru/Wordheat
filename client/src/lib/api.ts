@@ -126,6 +126,12 @@ export const api = {
       body: JSON.stringify({ bio, displayName, avatar }),
     }),
 
+  setProfile: (displayName: string, avatar: AvatarConfig) =>
+    request<{ ok: true }>('/profile', {
+      method: 'POST',
+      body: JSON.stringify({ displayName, avatar }),
+    }),
+
   searchUsers: (q: string) =>
     request<{ users: UserSummary[] }>(`/users/search?q=${encodeURIComponent(q)}`).then(
       (r) => r.users,

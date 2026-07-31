@@ -241,6 +241,22 @@
   gap: 3px;
 }
 
+/* Baris daftar teman/undangan (avatar+nama LANGSUNG diikuti tombol aksi,
+   tanpa pembungkus `.player__trigger` seperti papan pemain di ruang) —
+   di layar sangat sempit, `.player__main` yang `min-width: 0` bisa
+   diperas sampai lebar nol oleh tombol-tombol yang menolak menyusut,
+   membuat nama pemain lenyap total alih-alih dipotong "...". Beri lantai
+   lebar minimum lalu izinkan barisnya pindah ke baris baru alih-alih
+   memeras nama sampai tak terlihat. */
+.player--wrap {
+  flex-wrap: wrap;
+  row-gap: var(--s2);
+}
+
+.player--wrap .player__main {
+  min-width: 140px;
+}
+
 /* Membungkus avatar+nama supaya bisa diklik untuk buka profil — dasarnya
    cuma tata letak flex, tombolnya sendiri di-reset lewat selektor `button`
    supaya baris yang tidak diberi `onSelectPlayer` (dirender sebagai `div`)
@@ -1475,16 +1491,109 @@ button.player__trigger:hover {
 
 /* ------------------------------------------------------------------ chat */
 
+/* Klaster avatar+nama+username di title bar modal (menggantikan judul
+   teks generik + kartu identitas terpisah yang lama). */
+/* Header kaya (avatar+nama+username) butuh pemisah tegas dari isi
+   percakapan di bawahnya — beda dengan judul teks polos modal lain, yang
+   sudah cukup dipisah lewat jarak/padding saja. */
+.chat-modal-head {
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-modal-header {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.chat-modal-header__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.chat-modal-header__name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-modal-header__username {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tanpa gulir sendiri: `.modal__body` (ditandai `.chat-modal-body`, lihat
+   bawah) sudah jadi satu-satunya area gulir modal — menumpuk scrollbar
+   kedua di sini membuat batangnya tampak ganjil/dobel (lihat juga catatan
+   serupa di `.parts__panel`). */
 .chat-thread {
   display: flex;
   flex-direction: column;
   gap: var(--s2);
-  max-height: 60vh;
-  overflow-y: auto;
+}
+
+/* Scrollbar disembunyikan total (bukan cuma ditipiskan) — modal chat tetap
+   bisa digulir lewat mouse wheel/sentuh/keyboard, cuma batangnya tidak
+   digambar, supaya percakapan terasa seperti aplikasi chat pada umumnya. */
+.chat-modal-body {
+  scrollbar-width: none;
+}
+
+.chat-modal-body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Pembagi hari — pola "garis–teks–garis" `.auth-divider` yang sudah ada
+   dipakai ulang; class ini cuma menambah jarak vertikal di dalam thread. */
+.chat-divider {
+  margin: var(--s1) 0;
+}
+
+/* Baris satu pesan — avatar (kalau ada) + bubble-stack sama-sama masuk
+   batas lebar 75%, bukan cuma bubble-nya sendiri. */
+.chat-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s1);
+  max-width: 75%;
+}
+
+.chat-row--theirs {
+  align-self: flex-start;
+}
+
+.chat-row--mine {
+  align-self: flex-end;
+}
+
+/* Slot tetap 24px supaya bubble-bubble dalam satu kumpulan pesan tetap
+   rata walau avatarnya cuma tampil di pesan pertama kumpulan. */
+.chat-row__avatar {
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.chat-bubble-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chat-row--theirs .chat-bubble-stack {
+  align-items: flex-start;
+}
+
+.chat-row--mine .chat-bubble-stack {
+  align-items: flex-end;
 }
 
 .chat-bubble {
-  max-width: 75%;
   padding: var(--s2) var(--s3);
   border-radius: var(--radius);
   font-size: 14px;
@@ -1495,15 +1604,28 @@ button.player__trigger:hover {
 /* Dibedakan lewat RATA KIRI/KANAN, bukan warna aksen baru — pink tetap
    eksklusif tombol "Tebak" sesuai DESIGN.md. */
 .chat-bubble--theirs {
-  align-self: flex-start;
   background: var(--surface-alt);
   border: 1px solid var(--border);
 }
 
 .chat-bubble--mine {
-  align-self: flex-end;
   background: var(--surface);
   border: 1px solid var(--border-strong);
+}
+
+/* Pesan yang isinya murni emoji (lihat `isEmojiOnlyMessage`) — tanpa
+   latar bubble sama sekali, ikonnya dirender lebih besar (lihat
+   `renderChatText(body, 40)` di `ChatModal.tsx`). */
+.chat-bubble--emoji-only {
+  padding: 2px 0;
+  background: transparent;
+  border: none;
+}
+
+.chat-time {
+  font-size: 11px;
+  color: var(--text-dim);
+  padding: 0 2px;
 }
 
 /* Ikon emoji inline di dalam teks pesan (lihat `chatText.tsx`) — sedikit

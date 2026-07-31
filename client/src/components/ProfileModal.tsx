@@ -68,7 +68,13 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
   const dirty = draft.name !== profile.name || draft.avatar !== profile.avatar;
 
   const save = () => {
-    onSave({ ...draft, name: draft.name.trim() || 'Pemain' });
+    const trimmedName = draft.name.trim() || 'Pemain';
+    onSave({ ...draft, name: trimmedName });
+    // Best-effort — localStorage (di atas) sudah cukup untuk pengalaman
+    // pemain saat ini; ini cuma menyamakan `player_stats` di server supaya
+    // tidak ketinggalan kalau nanti login Google sebelum sempat main lagi
+    // (lihat komentar `setDisplayProfile`).
+    void api.setProfile(trimmedName, draft.avatar).catch(() => {});
     onClose();
   };
 

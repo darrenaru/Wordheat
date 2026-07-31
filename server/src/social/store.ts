@@ -280,6 +280,69 @@ export async function setBio(
   }
 }
 
+export type SetDisplayProfileResult = { ok: true } | { ok: false; code: 'invalid' };
+
+/**
+ * Set/ganti Display Name + avatar sendiri (tombol "Simpan" di Profil
+ * Saya). Fetch-lalu-upsert baris penuh — pola sama seperti `setUsername`/
+ * `setBio` di atas. Tanpa endpoint ini, perubahan Display Name/avatar cuma
+ * tersimpan di localStorage perangkat — begitu pemain login Google
+ * sebelum sempat main lagi, RPC `link_account_profile` akan mempertahankan
+ * `display_name` LAMA yang masih tersimpan di server (`coalesce`), bukan
+ * yang baru saja diketik.
+ */
+export async function setDisplayProfile(
+  profileId: string,
+  rawDisplayName: string,
+  avatar: AvatarConfig,
+): Promise<SetDisplayProfileResult> {
+  const displayName = rawDisplayName.trim().slice(0, 32) || 'Pemain';
+
+  const client = getServiceClient();
+  if (!client) return { ok: false, code: 'invalid' };
+
+  try {
+    const { data: existing } = await client
+      .from('player_stats')
+      .select('*')
+      .eq('profile_id', profileId)
+      .maybeSingle();
+
+    const row: StatsRow = (existing as StatsRow | null) ?? {
+      profile_id: profileId,
+      user_id: null,
+      display_name: null,
+      avatar: null,
+      username: null,
+      username_changed_at: null,
+      bio: null,
+      xp: 0,
+      total_games: 0,
+      total_wins: 0,
+      total_guesses: 0,
+      best_guess_count: null,
+      current_streak: 0,
+      longest_streak: 0,
+      last_played_date: null,
+    };
+
+    const { error } = await client.from('player_stats').upsert({
+      ...row,
+      display_name: displayName,
+      avatar,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error('setDisplayProfile: gagal menyimpan profil:', error.message);
+      return { ok: false, code: 'invalid' };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error('setDisplayProfile: gagal menyimpan profil:', err);
+    return { ok: false, code: 'invalid' };
+  }
+}
+
 export async function getBio(profileId: string): Promise<{ bio: string | null }> {
   const client = getServiceClient();
   if (!client) return { bio: null };
@@ -295,8 +358,11 @@ export async function getBio(profileId: string): Promise<{ bio: string | null }>
   }
 }
 
-/** Cari lewat awalan username. Cuma pemain yang sudah mengatur username
- *  sendiri yang bisa ketemu — `ilike` otomatis tidak mencocokkan NULL. */
+/** Cari lewat kecocokan di MANA SAJA dalam username (bukan cuma awalan) —
+ *  username auto-generate (pola `AdjectiveNoun1234`, lihat `ensureUsername`)
+ *  wajar dicari lewat kata di tengahnya juga (mis. "fox" untuk
+ *  "SwiftFox4821"). Cuma pemain yang sudah mengatur username sendiri yang
+ *  bisa ketemu — `ilike` otomatis tidak mencocokkan NULL. */
 export async function searchUsers(query: string, excludeProfileId: string): Promise<UserSummary[]> {
   const client = getServiceClient();
   if (!client) return [];
@@ -304,7 +370,7 @@ export async function searchUsers(query: string, excludeProfileId: string): Prom
     const { data, error } = await client
       .from('player_stats')
       .select('profile_id, username, display_name, avatar')
-      .ilike('username', `${query}%`)
+      .ilike('username', `%${query}%`)
       .neq('profile_id', excludeProfileId)
       .limit(10);
     if (error || !data) return [];

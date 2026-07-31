@@ -50,7 +50,7 @@ export function InviteFriendsModal({ roomCode, profile, onClose }: InviteFriends
             {friends.map((friend) => {
               const sent = sentTo.has(friend.user.profileId);
               return (
-                <li key={friend.friendshipId} className="player">
+                <li key={friend.friendshipId} className="player player--wrap">
                   <Avatar config={friend.user.avatar ?? FALLBACK_AVATAR} size={36} />
                   <div className="player__main">
                     <div className="player__name">

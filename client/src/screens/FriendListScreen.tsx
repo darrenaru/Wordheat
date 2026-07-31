@@ -4,6 +4,7 @@ import { api, ApiFailure } from '../lib/api.ts';
 import { getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts';
 import { navigate } from '../lib/router.ts';
 import { Avatar } from '../components/Avatar.tsx';
+import { ChatModal } from '../components/ChatModal.tsx';
 import { MessageIcon, useToast } from '../components/ui.tsx';
 
 /** Placeholder avatar netral untuk baris tanpa data avatar (mis. profil lama). */
@@ -14,6 +15,10 @@ const EMPTY = { friends: [], incoming: [], outgoing: [], invites: [], unreadMess
 export function FriendListScreen() {
   const payload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY);
   const toast = useToast();
+  // Chat dibuka sebagai modal DI ATAS halaman Teman (bukan navigasi ke
+  // halaman lain) — pemain tidak kehilangan konteks daftar teman/
+  // permintaan di baliknya.
+  const [chatProfileId, setChatProfileId] = useState<string | null>(null);
 
   useEffect(() => {
     refreshFriends();
@@ -70,7 +75,7 @@ export function FriendListScreen() {
         <Section title="Undangan room">
           <ul className="players">
             {payload.invites.map((invite) => (
-              <li key={invite.id} className="player">
+              <li key={invite.id} className="player player--wrap">
                 <Avatar config={invite.from.avatar ?? FALLBACK_AVATAR} size={36} />
                 <div className="player__main">
                   <div className="player__name">
@@ -99,7 +104,7 @@ export function FriendListScreen() {
         <Section title="Permintaan masuk">
           <ul className="players">
             {payload.incoming.map((request) => (
-              <li key={request.id} className="player">
+              <li key={request.id} className="player player--wrap">
                 <Avatar config={request.user.avatar ?? FALLBACK_AVATAR} size={36} />
                 <div className="player__main">
                   <div className="player__name">
@@ -128,7 +133,7 @@ export function FriendListScreen() {
         <Section title="Permintaan terkirim">
           <ul className="players">
             {payload.outgoing.map((request) => (
-              <li key={request.id} className="player">
+              <li key={request.id} className="player player--wrap">
                 <Avatar config={request.user.avatar ?? FALLBACK_AVATAR} size={36} />
                 <div className="player__main">
                   <div className="player__name">
@@ -151,7 +156,7 @@ export function FriendListScreen() {
         ) : (
           <ul className="players">
             {payload.friends.map((friend) => (
-              <li key={friend.friendshipId} className="player">
+              <li key={friend.friendshipId} className="player player--wrap">
                 <Avatar config={friend.user.avatar ?? FALLBACK_AVATAR} size={36} />
                 <div className="player__main">
                   <div className="player__name">
@@ -162,7 +167,7 @@ export function FriendListScreen() {
                 <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
                   <button
                     className="btn btn--ghost btn--sm"
-                    onClick={() => navigate(`/chat/${friend.user.profileId}`)}
+                    onClick={() => setChatProfileId(friend.user.profileId)}
                     aria-label={`Chat dengan ${friend.user.displayName}`}
                   >
                     <MessageIcon />
@@ -180,6 +185,10 @@ export function FriendListScreen() {
           </ul>
         )}
       </Section>
+
+      {chatProfileId && (
+        <ChatModal profileId={chatProfileId} onClose={() => setChatProfileId(null)} />
+      )}
     </div>
   );
 }
@@ -262,7 +271,7 @@ function AddFriendCard({
       {visibleResults.length > 0 && (
         <ul className="players">
           {visibleResults.map((user) => (
-            <li key={user.profileId} className="player">
+            <li key={user.profileId} className="player player--wrap">
               <Avatar config={user.avatar ?? FALLBACK_AVATAR} size={36} />
               <div className="player__main">
                 <div className="player__name">

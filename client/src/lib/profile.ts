@@ -97,6 +97,19 @@ export function saveProfile(profile: PlayerProfile): void {
   }
 }
 
+/**
+ * Dipanggil saat logout — identitas device diganti ke tamu baru yang bersih
+ * (id/nama/avatar acak baru, pola sama seperti kunjungan pertama kali).
+ * Tanpa ini, `profile.id` di localStorage tetap menunjuk ke profil akun
+ * yang baru saja logout, dan permainan "tamu" berikutnya diam-diam masih
+ * tercatat ke akun itu lewat header `x-player-id` yang tidak berubah.
+ */
+export function resetProfile(): PlayerProfile {
+  const profile = createProfile();
+  saveProfile(profile);
+  return profile;
+}
+
 const SIGN_IN_CHOICE_KEY = 'wordheat:signInChoice';
 
 /** Sudah pernah ditanya "Guest atau Google" sekali — jangan tanya lagi. */
