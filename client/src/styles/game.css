@@ -395,9 +395,9 @@ button.player__trigger:hover {
   grid-column: span 2;
 }
 
-/* Kartu Level — dudukan solid `--surface-alt` di atas gradien
-   `.profile__hero`, biar barisnya (Level/XP + bar + caption) tetap terbaca
-   jelas alih-alih mengambang langsung di atas glow. */
+/* Kartu Level — dudukan solid `--surface-alt`, dipakai `ViewProfileModal`
+   (di dalam `.view-profile__header`) supaya barisnya (Level/XP + bar +
+   caption) tetap terbaca jelas di atas latar sekitarnya. */
 .profile__level-card {
   width: 100%;
   padding: var(--s4);
@@ -533,6 +533,26 @@ button.player__trigger:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Bungkus avatar+nama supaya bisa diklik membuka profil pemain — pola sama
+   seperti `.player__trigger` di daftar pemain ruang. Cuma dipakai Leaderboard
+   (RoomScreen memakai `.result-rank` versi biasa, tanpa tombol), jadi aman
+   ditambahkan tanpa mengubah tampilan peringkat akhir ronde. */
+.result-rank__trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  margin: -4px 0;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.result-rank__trigger:hover {
+  background: var(--surface-hover);
 }
 
 .stat {
@@ -755,6 +775,36 @@ button.player__trigger:hover {
 
 .cell__row .btn {
   flex: none;
+}
+
+/* Dashboard bento Profil Saya — bahasa visual sama seperti `.bento`/`.cell`
+   di Beranda (ikon + judul + cahaya sudut `--accent`), tapi grid-nya
+   sendiri terpisah: modal jauh lebih sempit dari beranda (880px), jadi
+   `repeat(auto-fit, minmax(200px, 1fr))` dipakai supaya otomatis jadi 1
+   kolom di lebar sempit dan 2 kolom begitu ada ruang, tanpa media query
+   manual seperti `.bento`. */
+.profile-bento {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s3);
+}
+
+/* Span semua kolom yang sedang aktif — beda dari `.cell--feature` beranda
+   yang juga membesarkan ukuran judul; di sini cuma soal lebar kartu. */
+.cell--wide {
+  grid-column: 1 / -1;
+}
+
+/* Kartu info Profil Saya (Level/Rank/Statistik/Akun) bukan navigasi seperti
+   kartu Beranda — beberapa bahkan berisi tombol sungguhan sendiri (Akun).
+   Batalkan afeksi "bisa diklik" bawaan `.cell` supaya tidak menyesatkan. */
+.cell--static:hover {
+  border-color: var(--border);
+  transform: none;
+}
+
+.cell--static:hover::before {
+  opacity: 0.13;
 }
 
 /* Di bawah 720px bento runtuh jadi satu kolom; urutan DOM sudah menempatkan
@@ -997,6 +1047,16 @@ button.player__trigger:hover {
 
 /* -------------------------------------------------------------- avatar studio */
 
+/* `.modal__body` bawaan tidak punya padding atas (`padding: 0 var(--s5)
+   var(--s5)`) — judul modal sudah memberi jarak sendiri. Tapi `.studio__side`
+   di sini sticky ke `top: 0`, jadi glow pink di sekeliling pratinjau avatar
+   nempel pas di batas atas `.modal__body` dan terpotong rata oleh
+   `overflow-y: auto`-nya (sisi kiri/kanan/bawah tidak masalah karena masih
+   kebagian padding var(--s5) itu). Samakan jaraknya di sisi atas. */
+.studio__body {
+  padding-top: var(--s5);
+}
+
 /* Dua panel: identitas di kiri, pilihan di kanan. Daftar rambut cukup panjang
    untuk membuat pemain menggulir jauh, dan memilih tanpa melihat hasilnya jadi
    tebak-tebakan — maka panel kiri menempel. */
@@ -1030,7 +1090,7 @@ button.player__trigger:hover {
    terasa jadi pusat perhatian panel kiri. */
 .studio__preview-ring {
   padding: 6px;
-  border-radius: var(--radius-lg);
+  border-radius: 50%;
   border: 2px solid var(--brand);
   box-shadow: 0 0 24px color-mix(in srgb, var(--brand) 35%, transparent);
 }
@@ -1043,10 +1103,6 @@ button.player__trigger:hover {
 
 .studio__actions-hint {
   margin-top: calc(var(--s2) * -1);
-}
-
-.studio__intro h3 {
-  margin-bottom: 2px;
 }
 
 .studio__main {
@@ -1256,27 +1312,6 @@ button.player__trigger:hover {
   transform: scale(1.1);
 }
 
-/* Padanan "Acak" untuk deretan warna: bentuknya bulat seperti swatch lain.
-   Harus berada setelah `.swatch` — shorthand `border` di sana ikut menyetel
-   warna, dan pada kekhususan yang sama urutanlah yang menentukan. */
-.swatch--auto {
-  display: grid;
-  place-items: center;
-  color: var(--text-dim);
-  background: var(--surface-alt);
-  border-color: var(--border);
-}
-
-.swatch--auto[aria-pressed='true'] {
-  color: var(--text);
-  border-color: var(--text);
-}
-
-.swatch--auto svg {
-  width: 18px;
-  height: 18px;
-}
-
 /* Tata letak mobile studio avatar. Ditaruh PALING AKHIR di berkas ini dengan
    sengaja: harus muncul setelah semua aturan dasar `.parts__tabs`/
    `.parts__tab`/dst di atas, supaya override-nya menang lewat urutan sumber
@@ -1351,7 +1386,7 @@ button.player__trigger:hover {
      aturan CSS biasa. Lebih kecil dari sebelumnya (56px, bukan 64px) —
      ruang yang direbut kembali di layar sempit langsung menambah tinggi
      grid pilihan di bawahnya, dan itulah yang sebenarnya dipakai memilih. */
-  .studio__preview .avatar--square {
+  .studio__preview .avatar {
     width: 56px !important;
     height: 56px !important;
   }
@@ -1418,14 +1453,6 @@ button.player__trigger:hover {
     display: none;
   }
 
-  /* Sama alasannya seperti `.studio__hint` di atas: layar sempit sudah ketat
-     ruang vertikalnya untuk grid pilihan sendiri (makanya avatar pratinjau
-     ikut disusutkan ke 56px) — dua baris teks pengantar yang murni hiasan
-     tidak sepadan dengan ruang yang direbutnya di sini. */
-  .studio__intro {
-    display: none;
-  }
-
   /* Tanpa ini, teks bantuan ini duduk di ANTARA dua tombol dalam baris
      `.studio__actions` yang di mobile jadi `flex-direction: row` (lihat di
      atas) — memaksa barisnya membungkus dua baris atau meremas lebar kedua
@@ -1444,4 +1471,91 @@ button.player__trigger:hover {
     overflow-y: auto;
     padding-bottom: var(--s2);
   }
+}
+
+/* ------------------------------------------------------------------ chat */
+
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.chat-bubble {
+  max-width: 75%;
+  padding: var(--s2) var(--s3);
+  border-radius: var(--radius);
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* Dibedakan lewat RATA KIRI/KANAN, bukan warna aksen baru — pink tetap
+   eksklusif tombol "Tebak" sesuai DESIGN.md. */
+.chat-bubble--theirs {
+  align-self: flex-start;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+}
+
+.chat-bubble--mine {
+  align-self: flex-end;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+}
+
+/* Ikon emoji inline di dalam teks pesan (lihat `chatText.tsx`) — sedikit
+   diturunkan supaya rata sama baseline teks di sekelilingnya. */
+.chat-emoji {
+  vertical-align: -5px;
+  margin: 0 1px;
+}
+
+.chat-composer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.chat-composer .input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Popover di atas composer, bukan modal — supaya tetap kelihatan sedang
+   mengetik pesan yang mana selagi memilih emoji. */
+.emoji-picker {
+  position: absolute;
+  bottom: calc(100% + var(--s2));
+  left: 0;
+  width: min(320px, 90vw);
+  max-height: 240px;
+  overflow-y: auto;
+  padding: var(--s3);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+  z-index: 5;
+}
+
+.emoji-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: 4px;
+}
+
+.emoji-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.emoji-picker__item:hover {
+  background: var(--surface-hover);
 }

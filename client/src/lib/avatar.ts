@@ -23,6 +23,10 @@ export const AVATAR_BACKGROUNDS = [
   'F3EFDA', // --cream
 ];
 
+/** Placeholder netral untuk baris/kartu tanpa data avatar (mis. profil lama
+ *  yang belum pernah menyimpan avatar). */
+export const FALLBACK_AVATAR: AvatarConfig = { seed: 'pemain', backgroundColor: '2A2A2E' };
+
 /**
  * Nilai `--surface-alt` sebagai hex tanpa '#'.
  *

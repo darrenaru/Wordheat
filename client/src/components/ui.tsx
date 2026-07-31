@@ -188,6 +188,35 @@ export const UsersIcon = () => (
   </svg>
 );
 
+export const MessageIcon = () => (
+  <svg {...iconProps}>
+    <path d="M4 5.5h16a1 1 0 0 1 1 1V16a1 1 0 0 1-1 1H9l-4.5 3.5V17H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z" />
+  </svg>
+);
+
+export const UserPlusIcon = () => (
+  <svg {...iconProps}>
+    <path d="M14 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20" />
+    <circle cx="8" cy="7" r="3.2" />
+    <path d="M18 8v6M15 11h6" />
+  </svg>
+);
+
+export const UserMinusIcon = () => (
+  <svg {...iconProps}>
+    <path d="M14 20v-1.5a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4V20" />
+    <circle cx="8" cy="7" r="3.2" />
+    <path d="M15 11h6" />
+  </svg>
+);
+
+export const UserIcon = () => (
+  <svg {...iconProps}>
+    <path d="M18 20v-1.5a4 4 0 0 0-4-4h-4a4 4 0 0 0-4 4V20" />
+    <circle cx="12" cy="7" r="3.2" />
+  </svg>
+);
+
 export const CrownIcon = () => (
   <svg {...iconProps} width={14} height={14}>
     <path d="M3 18h18M4 8l4 3 4-6 4 6 4-3-1.5 8h-13L4 8Z" />
@@ -220,6 +249,20 @@ export const TargetIcon = () => (
     <circle cx="12" cy="12" r="8.25" />
     <circle cx="12" cy="12" r="4.75" />
     <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+export const LayersIcon = () => (
+  <svg {...iconProps}>
+    <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+    <path d="m3 13 9 5 9-5" />
+  </svg>
+);
+
+export const ChartIcon = () => (
+  <svg {...iconProps}>
+    <path d="M4 20V10M12 20V4M20 20v-7" />
+    <path d="M4 20h16" />
   </svg>
 );
 

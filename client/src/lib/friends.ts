@@ -7,7 +7,7 @@
 import type { FriendsPayload } from '@shared/types.ts';
 import { api } from './api.ts';
 
-const EMPTY: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [] };
+const EMPTY: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
 
 let payload: FriendsPayload = EMPTY;
 const listeners = new Set<() => void>();

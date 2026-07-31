@@ -230,9 +230,14 @@ export interface PlayerStats {
 /* ------------------------------------------------------------------ */
 
 export interface LeaderboardEntry {
+  profileId: string;
   name: string;
   avatar: AvatarConfig | null;
   value: number;
+  /** Dipakai badge Rank (`client/src/lib/ranks.ts`) — terpisah dari
+   *  `value` karena kategori Coin/XP/Streak/Tebakan tidak selalu sama
+   *  dengan jumlah kemenangan. */
+  totalWins: number;
 }
 
 export interface Leaderboard {
@@ -241,6 +246,19 @@ export interface Leaderboard {
   streak: LeaderboardEntry[];
   guesses: LeaderboardEntry[];
   xp: LeaderboardEntry[];
+}
+
+/** Profil publik pemain lain — dibuka dari Leaderboard. Cuma data yang sudah
+ *  tampil di leaderboard/statistik sendiri, tidak ada apa pun yang butuh
+ *  login untuk dilihat (sama seperti coin & statistik pribadi). */
+export interface PublicProfile {
+  profileId: string;
+  displayName: string;
+  /** `null` kalau pemain itu belum pernah mengatur username sendiri. */
+  username: string | null;
+  avatar: AvatarConfig | null;
+  bio: string | null;
+  stats: PlayerStats;
 }
 
 /* ------------------------------------------------------------------ */
@@ -281,6 +299,20 @@ export interface FriendsPayload {
   incoming: FriendRequestSummary[];
   outgoing: FriendRequestSummary[];
   invites: RoomInviteSummary[];
+  /** Total pesan belum dibaca di SEMUA percakapan — dilebur ke badge
+   *  "Teman" yang sama di header, bukan badge terpisah. */
+  unreadMessages: number;
+}
+
+/* ------------------------------------------------------------------ */
+/* Chat pribadi antar teman (persisten, bukan real-time)                */
+/* ------------------------------------------------------------------ */
+
+export interface ChatMessage {
+  id: string;
+  fromProfileId: string;
+  body: string;
+  createdAt: number;
 }
 
 /* ------------------------------------------------------------------ */

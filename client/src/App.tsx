@@ -21,6 +21,7 @@ import { CoinFxLayer } from './components/CoinFx.tsx';
 import { ProfileModal } from './components/ProfileModal.tsx';
 import { BackIcon, SoundOffIcon, SoundOnIcon, UsersIcon } from './components/ui.tsx';
 import { WelcomeModal } from './components/WelcomeModal.tsx';
+import { ChatScreen } from './screens/ChatScreen.tsx';
 import { FriendListScreen } from './screens/FriendListScreen.tsx';
 import { HomeScreen } from './screens/HomeScreen.tsx';
 import { LeaderboardScreen } from './screens/LeaderboardScreen.tsx';
@@ -28,7 +29,7 @@ import { RoomScreen } from './screens/RoomScreen.tsx';
 import { ShopScreen } from './screens/ShopScreen.tsx';
 import { SoloScreen } from './screens/SoloScreen.tsx';
 
-const EMPTY_FRIENDS: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [] };
+const EMPTY_FRIENDS: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
 
 export function App() {
   const route = useRoute();
@@ -37,7 +38,8 @@ export function App() {
   const [showAuth, setShowAuth] = useState(false);
   const balance = useSyncExternalStore(subscribeWallet, getBalance, () => 0);
   const friendsPayload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS);
-  const pendingFriendCount = friendsPayload.incoming.length + friendsPayload.invites.length;
+  const pendingFriendCount =
+    friendsPayload.incoming.length + friendsPayload.invites.length + friendsPayload.unreadMessages;
   const coinChipRef = useRef<HTMLButtonElement>(null);
   const previousBalance = useRef(balance);
   /** Denyut singkat pada chip saldo tiap kali nilainya berubah — turun
@@ -183,6 +185,7 @@ export function App() {
           {route.name === 'shop' && <ShopScreen />}
           {route.name === 'leaderboard' && <LeaderboardScreen />}
           {route.name === 'friends' && <FriendListScreen />}
+          {route.name === 'chat' && <ChatScreen profileId={route.profileId} />}
         </main>
 
         <footer className="footer">

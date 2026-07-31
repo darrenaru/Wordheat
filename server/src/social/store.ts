@@ -14,6 +14,66 @@ const USERNAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{2,19}$/;
  *  mulai perubahan berikutnya. */
 const USERNAME_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Bahan generator username acak — masing-masing ≤7 karakter supaya
+ *  gabungan Adjective+Noun+4 digit selalu jauh di bawah batas 20 karakter
+ *  `USERNAME_PATTERN`. */
+const USERNAME_ADJECTIVES = [
+  'Swift', 'Brave', 'Silent', 'Clever', 'Lucky', 'Bold', 'Quiet', 'Fierce',
+  'Nimble', 'Wild', 'Happy', 'Sunny', 'Chill', 'Sharp', 'Cosmic', 'Mighty',
+  'Gentle', 'Rapid', 'Crimson', 'Golden',
+];
+const USERNAME_NOUNS = [
+  'Fox', 'Wolf', 'Hawk', 'Bear', 'Tiger', 'Raven', 'Otter', 'Lynx',
+  'Falcon', 'Panda', 'Eagle', 'Shark', 'Rabbit', 'Turtle', 'Dragon',
+  'Phoenix', 'Comet', 'Storm', 'Ember', 'Nova',
+];
+
+function randomUsername(): string {
+  const adjective = USERNAME_ADJECTIVES[Math.floor(Math.random() * USERNAME_ADJECTIVES.length)];
+  const noun = USERNAME_NOUNS[Math.floor(Math.random() * USERNAME_NOUNS.length)];
+  const suffix = Math.floor(1000 + Math.random() * 9000);
+  return `${adjective}${noun}${suffix}`;
+}
+
+const RANDOM_USERNAME_ATTEMPTS = 5;
+
+/**
+ * Isi username acak kalau profil ini belum punya — dipanggil best-effort
+ * begitu baris `player_stats` pertama kali dibuat (main pertama kali atau
+ * login pertama kali), supaya SEMUA pemain punya username (dipakai Add
+ * Friend) tanpa perlu mengaturnya sendiri dulu.
+ *
+ * `UPDATE ... WHERE username IS NULL` atomik di level database — aman
+ * dipanggil berkali-kali atau bersamaan; 0 baris ter-update cukup berarti
+ * username sudah terisi (baik oleh percobaan lain atau pemain sendiri).
+ *
+ * SENGAJA tidak menyentuh `username_changed_at`: supaya saat pemain nanti
+ * mengganti username acak ini dengan pilihannya sendiri, itu tetap
+ * dihitung "klaim pertama" yang bebas cooldown (lihat `setUsername`).
+ *
+ * Kolom `username` sengaja TETAP nullable (tidak di-`NOT NULL`-kan) —
+ * kegagalan di sini (mis. kolisi beruntun) tidak boleh menggagalkan
+ * pemanggilnya (`recordGameResult`/`linkAccountProfile`), jadi semua error
+ * ditelan setelah percobaan habis.
+ */
+export async function ensureUsername(profileId: string): Promise<void> {
+  const client = getServiceClient();
+  if (!client) return;
+  for (let attempt = 0; attempt < RANDOM_USERNAME_ATTEMPTS; attempt++) {
+    const { error } = await client
+      .from('player_stats')
+      .update({ username: randomUsername() })
+      .eq('profile_id', profileId)
+      .is('username', null);
+    if (!error) return;
+    if (error.code !== '23505') {
+      console.error('ensureUsername: gagal mengisi username acak:', error.message);
+      return;
+    }
+    // 23505: kandidat itu sudah dipakai pemain lain — coba kandidat lain.
+  }
+}
+
 interface StatsRow {
   profile_id: string;
   user_id: string | null;

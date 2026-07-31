@@ -1,4 +1,5 @@
 import { TEMPERATURE_LABEL, type PlayerPublicState } from '@shared/types.ts';
+import { AddFriendButton } from './AddFriendButton.tsx';
 import { Avatar } from './Avatar.tsx';
 import { formatDuration } from './PlayerList.tsx';
 import { CrownIcon, Modal } from './ui.tsx';
@@ -38,6 +39,8 @@ export function PlayerProfileModal({ player, youId, onClose }: PlayerProfileModa
             {!player.connected && <span className="badge badge--plain">terputus</span>}
           </div>
         )}
+
+        <AddFriendButton profileId={player.id} />
 
         <dl className="profile__stats">
           <div className="profile__stat">

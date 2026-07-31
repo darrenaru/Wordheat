@@ -12,7 +12,7 @@ interface InviteFriendsModalProps {
 }
 
 const FALLBACK_AVATAR = { seed: 'pemain', backgroundColor: '2A2A2E' };
-const EMPTY = { friends: [], incoming: [], outgoing: [], invites: [] };
+const EMPTY = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
 
 /** Undang teman langsung dari lobi — masuk kotak undangan Friend List
  *  mereka (lihat `server/src/game/invites.ts`), bukan tautan yang harus

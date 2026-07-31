@@ -371,9 +371,6 @@ h3 {
   flex-direction: column;
   gap: var(--s2);
   width: 100%;
-  /* `.profile__hero` (satu-satunya parent yang `text-align: center`) sengaja
-     dilawan di sini — label "Statistik" dan baris Level/XP tetap rata kiri
-     seperti sebelum dipindah ke dalam kartu hero, cuma latarnya yang beda. */
   text-align: left;
 }
 
@@ -524,116 +521,25 @@ h3 {
   gap: var(--s4);
 }
 
-/* Header identitas Profil Saya: avatar besar di tengah, Display Name tepat
-   di bawahnya, Username lebih kecil & redup di bawah itu lagi — kartu
-   vertikal yang sama di semua lebar layar, tidak perlu media query
-   terpisah untuk mobile seperti tata letak sejajar yang lama. */
-.profile__identity {
+/* Header identitas Profil Saya: kartu polos tenang (bukan hero beranimasi
+   seperti sebelumnya) — avatar besar di tengah, Display Name tepat di
+   bawahnya, Username & Bio lebih kecil & redup di bawah itu lagi. Satu-
+   satunya aksen di sini tetap cincin pink di avatar (`.profile__avatar-
+   wrap::after`, sudah disahkan DESIGN.md sebagai "cincin fokus"); kartu
+   ini sendiri sengaja polos supaya fokus tetap di identitas, bukan tekstur
+   dekoratif — sisa warna/aksen dipindah ke dashboard bento di bawahnya
+   (`.profile-bento`). */
+.profile__hero {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   gap: var(--s1);
-}
-
-/* Kartu identitas: latar ambient pink samar (tekstur dekoratif, pola sama
-   seperti corner-glow `.cell::before`/`.shop-item::before` di beranda) —
-   bukan blok pink solid, supaya aksen pink tetap eksklusif milik tombol
-   "Tebak" sesuai DESIGN.md. Membungkus avatar SAMPAI Bio (bukan cuma
-   avatar) supaya gradiennya tidak terasa terpotong tepat di bawah avatar. */
-.profile__hero {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s1);
   width: 100%;
-  /* Padding di semua sisi dilebihkan (bukan cuma bawah) supaya ada ruang
-     kosong di tiap tepi tempat gradiennya benar-benar memudar — avatar,
-     teks, dan kartu Level sendiri tidak boleh jatuh di dalam zona fade
-     (lihat `mask-image` di bawah; jarak fade tiap sisi selalu dijaga
-     lebih kecil dari padding sisi itu, supaya kontennya tidak ikut pudar). */
-  padding: var(--s7) var(--s4) var(--s6);
-  /* Batas kartu, pola sama seperti `.profile__level-card`/`.profile__stats-card`
-     — membingkai seluruh area avatar sampai kartu Level jadi satu kartu utuh,
-     bukan cuma tekstur gradien mengambang tanpa tepi. Tetap ikut memudar di
-     `mask-image` di bawah, jadi garisnya juga melembut di sudut, konsisten
-     dengan efek fade yang sudah ada. */
+  padding: var(--s5) var(--s4);
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  overflow: hidden;
-  background-color: var(--surface);
-  /* `background-image` diam-diam dianimasikan lewat `background-position`,
-     bukan lewat `at X% Y%` di dalam `radial-gradient` sendiri (itu tidak
-     bisa dianimasikan) — dan ini tetap latar milik elemen (bukan pseudo-
-     element berposisi), jadi selalu terlukis paling belakang, tidak akan
-     pernah menutupi avatar/teks di atasnya. */
-  background-image: radial-gradient(
-    circle,
-    color-mix(in srgb, var(--brand) 18%, transparent) 0%,
-    transparent 60%
-  );
-  background-size: 160% 160%;
-  background-position: 35% 10%;
-  animation: hero-glow-drift 16s ease-in-out infinite alternate;
-  /* Memudar ke transparan di KEEMPAT tepi — jaraknya selalu dijaga lebih
-     kecil dari padding sisi yang sama (atas: fade 36px vs padding 48px;
-     bawah: fade 26px vs padding 32px; kiri/kanan: fade 14px vs padding
-     16px), supaya avatar/teks/kartu Level tidak pernah ikut memudar, cuma
-     ruang kosong di tepinya yang kena. Jaraknya juga sengaja lebih lebar
-     dari radius sudut kartu (`--radius-lg`) supaya lengkungan sudutnya
-     ikut memudar habis, bukan cuma menipis lalu masih kelihatan sebagai
-     garis lengkung. Dua lapis gradien (vertikal + horizontal) digabung
-     dengan `intersect`/`source-in` supaya alpha-nya jadi nilai TERKECIL
-     dari keduanya di tiap piksel — itulah yang membuat keempat tepi
-     memudar sekaligus, termasuk di sudut-sudutnya. */
-  mask-image: linear-gradient(to bottom, transparent 0, black 36px, black calc(100% - 26px), transparent 100%),
-    linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
-  mask-composite: intersect;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 36px, black calc(100% - 26px), transparent 100%),
-    linear-gradient(to right, transparent 0, black 14px, black calc(100% - 14px), transparent 100%);
-  -webkit-mask-composite: source-in;
-}
-
-@keyframes hero-glow-drift {
-  0% {
-    background-position: 20% 5%;
-  }
-  100% {
-    background-position: 65% 35%;
-  }
-}
-
-/* Bintik kecil yang naik pelan — versi ringkas dari `.ambient__mote` di
-   `motion.css`, di-scope ke tinggi kartu hero (bukan 100vh). */
-.profile__hero-particle {
-  position: absolute;
-  bottom: -6px;
-  left: var(--x);
-  width: var(--sz);
-  height: var(--sz);
-  border-radius: 50%;
-  background: var(--cream);
-  opacity: 0;
-  pointer-events: none;
-  animation: hero-particle-rise var(--life) linear var(--delay) infinite;
-}
-
-@keyframes hero-particle-rise {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0);
-  }
-  15% {
-    opacity: 0.35;
-  }
-  80% {
-    opacity: 0.35;
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(var(--drift), -220px, 0);
-  }
 }
 
 /* Bukan anak `.avatar-edit-btn` langsung — tombol itu `overflow: hidden` +
@@ -649,7 +555,8 @@ h3 {
 /* Cincin di sekeliling avatar — pseudo-element terpisah (bukan box-shadow di
    `.avatar-edit-btn` sendiri), karena tombol itu `overflow: hidden` yang
    ikut memotong box-shadow-nya sendiri. Warnanya campuran pink+abu netral
-   (bukan pink solid), pola sama seperti tekstur ambient `.profile__hero`. */
+   (bukan pink solid) — satu-satunya aksen pink di kartu identitas Profil
+   Saya, sesuai "cincin fokus" yang disahkan DESIGN.md. */
 .profile__avatar-wrap::after {
   content: '';
   position: absolute;
@@ -676,6 +583,156 @@ h3 {
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
+}
+
+/* -------------------------------------------------------- view profile */
+
+/* Kartu "Profil Pemain" (dibuka dari Leaderboard) — sengaja BUKAN kloning
+   `.profile__hero`: itu kartu identitas terpusat khusus profil sendiri
+   (bisa diedit). Ini cuma kartu ringkas sekali lihat, jadi layout-nya
+   horizontal (avatar di kiri, identitas di kanan) alih-alih terpusat
+   vertikal. Kartu statistik/level di bawahnya tetap memakai ulang
+   `.profile__stats-card`/`.profile__level-card` — widget itu sendiri sudah
+   generik, yang baru cuma bungkus atasnya. */
+.view-profile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s5);
+}
+
+.view-profile__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s4);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+/* Tombol Tambah Teman, pojok kanan-atas header — pola posisi sama seperti
+   badge lain di app ini (mis. `.profile__level-badge`), cuma di sini INSET
+   (bukan menggantung di luar tepi) supaya tetap kelihatan meski
+   `.view-profile__header` `overflow: hidden`. */
+.view-profile__action {
+  position: absolute;
+  top: var(--s3);
+  right: var(--s3);
+  z-index: 1;
+}
+
+/* Glow lembut di belakang avatar saja (bukan seluruh kartu) — `::before`
+   digenerasi SEBELUM anak asli dalam urutan render, jadi otomatis di
+   belakangnya tanpa perlu z-index. */
+.view-profile__header::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60px;
+  width: 220px;
+  height: 220px;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--brand) 28%, transparent) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.view-profile__avatar {
+  position: relative;
+  flex: none;
+}
+
+/* Cincin di sekeliling avatar — pola sama seperti `.profile__avatar-wrap::after`. */
+.view-profile__avatar::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--brand) 40%, var(--border-strong));
+  pointer-events: none;
+}
+
+.view-profile__badge {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  /* Sama alasannya seperti `.profile__level-badge`: tanpa ini, cincin
+     `::after` di atas (digenerasi paling akhir dari anak `.view-profile__avatar`)
+     tergambar di atas badge ini. */
+  z-index: 1;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--black);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.view-profile__identity {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.view-profile__name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.view-profile__username {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.view-profile__bio {
+  margin: var(--s1) 0 0;
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+/* -------------------------------------------------------------- rank badge */
+
+/* Badge Rank (`RankBadge.tsx`) — dipakai 3 tempat: Profil Saya (hero,
+   center), View Profile (identity, rata kiri), dan baris Leaderboard
+   (varian `icon` di bawah, cuma gambar). Label sengaja netral (`--text`) —
+   warnanya sudah dibawa ikonnya sendiri (artwork multi-warna, sama seperti
+   avatar), bukan aksen chrome UI baru yang perlu dijaga tetap pink-only
+   (lihat DESIGN.md). */
+.rank-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.rank-badge__icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+}
+
+.rank-badge__icon--sm {
+  width: 20px;
+  height: 20px;
+}
+
+.rank-badge__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
 }
 
 /* Display Name tampil sebagai teks polos (tanpa kotak input terlihat)
@@ -1107,10 +1164,6 @@ h3 {
   overflow: hidden;
   flex: none;
   display: block;
-}
-
-.avatar--square {
-  border-radius: var(--radius-lg);
 }
 
 /* Ditampilkan sampai chunk DiceBear selesai dimuat. Ukuran dan bentuknya sama

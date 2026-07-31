@@ -1,6 +1,13 @@
-import type { AvatarConfig, Leaderboard, LeaderboardEntry, PlayerStats } from '@shared/types.ts';
+import type {
+  AvatarConfig,
+  Leaderboard,
+  LeaderboardEntry,
+  PlayerStats,
+  PublicProfile,
+} from '@shared/types.ts';
 import { currentPuzzleDate } from '../game/words.ts';
 import { getServiceClient } from '../db/client.ts';
+import { ensureUsername } from '../social/store.ts';
 
 interface StatsRow {
   profile_id: string;
@@ -132,6 +139,9 @@ export async function recordGameResult(
       updated_at: new Date().toISOString(),
     });
     if (error) console.error('recordGameResult: gagal upsert statistik:', error.message);
+    // Baris ini baru pertama kali dibuat (main pertama kali) — pastikan
+    // langsung punya username, jangan dibiarkan `null` selamanya.
+    else if (!existing) await ensureUsername(profileId);
   } catch (err) {
     console.error('recordGameResult: gagal mencatat statistik:', err);
   }
@@ -187,6 +197,13 @@ export async function linkAccountProfile(
     }
     const canonicalProfileId = (data as string | null) ?? profileId;
 
+    // Login (lewat RPC di atas) juga bisa jadi titik pertama kali baris
+    // `player_stats` profil ini benar-benar ada — pastikan langsung punya
+    // username, jangan dibiarkan `null`. Jarang dipanggil dibanding
+    // `recordGameResult`, jadi aman tidak dikondisikan cuma untuk baris
+    // baru — no-op kalau username sudah ada.
+    await ensureUsername(canonicalProfileId);
+
     const { data: row } = await client
       .from('player_stats')
       .select('display_name, avatar')
@@ -217,8 +234,18 @@ interface NamedStatsRow {
   xp: number;
 }
 
-function toEntry(row: { display_name: string | null; avatar: AvatarConfig | null }, value: number): LeaderboardEntry {
-  return { name: row.display_name ?? 'Pemain', avatar: row.avatar, value };
+function toEntry(
+  profileId: string,
+  row: { display_name: string | null; avatar: AvatarConfig | null; total_wins?: number },
+  value: number,
+): LeaderboardEntry {
+  return {
+    profileId,
+    name: row.display_name ?? 'Pemain',
+    avatar: row.avatar,
+    value,
+    totalWins: row.total_wins ?? 0,
+  };
 }
 
 /**
@@ -270,30 +297,101 @@ export async function getLeaderboard(): Promise<Leaderboard> {
     if (walletRows.length > 0) {
       const { data: namesData } = await client
         .from('player_stats')
-        .select('profile_id, display_name, avatar')
+        .select('profile_id, display_name, avatar, total_wins')
         .in(
           'profile_id',
           walletRows.map((w) => w.profile_id),
         );
       const byId = new Map(
-        ((namesData ?? []) as Array<{ profile_id: string; display_name: string | null; avatar: AvatarConfig | null }>).map(
-          (s) => [s.profile_id, s],
-        ),
+        (
+          (namesData ?? []) as Array<{
+            profile_id: string;
+            display_name: string | null;
+            avatar: AvatarConfig | null;
+            total_wins: number;
+          }>
+        ).map((s) => [s.profile_id, s]),
       );
       coins = walletRows.map((w) => {
         const found = byId.get(w.profile_id);
-        return toEntry(found ?? { display_name: null, avatar: null }, w.balance);
+        return toEntry(
+          w.profile_id,
+          found ?? { display_name: null, avatar: null, total_wins: 0 },
+          w.balance,
+        );
       });
     }
 
-    const wins = ((winsRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r, r.total_wins));
-    const streak = ((streakRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r, r.longest_streak));
-    const guesses = ((guessesRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r, r.total_guesses));
-    const xp = ((xpRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r, r.xp));
+    const wins = ((winsRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r.profile_id, r, r.total_wins));
+    const streak = ((streakRes.data ?? []) as NamedStatsRow[]).map((r) =>
+      toEntry(r.profile_id, r, r.longest_streak),
+    );
+    const guesses = ((guessesRes.data ?? []) as NamedStatsRow[]).map((r) =>
+      toEntry(r.profile_id, r, r.total_guesses),
+    );
+    const xp = ((xpRes.data ?? []) as NamedStatsRow[]).map((r) => toEntry(r.profile_id, r, r.xp));
 
     return { coins, wins, streak, guesses, xp };
   } catch (err) {
     console.error('getLeaderboard: gagal mengambil data:', err);
     return EMPTY_LEADERBOARD;
+  }
+}
+
+interface PublicProfileRow {
+  profile_id: string;
+  display_name: string | null;
+  avatar: AvatarConfig | null;
+  username: string | null;
+  bio: string | null;
+  total_games: number;
+  total_wins: number;
+  total_guesses: number;
+  best_guess_count: number | null;
+  current_streak: number;
+  longest_streak: number;
+  last_played_date: string | null;
+  xp: number;
+}
+
+/**
+ * Profil publik pemain lain — dibuka dari Leaderboard. Sumbernya baris
+ * `player_stats` yang sama seperti statistik/username/bio sendiri, cuma
+ * kolom yang boleh publik yang dipilih (tanpa `user_id`,
+ * `username_changed_at`, dst.).
+ */
+export async function getPublicProfile(profileId: string): Promise<PublicProfile | null> {
+  const client = getServiceClient();
+  if (!client) return null;
+  try {
+    const { data, error } = await client
+      .from('player_stats')
+      .select(
+        'profile_id, display_name, avatar, username, bio, total_games, total_wins, total_guesses, best_guess_count, current_streak, longest_streak, last_played_date, xp',
+      )
+      .eq('profile_id', profileId)
+      .maybeSingle();
+    if (error || !data) return null;
+    const row = data as PublicProfileRow;
+    return {
+      profileId: row.profile_id,
+      displayName: row.display_name ?? 'Pemain',
+      username: row.username,
+      avatar: row.avatar,
+      bio: row.bio,
+      stats: {
+        totalGames: row.total_games,
+        totalWins: row.total_wins,
+        totalGuesses: row.total_guesses,
+        bestGuessCount: row.best_guess_count,
+        currentStreak: row.current_streak,
+        longestStreak: row.longest_streak,
+        lastPlayedDate: row.last_played_date,
+        xp: row.xp,
+      },
+    };
+  } catch (err) {
+    console.error('getPublicProfile: gagal mengambil profil:', err);
+    return null;
   }
 }

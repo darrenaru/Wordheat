@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { Leaderboard, LeaderboardEntry } from '@shared/types.ts';
 import { api } from '../lib/api.ts';
+import { FALLBACK_AVATAR } from '../lib/avatar.ts';
 import { Avatar } from '../components/Avatar.tsx';
+import { RankBadge } from '../components/RankBadge.tsx';
+import { ViewProfileModal } from '../components/ViewProfileModal.tsx';
 
 type Category = keyof Leaderboard;
 
@@ -15,13 +18,11 @@ const CATEGORIES: Array<{ key: Category; label: string; unit: string }> = [
 
 const EMPTY: Leaderboard = { coins: [], wins: [], streak: [], guesses: [], xp: [] };
 
-/** Placeholder avatar netral untuk baris tanpa data avatar (mis. profil lama). */
-const FALLBACK_AVATAR = { seed: 'pemain', backgroundColor: '2A2A2E' };
-
 export function LeaderboardScreen() {
   const [category, setCategory] = useState<Category>('coins');
   const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewingProfileId, setViewingProfileId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -66,13 +67,21 @@ export function LeaderboardScreen() {
           <ol className="result-ranks">
             {entries.map((entry, index) => (
               <li
-                key={`${entry.name}-${index}`}
+                key={`${entry.profileId}-${index}`}
                 className="result-rank"
                 data-rank={index < 3 ? index + 1 : undefined}
               >
                 <span className="result-rank__place tnum">{index + 1}</span>
-                <Avatar config={entry.avatar ?? FALLBACK_AVATAR} size={28} />
-                <span className="result-rank__name">{entry.name}</span>
+                <button
+                  type="button"
+                  className="result-rank__trigger"
+                  onClick={() => setViewingProfileId(entry.profileId)}
+                  aria-label={`Lihat profil ${entry.name}`}
+                >
+                  <Avatar config={entry.avatar ?? FALLBACK_AVATAR} size={28} />
+                  <RankBadge totalWins={entry.totalWins} variant="icon" />
+                  <span className="result-rank__name">{entry.name}</span>
+                </button>
                 <span className="tnum">
                   {entry.value} {active.unit}
                 </span>
@@ -81,6 +90,13 @@ export function LeaderboardScreen() {
           </ol>
         )}
       </div>
+
+      {viewingProfileId && (
+        <ViewProfileModal
+          profileId={viewingProfileId}
+          onClose={() => setViewingProfileId(null)}
+        />
+      )}
     </div>
   );
 }

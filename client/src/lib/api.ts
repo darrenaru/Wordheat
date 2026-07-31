@@ -1,11 +1,13 @@
 import type {
   ApiError,
   AvatarConfig,
+  ChatMessage,
   FriendsPayload,
   Guess,
   Leaderboard,
   PlayerStats,
   PowerupInventory,
+  PublicProfile,
   SoloSessionState,
   UserSummary,
 } from '@shared/types.ts';
@@ -81,6 +83,11 @@ export const api = {
 
   leaderboard: () => request<{ leaderboard: Leaderboard }>('/leaderboard').then((r) => r.leaderboard),
 
+  playerProfile: (profileId: string) =>
+    request<{ profile: PublicProfile }>(`/players/${encodeURIComponent(profileId)}`).then(
+      (r) => r.profile,
+    ),
+
   /**
    * Dipanggil sekali tiap login. `profileId` wajib dipakai ke depan;
    * `displayName`/`avatar` adalah identitas TERSIMPAN milik akun itu
@@ -125,6 +132,17 @@ export const api = {
     ),
 
   friends: () => request<{ ok: true } & FriendsPayload>('/friends'),
+
+  conversation: (profileId: string) =>
+    request<{ messages: ChatMessage[] }>(`/messages/${encodeURIComponent(profileId)}`).then(
+      (r) => r.messages,
+    ),
+
+  sendMessage: (profileId: string, text: string) =>
+    request<{ ok: true }>(`/messages/${encodeURIComponent(profileId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
 
   sendFriendRequest: (toProfileId: string) =>
     request<{ ok: true }>('/friends/request', {

@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { PlayerProfile, PlayerStats } from '@shared/types.ts';
 import { xpProgress } from '@shared/xp.ts';
 import { api, ApiFailure } from '../lib/api.ts';
-import { between, usePrefersReducedMotion } from '../lib/motion.ts';
 import {
   getAuthSession,
   isAuthAvailable,
@@ -11,20 +10,11 @@ import {
   subscribeAuth,
 } from '../lib/supabase.ts';
 import { Avatar } from './Avatar.tsx';
-import {
-  BoltIcon,
-  CheckIcon,
-  CloseIcon,
-  EditIcon,
-  GoogleIcon,
-  Modal,
-  PlayIcon,
-  StarIcon,
-  FlameIcon,
-  TargetIcon,
-  TrophyIcon,
-} from './ui.tsx';
+import { ChartIcon, CheckIcon, CloseIcon, EditIcon, GoogleIcon, LayersIcon, Modal, UsersIcon } from './ui.tsx';
 import { AvatarStudio } from '../screens/AvatarStudio.tsx';
+import { RankBadge } from './RankBadge.tsx';
+import { StatsGrid } from './StatsGrid.tsx';
+import { XpBar } from './XpBar.tsx';
 
 interface ProfileModalProps {
   profile: PlayerProfile;
@@ -37,6 +27,15 @@ interface ProfileModalProps {
  * field biasa — pemilihan bagian wajah butuh ruang sendiri (lihat
  * `AvatarStudio`), jadi di sini cuma ada tombol yang membuka tampilan itu
  * di atas modal ini, lalu kembali ke sini begitu selesai.
+ *
+ * Tata letak: header identitas polos (avatar/nama/username/bio, bisa
+ * diedit) diikuti dashboard bento — pola visual yang sama seperti grid
+ * menu Beranda (`HomeScreen`/`.bento`/`.cell`), supaya Profil Saya terasa
+ * senada dengan identitas visual app alih-alih jadi hero terpisah sendiri.
+ * Kartu di sini murni informatif (bukan navigasi), jadi dirender sebagai
+ * `<div className="cell cell--static">`, BUKAN `<button>` seperti kartu
+ * Beranda — beberapa isinya (kartu Akun) punya tombol sungguhan sendiri,
+ * dan tombol tidak boleh bersarang di dalam tombol.
  */
 export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
   const [draft, setDraft] = useState<PlayerProfile>(profile);
@@ -97,66 +96,90 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
         }
       >
         <div className="stack">
-          <div className="profile__identity">
-            <div className="profile__hero">
-              <HeroParticles />
-              <div className="profile__avatar-wrap">
+          <div className="profile__hero">
+            <div className="profile__avatar-wrap">
+              <button
+                type="button"
+                className="avatar-edit-btn"
+                onClick={() => setShowAvatarStudio(true)}
+                aria-label="Ubah avatar"
+              >
+                <Avatar config={draft.avatar} size={96} alt="Avatar kamu" />
+              </button>
+              <span className="avatar-edit-badge" aria-hidden="true">
+                <EditIcon />
+              </span>
+              <span className="profile__level-badge">Lv. {level}</span>
+            </div>
+
+            {editingName ? (
+              <input
+                ref={nameInputRef}
+                id="display-name"
+                className="identity-name"
+                value={draft.name}
+                maxLength={18}
+                onChange={(event) => setDraft({ ...draft, name: event.target.value })}
+                onBlur={() => setEditingName(false)}
+                placeholder="Nama kamu"
+                aria-label="Display Name"
+                style={{ width: `${(draft.name.length || 'Nama kamu'.length) + 1.5}ch` }}
+              />
+            ) : (
+              <div className="identity-editable">
+                <span className="identity-name-display">{draft.name || 'Nama kamu'}</span>
                 <button
                   type="button"
-                  className="avatar-edit-btn"
-                  onClick={() => setShowAvatarStudio(true)}
-                  aria-label="Ubah avatar"
+                  className="identity-editable__icon"
+                  onClick={() => setEditingName(true)}
+                  aria-label="Ubah Display Name"
                 >
-                  <Avatar config={draft.avatar} size={96} alt="Avatar kamu" />
-                </button>
-                <span className="avatar-edit-badge" aria-hidden="true">
                   <EditIcon />
-                </span>
-                <span className="profile__level-badge">Lv. {level}</span>
+                </button>
               </div>
+            )}
 
-              {editingName ? (
-                <input
-                  ref={nameInputRef}
-                  id="display-name"
-                  className="identity-name"
-                  value={draft.name}
-                  maxLength={18}
-                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
-                  onBlur={() => setEditingName(false)}
-                  placeholder="Nama kamu"
-                  aria-label="Display Name"
-                  style={{ width: `${(draft.name.length || 'Nama kamu'.length) + 1.5}ch` }}
-                />
-              ) : (
-                <div className="identity-editable">
-                  <span className="identity-name-display">{draft.name || 'Nama kamu'}</span>
-                  <button
-                    type="button"
-                    className="identity-editable__icon"
-                    onClick={() => setEditingName(true)}
-                    aria-label="Ubah Display Name"
-                  >
-                    <EditIcon />
-                  </button>
-                </div>
-              )}
-
-              <UsernameField displayName={profile.name} avatar={profile.avatar} />
-              <BioField displayName={profile.name} avatar={profile.avatar} />
-
-              <LevelSummaryField stats={stats} />
-            </div>
+            <UsernameField displayName={profile.name} avatar={profile.avatar} />
+            <BioField displayName={profile.name} avatar={profile.avatar} />
           </div>
 
-          <StatsGrid stats={stats} />
+          <div className="profile-bento">
+            <div className="cell cell--static" style={{ '--accent': 'var(--correct)' } as React.CSSProperties}>
+              <LayersIcon />
+              <span className="cell__title">Level</span>
+              {stats === undefined && <p className="caption">Memuat...</p>}
+              {stats === null && <p className="caption">Belum ada statistik tercatat.</p>}
+              {stats && <XpBar xp={stats.xp} />}
+            </div>
 
-          {isAuthAvailable() && (
-            <>
-              <hr className="divider" />
-              <AccountField />
-            </>
-          )}
+            <div
+              className="cell cell--static"
+              style={{ '--accent': 'var(--border-strong)' } as React.CSSProperties}
+            >
+              <span className="cell__title">Rank</span>
+              {stats && <RankBadge totalWins={stats.totalWins} />}
+            </div>
+
+            <div
+              className="cell cell--static cell--wide"
+              style={{ '--accent': 'var(--border-strong)' } as React.CSSProperties}
+            >
+              <ChartIcon />
+              <span className="cell__title">Statistik</span>
+              <StatsGrid stats={stats} bare />
+            </div>
+
+            {isAuthAvailable() && (
+              <div
+                className="cell cell--static cell--wide"
+                style={{ '--accent': 'var(--border-strong)' } as React.CSSProperties}
+              >
+                <UsersIcon />
+                <span className="cell__title">Akun</span>
+                <AccountField />
+              </div>
+            )}
+          </div>
         </div>
       </Modal>
       {/*
@@ -183,175 +206,13 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
   );
 }
 
-const HERO_PARTICLE_COUNT = 7;
-
-function heroParticleVars(): Record<string, string> {
-  return {
-    '--x': `${between(6, 94).toFixed(1)}%`,
-    '--sz': `${between(2, 4).toFixed(1)}px`,
-    '--drift': `${between(-16, 16).toFixed(0)}px`,
-    '--life': `${between(5, 9).toFixed(1)}s`,
-    '--delay': `${between(-9, 0).toFixed(1)}s`,
-  } as Record<string, string>;
-}
-
-/**
- * Bintik yang naik pelan di dalam kartu hero — versi kecil, di-scope ke
- * `.profile__hero` saja, dari pola yang sama seperti komponen `Ambient`
- * layar penuh (lihat `motion.css`). Dibuat sekali (`useMemo`) supaya tidak
- * tersentak balik ke awal tiap kali `ProfileModal` re-render.
- */
-function HeroParticles() {
-  const reduced = usePrefersReducedMotion();
-  const particles = useMemo(
-    () => Array.from({ length: HERO_PARTICLE_COUNT }, heroParticleVars),
-    [],
-  );
-
-  if (reduced) return null;
-
-  return (
-    <>
-      {particles.map((style, index) => (
-        <span key={index} className="profile__hero-particle" style={style} aria-hidden="true" />
-      ))}
-    </>
-  );
-}
-
-/**
- * Progres level — bagian ini masuk ke dalam `.profile__hero` (lihat
- * referensi desain: gradiennya membentang sampai baris "X XP lagi..."),
- * makanya dipisah dari grid kotak statistik di bawah (`StatsGrid`) yang
- * tetap di latar polos. Level BUKAN bagian dari "Statistik" — labelnya
- * ada di `StatsGrid`, bukan di sini.
- */
-function LevelSummaryField({ stats }: { stats: PlayerStats | null | undefined }) {
-  return (
-    <div className="field">
-      {stats === undefined && <p className="caption">Memuat...</p>}
-      {stats === null && <p className="caption">Belum ada statistik tercatat.</p>}
-      {stats && (
-        <div className="profile__level-card">
-          <XpBar xp={stats.xp} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Grid kotak statistik (anonim maupun login, sama seperti coin) — dulu ada
- * di modal "Statistik" terpisah yang cuma bisa dibuka setelah login;
- * sekarang ditarik ke sini supaya satu-satunya tempat melihat statistik ya
- * Profil Saya, dan Guest pun bisa melihatnya.
- *
- * `stats` diambil sekali di `ProfileModal` (dipakai juga oleh badge "Lv."
- * di avatar dan `LevelSummaryField`), diteruskan sebagai prop di sini
- * supaya tidak fetch dua kali.
- */
-function StatsGrid({ stats }: { stats: PlayerStats | null | undefined }) {
-  const avgGuesses =
-    stats && stats.totalGames > 0 ? (stats.totalGuesses / stats.totalGames).toFixed(1) : '—';
-
-  if (!stats) return null;
-
-  return (
-    <div className="field">
-      <span className="field__label">Statistik</span>
-      <div className="profile__stats-card">
-        <dl className="profile__stats">
-          <div className="profile__stat">
-            <span className="profile__stat-icon">
-              <PlayIcon />
-            </span>
-            <div>
-              <dt className="caption">Total main</dt>
-              <dd className="tnum">{stats.totalGames}</dd>
-            </div>
-          </div>
-          <div className="profile__stat">
-            <span className="profile__stat-icon">
-              <TrophyIcon />
-            </span>
-            <div>
-              <dt className="caption">Menang</dt>
-              <dd className="tnum">{stats.totalWins}</dd>
-            </div>
-          </div>
-          <div className="profile__stat">
-            <span className="profile__stat-icon">
-              <TargetIcon />
-            </span>
-            <div>
-              <dt className="caption">Rata-rata tebakan</dt>
-              <dd className="tnum">{avgGuesses}</dd>
-            </div>
-          </div>
-          <div className="profile__stat">
-            <span className="profile__stat-icon">
-              <StarIcon />
-            </span>
-            <div>
-              <dt className="caption">Tebakan tersedikit</dt>
-              <dd className="tnum">{stats.bestGuessCount ?? '—'}</dd>
-            </div>
-          </div>
-          <div className="profile__stat">
-            <span className="profile__stat-icon">
-              <FlameIcon />
-            </span>
-            <div>
-              <dt className="caption">Streak sekarang</dt>
-              <dd className="tnum">{stats.currentStreak}</dd>
-            </div>
-          </div>
-          <div className="profile__stat">
-            <span className="profile__stat-icon">
-              <BoltIcon />
-            </span>
-            <div>
-              <dt className="caption">Streak terpanjang</dt>
-              <dd className="tnum">{stats.longestStreak}</dd>
-            </div>
-          </div>
-        </dl>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Progres level — dihitung dari `stats.xp` lewat kurva di `shared/xp.ts`,
- * tidak ada kolom "level" terpisah di database supaya tidak ada dua sumber
- * kebenaran yang bisa tidak sinkron.
- */
-function XpBar({ xp }: { xp: number }) {
-  const progress = xpProgress(xp);
-  const remaining = progress.nextLevelXp - progress.xp;
-  return (
-    <div className="xp-summary">
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <span className="caption">Level {progress.level}</span>
-        <span className="caption tnum">
-          {progress.xp} / {progress.nextLevelXp} XP
-        </span>
-      </div>
-      <div className="xp-bar">
-        <span style={{ width: `${Math.round(progress.progress * 100)}%` }} />
-      </div>
-      <p className="xp-summary__caption">
-        {remaining} XP lagi untuk naik ke <strong>Level {progress.level + 1}</strong>
-      </p>
-    </div>
-  );
-}
-
 /**
  * Login/logout Google langsung dari Profil Saya — tombol yang sama
  * berganti peran mengikuti status sesi, dipakai ulang persis fungsi yang
  * sudah dipakai `AuthModal`/`WelcomeModal` (masuk) dan `StatsModal`
  * (keluar), cuma ditempatkan di sini supaya tidak perlu buka modal lain.
+ * Judul "Akun" datang dari kartu bento pembungkusnya, bukan dari komponen
+ * ini sendiri — makanya tidak ada wrapper `.field`/`field__label` di sini.
  */
 function AccountField() {
   const session = useSyncExternalStore(subscribeAuth, getAuthSession, () => null);
@@ -378,8 +239,7 @@ function AccountField() {
   };
 
   return (
-    <div className="field">
-      <span className="field__label">Akun</span>
+    <>
       {session ? (
         <div className="row" style={{ flexWrap: 'nowrap' }}>
           <p className="caption" style={{ flex: 1, minWidth: 0, margin: 0 }}>
@@ -399,7 +259,7 @@ function AccountField() {
         </>
       )}
       {error && <p className="form-error">{error}</p>}
-    </div>
+    </>
   );
 }
 

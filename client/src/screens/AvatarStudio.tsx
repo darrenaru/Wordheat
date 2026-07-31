@@ -206,7 +206,23 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
         <div className="studio__side">
           <div className="studio__preview">
             <div className="studio__preview-ring">
-              <Avatar config={draft} size={196} square alt="Pratinjau avatar" />
+              <Avatar config={draft} size={196} alt="Pratinjau avatar" />
+            </div>
+          </div>
+
+          <div className="field">
+            <span className="field__label">Warna latar</span>
+            <div className="swatches">
+              {backgroundChoices(draft.backgroundColor).map((color) => (
+                <button
+                  key={color}
+                  className="swatch"
+                  style={{ background: `#${color}` }}
+                  aria-pressed={draft.backgroundColor === color}
+                  aria-label={`Latar #${color}`}
+                  onClick={() => setAvatar({ ...draft, backgroundColor: color })}
+                />
+              ))}
             </div>
           </div>
 
@@ -262,11 +278,6 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
                 })}
               </div>
 
-              <div className="studio__intro">
-                <h3>Kustomisasi Avatar</h3>
-                <p className="caption">Sesuaikan avatar sesuai gayamu!</p>
-              </div>
-
               {/* Terpisah dari baris tab di atas: di layar sempit cuma bagian ini
                   yang menggulir (lihat `.studio__scroll` di `game.css`), supaya
                   tab pemilih bagian selalu terlihat dan bisa diklik kapan saja —
@@ -288,22 +299,6 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
                     }}
                   />
                 ))}
-
-                <div className="field">
-                  <span className="field__label">Warna latar</span>
-                  <div className="swatches">
-                    {backgroundChoices(draft.backgroundColor).map((color) => (
-                      <button
-                        key={color}
-                        className="swatch"
-                        style={{ background: `#${color}` }}
-                        aria-pressed={draft.backgroundColor === color}
-                        aria-label={`Latar #${color}`}
-                        onClick={() => setAvatar({ ...draft, backgroundColor: color })}
-                      />
-                    ))}
-                  </div>
-                </div>
 
                 <p className="caption studio__hint">
                   Panah ← → berpindah pilihan, ↑ ↓ berpindah bagian.
@@ -381,17 +376,6 @@ function PartPanel({ part, avatar, current, pinned, onPick, onShuffle }: PartPan
         role="group"
         aria-label={`Pilihan ${part.label.toLowerCase()}`}
       >
-        <button
-          className={
-            part.kind === 'color' ? 'swatch swatch--auto' : 'parts__option parts__option--text'
-          }
-          aria-pressed={pinned === undefined}
-          onClick={() => onPick(null)}
-          title="Ikut hasil acak"
-        >
-          {part.kind === 'color' ? <DiceIcon /> : 'Acak'}
-        </button>
-
         {part.optional && (
           <button
             className="parts__option parts__option--text"

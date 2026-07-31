@@ -15,6 +15,7 @@ import {
 import { getRoom, roomCount } from '../game/rooms.ts';
 import { dismissInvite, listInvites, sendInvite } from '../game/invites.ts';
 import { addPowerup, getInventory } from '../powerup/store.ts';
+import { countUnreadMessages, listConversation, sendMessage } from '../chat/store.ts';
 import {
   areFriends,
   getBio,
@@ -27,7 +28,13 @@ import {
   setBio,
   setUsername,
 } from '../social/store.ts';
-import { getLeaderboard, getStats, linkAccountProfile, verifyToken } from '../stats/store.ts';
+import {
+  getLeaderboard,
+  getPublicProfile,
+  getStats,
+  linkAccountProfile,
+  verifyToken,
+} from '../stats/store.ts';
 import { getBalance, spendWallet } from '../wallet/store.ts';
 
 /** Validasi longgar — cukup memastikan bentuknya avatar, bukan sembarang JSON. */
@@ -169,6 +176,17 @@ export function createApiRouter(): Router {
     res.json({ ok: true, leaderboard });
   });
 
+  /** Profil publik pemain lain — dibuka dari Leaderboard. Tidak butuh login,
+   *  sama seperti `/leaderboard` sendiri. */
+  router.get('/players/:profileId', async (req, res) => {
+    const profile = await getPublicProfile(req.params.profileId);
+    if (!profile) {
+      res.status(404).json({ ok: false, code: 'not_found', message: 'Profil tidak ditemukan.' });
+      return;
+    }
+    res.json({ ok: true, profile });
+  });
+
   /**
    * Dipanggil sekali tiap kali pemain login. Menautkan profil perangkat ini
    * ke akunnya — kalau akun itu sudah pernah dipakai di perangkat lain,
@@ -304,11 +322,36 @@ export function createApiRouter(): Router {
       res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
       return;
     }
-    const [{ friends, incoming, outgoing }, invites] = await Promise.all([
+    const [{ friends, incoming, outgoing }, invites, unreadMessages] = await Promise.all([
       listFriends(profileId),
       Promise.resolve(listInvites(profileId)),
+      countUnreadMessages(profileId),
     ]);
-    res.json({ ok: true, friends, incoming, outgoing, invites });
+    res.json({ ok: true, friends, incoming, outgoing, invites, unreadMessages });
+  });
+
+  /** Isi percakapan dengan seorang teman — sekaligus menandai pesan masuk
+   *  di percakapan ini terbaca (lihat `listConversation`). */
+  router.get('/messages/:profileId', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const messages = await listConversation(profileId, req.params.profileId);
+    res.json({ ok: true, messages });
+  });
+
+  /** Kirim pesan chat — cuma boleh ke teman (lihat `sendMessage`). */
+  router.post('/messages/:profileId', async (req, res) => {
+    const profileId = resolveProfileId(req);
+    if (!profileId) {
+      res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
+      return;
+    }
+    const text = typeof req.body?.text === 'string' ? req.body.text : '';
+    const result = await sendMessage(profileId, req.params.profileId, text);
+    res.status(result.ok ? 200 : 400).json(result);
   });
 
   router.post('/friends/request', async (req, res) => {

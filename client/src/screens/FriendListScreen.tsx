@@ -4,12 +4,12 @@ import { api, ApiFailure } from '../lib/api.ts';
 import { getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts';
 import { navigate } from '../lib/router.ts';
 import { Avatar } from '../components/Avatar.tsx';
-import { useToast } from '../components/ui.tsx';
+import { MessageIcon, useToast } from '../components/ui.tsx';
 
 /** Placeholder avatar netral untuk baris tanpa data avatar (mis. profil lama). */
 const FALLBACK_AVATAR = { seed: 'pemain', backgroundColor: '2A2A2E' };
 
-const EMPTY = { friends: [], incoming: [], outgoing: [], invites: [] };
+const EMPTY = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
 
 export function FriendListScreen() {
   const payload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY);
@@ -159,12 +159,22 @@ export function FriendListScreen() {
                   </div>
                   <div className="player__meta caption">@{friend.user.username}</div>
                 </div>
-                <button
-                  className="btn btn--ghost btn--sm btn--danger"
-                  onClick={() => removeOrCancel(friend.friendshipId)}
-                >
-                  Hapus
-                </button>
+                <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+                  <button
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => navigate(`/chat/${friend.user.profileId}`)}
+                    aria-label={`Chat dengan ${friend.user.displayName}`}
+                  >
+                    <MessageIcon />
+                    Chat
+                  </button>
+                  <button
+                    className="btn btn--ghost btn--sm btn--danger"
+                    onClick={() => removeOrCancel(friend.friendshipId)}
+                  >
+                    Hapus
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

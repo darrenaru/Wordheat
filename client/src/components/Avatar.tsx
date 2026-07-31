@@ -11,18 +11,17 @@ import {
 interface AvatarProps {
   config: AvatarConfig;
   size?: number;
-  square?: boolean;
   alt?: string;
 }
 
-export function Avatar({ config, size = 36, square = false, alt = '' }: AvatarProps) {
+export function Avatar({ config, size = 36, alt = '' }: AvatarProps) {
   // Berlangganan ke pemuatan mesin avatar supaya placeholder berganti jadi
   // avatar asli begitu chunk-nya selesai diunduh.
   useSyncExternalStore(subscribeAvatarEngine, avatarEngineVersion, () => 0);
   ensureAvatarEngine();
 
   const uri = avatarDataUri(config);
-  const className = `avatar${square ? ' avatar--square' : ''}`;
+  const className = 'avatar';
   const style = { width: size, height: size };
 
   if (!uri) {
