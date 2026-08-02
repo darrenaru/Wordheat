@@ -3,6 +3,8 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Guess, Temperature } from '@shared/types.ts';
 import { cosine, normalizeWord, loadEmbeddingLexicon, type Lexicon, type WordVector } from './embeddings.ts';
+import { isMorphologicalVariant, morphologicalVariantsOf } from './morphology.ts';
+import { loadAssociations } from './associations.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = resolve(HERE, 'data');
@@ -78,6 +80,16 @@ function coolerOf(a: Temperature, b: Temperature): Temperature {
 }
 
 /**
+ * Peringkat sintetis untuk pasangan kata yang punya asosiasi kurasi tangan
+ * (lihat `associations.ts`) tapi geometri cosine mentahnya kebetulan lemah —
+ * mis. "senang" vs target "cinta" (lihat catatan di `score()`). Nilainya
+ * dipilih di titik tengah band peringkat yang cocok dengan bobot asosiasi
+ * (3=inti→hot, 2=kuat→warm, 1=lemah→cool), supaya band akhirnya konsisten
+ * dengan `RANK_BANDS`.
+ */
+const ASSOCIATION_RANK_RATIO: Record<number, number> = { 3: 0.04, 2: 0.11, 1: 0.2 };
+
+/**
  * Petakan peringkat ke 0..100 secara linear di dalam band-nya masing-masing,
  * bukan linear terhadap seluruh pool. Tanpa ini, peringkat 61 dari 444 akan
  * menghasilkan bar 86% padahal labelnya baru "Hangat".
@@ -104,13 +116,21 @@ export class SemanticEngine {
   readonly poolSize: number;
 
   private readonly blocked: Set<string>;
+  /** Asosiasi kurasi tangan (`+ kata: terkait<bobot> ...` di lexicon.lex), lihat `score()`. */
+  private readonly associations: Map<string, Map<string, number>>;
   /** Cache daftar tetangga per target — dihitung sekali, dipakai seumur proses. */
   private readonly neighborCache = new Map<string, Neighbor[]>();
   private readonly rankCache = new Map<string, Map<string, number>>();
 
-  constructor(lexicon: Lexicon, targets: string[], blocked: Set<string>) {
+  constructor(
+    lexicon: Lexicon,
+    targets: string[],
+    blocked: Set<string>,
+    associations: Map<string, Map<string, number>> = new Map(),
+  ) {
     this.lexicon = lexicon;
     this.blocked = blocked;
+    this.associations = associations;
     this.targets = targets.filter((w) => lexicon.vectors.has(w) && !blocked.has(w));
     this.poolSize = Math.max(50, Math.min(MAX_POOL_SIZE, Math.round(lexicon.words.length * POOL_RATIO)));
   }
@@ -119,6 +139,7 @@ export class SemanticEngine {
     const lexicon = loadEmbeddingLexicon(DATA_DIR);
     const targets = readList(resolve(DATA_DIR, 'targets.txt'));
     const blocked = new Set(readList(resolve(DATA_DIR, 'blocklist.txt')));
+    const associations = loadAssociations(resolve(DATA_DIR, 'lexicon.lex'));
 
     const missing = targets.filter((w) => !lexicon.vectors.has(w));
     if (missing.length > 0) {
@@ -126,7 +147,7 @@ export class SemanticEngine {
         `targets.txt memuat ${missing.length} kata yang tidak ada di lexicon: ${missing.slice(0, 10).join(', ')}`,
       );
     }
-    return new SemanticEngine(lexicon, targets, blocked);
+    return new SemanticEngine(lexicon, targets, blocked, associations);
   }
 
   get vocabularySize(): number {
@@ -162,15 +183,23 @@ export class SemanticEngine {
    * jadi peringkat persisnya tidak berguna — memotongnya di sini yang penting
    * supaya cache tidak menyimpan seluruh kosakata (bisa puluhan ribu entri)
    * per kata target.
+   *
+   * Bentuk imbuhan dari target sendiri (mis. "cintanya", "mencintai" untuk
+   * target "cinta") dikecualikan dari pool ini — tanpa stemming, embedding
+   * subword menaruh semua varian itu sangat dekat ke akar katanya sehingga
+   * mereka memenuhi puluhan slot teratas pool dan mendesak sinonim asli
+   * (kata berakar beda) jauh ke bawah peringkat. Tebakan langsung terhadap
+   * varian ini tetap ditangani secara terpisah di `score()`.
    */
   neighbors(target: string): Neighbor[] {
     const cached = this.neighborCache.get(target);
     if (cached) return cached;
 
     const targetVector = this.vector(target);
+    const variants = morphologicalVariantsOf(target);
     const scored: Array<{ word: string; similarity: number }> = [];
     for (const word of this.lexicon.words) {
-      if (word === target) continue;
+      if (word === target || variants.has(word)) continue;
       scored.push({ word, similarity: cosine(targetVector, this.vector(word)) });
     }
     // Tie-break alfabetis supaya peringkat deterministik antar proses/mesin —
@@ -195,7 +224,25 @@ export class SemanticEngine {
     }
 
     this.neighbors(target);
-    const rank = this.rankCache.get(target)!.get(guessWord) ?? null;
+    // Bentuk imbuhan dari target sendiri dikecualikan dari pool (lihat
+    // `neighbors()`), tapi menebaknya seharusnya tetap terasa nyaris benar —
+    // perlakukan seperti peringkat #1, bukan "freezing" karena tidak
+    // ditemukan di pool normal.
+    const isVariant = isMorphologicalVariant(guessWord, target);
+    let rank = isVariant ? 1 : (this.rankCache.get(target)!.get(guessWord) ?? null);
+
+    // Geometri cosine mentah kadang tidak sejalan dengan intuisi makna
+    // (mis. target "cinta" punya wilayah tetangga sangat padat, jadi
+    // sinonim asli seperti "senang" bisa jatuh jauh ke bawah peringkat
+    // walau similarity-nya sebenarnya masih wajar). Asosiasi kurasi tangan
+    // dari leksikon lama menambal celah itu — cuma bisa MEMPERBAIKI
+    // peringkat (ambil yang lebih baik), tidak pernah memperburuknya.
+    const assocWeight = this.associations.get(target)?.get(guessWord);
+    if (assocWeight) {
+      const assocRank = Math.max(1, Math.round(this.poolSize * ASSOCIATION_RANK_RATIO[assocWeight]));
+      rank = rank === null ? assocRank : Math.min(rank, assocRank);
+    }
+
     const similarity = cosine(this.vector(target), this.vector(guessWord));
 
     const inPool = rank !== null && rank <= this.poolSize;
