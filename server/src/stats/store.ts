@@ -7,6 +7,7 @@ import type {
 } from '@shared/types.ts';
 import { currentPuzzleDate } from '../game/words.ts';
 import { getServiceClient } from '../db/client.ts';
+import { getPresenceWithStoredLastSeen } from '../realtime/presence.ts';
 import { ensureUsername } from '../social/store.ts';
 
 interface StatsRow {
@@ -402,6 +403,7 @@ interface PublicProfileRow {
   longest_streak: number;
   last_played_date: string | null;
   xp: number;
+  last_seen_at: string | null;
 }
 
 /**
@@ -417,7 +419,7 @@ export async function getPublicProfile(profileId: string): Promise<PublicProfile
     const { data, error } = await client
       .from('player_stats')
       .select(
-        'profile_id, display_name, avatar, username, bio, total_games, total_wins, total_guesses, best_guess_count, current_streak, longest_streak, last_played_date, xp',
+        'profile_id, display_name, avatar, username, bio, total_games, total_wins, total_guesses, best_guess_count, current_streak, longest_streak, last_played_date, xp, last_seen_at',
       )
       .eq('profile_id', profileId)
       .maybeSingle();
@@ -429,6 +431,7 @@ export async function getPublicProfile(profileId: string): Promise<PublicProfile
       username: row.username,
       avatar: row.avatar,
       bio: row.bio,
+      presence: getPresenceWithStoredLastSeen(row.profile_id, row.last_seen_at),
       stats: {
         totalGames: row.total_games,
         totalWins: row.total_wins,

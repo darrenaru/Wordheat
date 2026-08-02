@@ -2,9 +2,11 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import type { RoomInviteSummary, UserSummary } from '@shared/types.ts';
 import { api, ApiFailure } from '../lib/api.ts';
 import { getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts';
+import { loadProfile } from '../lib/profile.ts';
 import { navigate } from '../lib/router.ts';
 import { Avatar } from '../components/Avatar.tsx';
 import { ChatModal } from '../components/ChatModal.tsx';
+import { PresenceBadge } from '../components/PresenceBadge.tsx';
 import { MessageIcon, useToast } from '../components/ui.tsx';
 
 /** Placeholder avatar netral untuk baris tanpa data avatar (mis. profil lama). */
@@ -163,6 +165,7 @@ export function FriendListScreen() {
                     <span className="player__label">{friend.user.displayName}</span>
                   </div>
                   <div className="player__meta caption">@{friend.user.username}</div>
+                  <PresenceBadge profileId={friend.user.profileId} initialPresence={friend.user.presence} />
                 </div>
                 <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
                   <button
@@ -244,7 +247,7 @@ function AddFriendCard({
     setError(null);
     setBusyId(user.profileId);
     try {
-      await api.sendFriendRequest(user.profileId);
+      await api.sendFriendRequest(user.profileId, loadProfile().avatar);
       toast.show(`Permintaan terkirim ke @${user.username}.`);
       setResults((current) => current.filter((u) => u.profileId !== user.profileId));
       onSent();

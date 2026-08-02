@@ -9,6 +9,7 @@ import { getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts'
 import { loadProfile } from '../lib/profile.ts';
 import { Avatar } from './Avatar.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
+import { PresenceBadge } from './PresenceBadge.tsx';
 import { Modal, SendIcon, useToast } from './ui.tsx';
 
 const EMPTY_FRIENDS: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
@@ -24,10 +25,10 @@ interface ChatModalProps {
  * navigasi ke halaman terpisah — supaya pemain tidak kehilangan konteks
  * halaman Teman di baliknya.
  *
- * Persisten (tersimpan di database), TIDAK real-time: pesan baru baru
- * kelihatan begitu percakapan dibuka/dimuat ulang, sama seperti
- * keterbatasan yang sudah ada di undangan room/permintaan pertemanan (app
- * ini belum punya koneksi live di luar sesi ruang multiplayer).
+ * Persisten (tersimpan di database) — isi PESAN-nya sendiri tetap TIDAK
+ * real-time (baru kelihatan begitu percakapan dibuka/dimuat ulang), tapi
+ * status kehadiran lawan bicara di header (`PresenceBadge`) SUDAH live
+ * lewat saluran SSE (`App.tsx`/`lib/presence.ts`).
  */
 export function ChatModal({ profileId, onClose }: ChatModalProps) {
   const friendsPayload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS);
@@ -97,6 +98,7 @@ export function ChatModal({ profileId, onClose }: ChatModalProps) {
           <div className="chat-modal-header__text">
             <span className="chat-modal-header__name">{friend?.displayName ?? 'Chat'}</span>
             {friend?.username && <span className="chat-modal-header__username caption">@{friend.username}</span>}
+            {friend && <PresenceBadge profileId={friend.profileId} initialPresence={friend.presence} />}
           </div>
         </div>
       }

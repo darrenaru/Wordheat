@@ -260,6 +260,20 @@ export interface PublicProfile {
   avatar: AvatarConfig | null;
   bio: string | null;
   stats: PlayerStats;
+  presence: Presence;
+}
+
+/** Status kehadiran seorang pemain. `playing` menang atas `online` (dia
+ *  otomatis juga "online" saat sedang bermain, tapi statusnya lebih
+ *  spesifik dari itu). */
+export type PresenceStatus = 'online' | 'playing' | 'offline';
+
+export interface Presence {
+  status: PresenceStatus;
+  /** Epoch ms — cuma terisi kalau `status === 'offline'` DAN pemain itu
+   *  pernah tercatat aktif sebelumnya; `null` kalau belum pernah/tidak
+   *  diketahui. Diabaikan untuk status `online`/`playing`. */
+  lastSeenAt: number | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -275,6 +289,7 @@ export interface UserSummary {
   username: string;
   displayName: string;
   avatar: AvatarConfig | null;
+  presence: Presence;
 }
 
 /**

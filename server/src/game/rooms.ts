@@ -13,6 +13,7 @@ import { compareGuesses, DEFAULT_ROOM_SETTINGS } from '@shared/types.ts';
 import { config } from '../config.ts';
 import { getEngine } from '../semantic/engine.ts';
 import { getInventory, usePowerup } from '../powerup/store.ts';
+import { markPlaying, markStoppedPlaying } from '../realtime/presence.ts';
 import { recordGameResult } from '../stats/store.ts';
 import { creditWallet } from '../wallet/store.ts';
 import { randomWord } from './words.ts';
@@ -228,6 +229,7 @@ export function joinRoom(
     existing.name = name;
     existing.avatar = avatar;
     existing.userId = userId;
+    markPlaying(playerId, room.code);
     return { ok: true, room };
   }
 
@@ -261,6 +263,7 @@ export function joinRoom(
   };
   room.players.set(playerId, player);
   room.order.push(playerId);
+  markPlaying(playerId, room.code);
   return { ok: true, room };
 }
 
@@ -281,6 +284,7 @@ export function leaveRoom(room: Room, playerId: string, channel: PlayerChannel):
   if (room.status === 'lobby') {
     room.players.delete(playerId);
     room.order = room.order.filter((id) => id !== playerId);
+    markStoppedPlaying(playerId, room.code);
     if (player.isHost) promoteNewHost(room);
   }
 
@@ -311,6 +315,7 @@ export function kickPlayer(room: Room, hostId: string, targetId: string): string
   target.channel?.close('kicked');
   room.players.delete(targetId);
   room.order = room.order.filter((id) => id !== targetId);
+  markStoppedPlaying(targetId, room.code);
   broadcastRoom(room);
   return null;
 }
@@ -587,6 +592,7 @@ export function resetToLobby(room: Room, requesterId: string): string | null {
     if (player.channel === null) {
       room.players.delete(id);
       room.order = room.order.filter((x) => x !== id);
+      markStoppedPlaying(id, room.code);
     }
   }
   if (![...room.players.values()].some((p) => p.isHost)) promoteNewHost(room);
@@ -634,6 +640,7 @@ export function sweepRooms(now = Date.now()): void {
     const everyoneGone = [...room.players.values()].every((p) => p.channel === null);
     if (everyoneGone && now - room.lastActivity > config.roomTtlMs) {
       clearRoomTimer(room);
+      for (const id of room.players.keys()) markStoppedPlaying(id, room.code);
       rooms.delete(code);
     }
   }

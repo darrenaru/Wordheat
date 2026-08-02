@@ -509,6 +509,108 @@ h3 {
   border-color: color-mix(in srgb, var(--very-hot) 45%, var(--border));
 }
 
+/* --------------------------------------------------------- incoming popup */
+
+/* Popup permintaan pertemanan/undangan room (`IncomingPopups.tsx`) — beda
+   dari `.toast` (info sekilas, dari bawah): ini actionable (ada tombol
+   Terima/Tolak/Gabung) jadi muncul dari ATAS supaya tidak tertukar
+   maknanya, dan `pointer-events` aktif (toast murni dekoratif/tidak
+   diklik). Z-index sengaja di atas toast DAN modal (60/50) — permintaan
+   masuk relevan bahkan saat pemain sedang di tengah modal lain. */
+.incoming-popups {
+  position: fixed;
+  left: 50%;
+  top: var(--s5);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  z-index: 70;
+  width: min(380px, calc(100vw - 32px));
+}
+
+.incoming-popup {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-left-width: 3px;
+  border-radius: var(--radius);
+  padding: var(--s3) var(--s4);
+  box-shadow: var(--shadow);
+  animation: incoming-popup-in 240ms var(--ease);
+}
+
+/* Dua jenis popup ini sengaja dibuat SULIT tertukar sekilas — bukan cuma
+   beda teks. Ikon+label kicker (`.incoming-popup__kicker`) adalah sinyal
+   utamanya (jelas juga untuk mata yang buta warna); garis kiri jadi sinyal
+   kedua. Undangan Ruang meminjam `--hot` yang SUDAH berarti "sedang
+   bermain" di badge presence (`PresenceBadge.tsx`) — bukan warna baru,
+   makna yang sama dipakai ulang. Permintaan Pertemanan sengaja dibiarkan
+   netral (bukan "hijau = pertemanan" dsb.) — hijau & pink dikunci untuk
+   jawaban benar/tombol Tebak saja (lihat DESIGN.md), tidak boleh dipinjam
+   untuk hal lain. */
+.incoming-popup--invite {
+  border-left-color: var(--hot);
+}
+
+.incoming-popup__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.incoming-popup__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.incoming-popup__kicker svg {
+  width: 13px;
+  height: 13px;
+}
+
+.incoming-popup--invite .incoming-popup__kicker {
+  color: var(--hot);
+}
+
+.incoming-popup__text {
+  margin: 0;
+  font-size: 14px;
+}
+
+.incoming-popup__close {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.incoming-popup__close:hover {
+  color: var(--text);
+}
+
+@keyframes incoming-popup-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
 .form-error {
   color: var(--very-hot);
   font-size: 13px;
@@ -733,6 +835,40 @@ h3 {
   font-size: 13px;
   font-weight: 700;
   color: var(--text);
+}
+
+/* ---------------------------------------------------------------- presence */
+
+/* Status kehadiran (`PresenceBadge.tsx`) — dipakai di baris Daftar Teman,
+   header modal Chat, dan profil publik. Titik warna murni indikator
+   (bukan aksen chrome baru), warnanya dipinjam dari token yang sudah
+   dipakai elemen lain (`--correct` di papan tebakan, `--hot` di skala
+   suhu) supaya online/bermain terasa konsisten dengan bahasa warna app,
+   bukan palet baru. */
+.presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.presence__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.presence__dot--online {
+  background: var(--correct);
+}
+
+.presence__dot--playing {
+  background: var(--hot);
+}
+
+.presence__dot--offline {
+  background: var(--border-strong);
 }
 
 /* Display Name tampil sebagai teks polos (tanpa kotak input terlihat)

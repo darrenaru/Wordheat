@@ -1,5 +1,5 @@
 import { Router, type Request } from 'express';
-import type { AvatarConfig, PowerupInventory } from '@shared/types.ts';
+import type { AvatarConfig, FriendRequestSummary, PowerupInventory } from '@shared/types.ts';
 import { POWERUP_COSTS } from '@shared/types.ts';
 import { getEngine } from '../semantic/engine.ts';
 import { currentPuzzleDate } from '../game/words.ts';
@@ -15,6 +15,7 @@ import {
 import { getRoom, roomCount } from '../game/rooms.ts';
 import { dismissInvite, listInvites, sendInvite } from '../game/invites.ts';
 import { notifyProfile, registerEventStream, unregisterEventStream } from '../realtime/events.ts';
+import { broadcastPresenceChange, getPresence, touchLastSeen } from '../realtime/presence.ts';
 import { addPowerup, getInventory } from '../powerup/store.ts';
 import { countUnreadMessages, listConversation, sendMessage } from '../chat/store.ts';
 import {
@@ -420,12 +421,20 @@ export function createApiRouter(): Router {
     });
     res.write(':ok\n\n');
     registerEventStream(profileId, res);
+    // Koneksi ini sendiri adalah sinyal "online" (lihat `realtime/presence.ts`)
+    // — catat waktu aktif & beri tahu siapa pun yang sedang membuka web.
+    void touchLastSeen(profileId);
+    broadcastPresenceChange(profileId);
     // Menjaga koneksi tetap hidup lewat proxy/load balancer yang menutup
     // koneksi idle — pola sama seperti heartbeat WebSocket di `ws/gateway.ts`.
     const heartbeat = setInterval(() => res.write(':hb\n\n'), 25_000);
     req.on('close', () => {
       clearInterval(heartbeat);
       unregisterEventStream(profileId, res);
+      // Kalau ini koneksi TERAKHIR profil ini (bukan cuma satu dari
+      // beberapa tab), presence-nya baru benar-benar jadi offline di sini.
+      void touchLastSeen(profileId);
+      broadcastPresenceChange(profileId);
     });
   });
 
@@ -468,8 +477,22 @@ export function createApiRouter(): Router {
     if (result.ok) {
       // Dorong real-time ke penerima lewat `GET /events` — no-op kalau dia
       // sedang tidak membuka web sama sekali, `GET /friends` berikutnya
-      // tetap benar dari database seperti biasa.
-      notifyProfile(toProfileId, 'friend-request', { fromName: resolvePlayerName(req) ?? 'Pemain' });
+      // tetap benar dari database seperti biasa. Payload-nya sengaja
+      // sudah berbentuk `FriendRequestSummary` PENUH (bukan cuma nama)
+      // supaya `IncomingPopups` di client bisa langsung menampilkan
+      // avatar + tombol Terima/Tolak tanpa fetch tambahan.
+      const summary: FriendRequestSummary = {
+        id: result.id,
+        user: {
+          profileId,
+          username: '',
+          displayName: resolvePlayerName(req) ?? 'Pemain',
+          avatar: resolveAvatar(req.body) ?? null,
+          presence: getPresence(profileId),
+        },
+        createdAt: Date.now(),
+      };
+      notifyProfile(toProfileId, 'friend-request', summary);
     }
     res.status(result.ok ? 200 : 400).json(result);
   });

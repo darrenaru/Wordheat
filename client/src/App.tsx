@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { AccountLinkResult, FriendsPayload, PlayerProfile } from '@shared/types.ts';
+import type {
+  AccountLinkResult,
+  FriendRequestSummary,
+  FriendsPayload,
+  PlayerProfile,
+  Presence,
+  RoomInviteSummary,
+} from '@shared/types.ts';
 import { api } from './lib/api.ts';
 import { registerCoinFxOrigin } from './lib/coinFx.ts';
 import { getFriends, refreshFriends, subscribeFriends } from './lib/friends.ts';
 import { applyInventory } from './lib/inventory.ts';
+import { applyPresenceUpdate } from './lib/presence.ts';
 import { hasChosenSignInMethod, loadProfile, resetProfile, saveProfile } from './lib/profile.ts';
 import { navigate, useRoute } from './lib/router.ts';
 import {
@@ -19,8 +27,9 @@ import { AccountLinkConflictModal } from './components/AccountLinkConflictModal.
 import { Avatar } from './components/Avatar.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
 import { CoinFxLayer } from './components/CoinFx.tsx';
+import { IncomingPopups } from './components/IncomingPopups.tsx';
 import { ProfileModal } from './components/ProfileModal.tsx';
-import { BackIcon, SoundOffIcon, SoundOnIcon, UsersIcon, useToast } from './components/ui.tsx';
+import { BackIcon, SoundOffIcon, SoundOnIcon, UsersIcon } from './components/ui.tsx';
 import { WelcomeModal } from './components/WelcomeModal.tsx';
 import { FriendListScreen } from './screens/FriendListScreen.tsx';
 import { HomeScreen } from './screens/HomeScreen.tsx';
@@ -77,26 +86,50 @@ export function App() {
     saveProfile(next);
   };
 
-  const toast = useToast();
+  // Permintaan pertemanan/undangan room yang BARU SAJA masuk lewat SSE —
+  // ditampilkan sebagai popup dari atas layar (`IncomingPopups`) di mana
+  // pun pemain sedang berada di app. Data "resmi"-nya tetap di store
+  // `friends.ts` (lewat `refreshFriends()`, dipanggil di listener yang
+  // sama) — array ini cuma daftar popup yang sedang tampil, dikosongkan
+  // begitu ditindak/ditutup/kedaluwarsa.
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequestSummary[]>([]);
+  const [incomingInvites, setIncomingInvites] = useState<RoomInviteSummary[]>([]);
+  const dismissIncomingRequest = (id: string) =>
+    setIncomingRequests((current) => current.filter((r) => r.id !== id));
+  const dismissIncomingInvite = (id: string) =>
+    setIncomingInvites((current) => current.filter((i) => i.id !== id));
 
   // Saluran notifikasi real-time (Server-Sent Events, `GET /api/events`
   // di server) — dibuka selama app ini terbuka, TIDAK terikat ke ruang
-  // permainan mana pun, supaya permintaan pertemanan yang masuk langsung
-  // terasa (badge + `FriendListScreen` ikut ter-update lewat `refreshFriends()`
-  // karena keduanya sama-sama baca dari store `friends.ts`) di mana pun
-  // pemain sedang berada di app, tanpa perlu refresh. Dibuka ulang tiap kali
-  // `profile.id` berganti (login/logout/account-link) — `EventSource`
-  // browser sudah otomatis coba sambung ulang sendiri kalau koneksi putus,
-  // jadi tidak perlu logika retry manual di sini.
+  // permainan mana pun, supaya permintaan pertemanan/undangan room yang
+  // masuk langsung terasa (badge + `FriendListScreen` ikut ter-update
+  // lewat `refreshFriends()` karena keduanya sama-sama baca dari store
+  // `friends.ts`) di mana pun pemain sedang berada di app, tanpa perlu
+  // refresh. Dibuka ulang tiap kali `profile.id` berganti (login/logout/
+  // account-link) — `EventSource` browser sudah otomatis coba sambung
+  // ulang sendiri kalau koneksi putus, jadi tidak perlu logika retry
+  // manual di sini.
   useEffect(() => {
     const source = new EventSource(`/api/events?profileId=${encodeURIComponent(profile.id)}`);
     source.addEventListener('friend-request', (event) => {
-      const data = JSON.parse((event as MessageEvent).data) as { fromName: string };
+      const data = JSON.parse((event as MessageEvent).data) as FriendRequestSummary;
       refreshFriends();
-      toast.show(`${data.fromName} mengirim permintaan pertemanan.`);
+      setIncomingRequests((current) => [...current, data]);
+    });
+    source.addEventListener('room-invite', (event) => {
+      const data = JSON.parse((event as MessageEvent).data) as RoomInviteSummary;
+      refreshFriends();
+      setIncomingInvites((current) => [...current, data]);
+    });
+    // Presence murni state client-side yang di-patch langsung (beda dari
+    // dua listener di atas) — tidak perlu refetch apa pun, lihat
+    // `lib/presence.ts`.
+    source.addEventListener('presence-update', (event) => {
+      const data = JSON.parse((event as MessageEvent).data) as { profileId: string; presence: Presence };
+      applyPresenceUpdate(data.profileId, data.presence);
     });
     return () => source.close();
-  }, [profile.id, toast]);
+  }, [profile.id]);
 
   // Konflik "akun ini sudah punya progres di device/sesi lain" (Kasus B
   // spesifikasi akun) — non-`null` berarti `AccountLinkConflictModal` harus
@@ -319,6 +352,12 @@ export function App() {
           onCancel={cancelLinkConflict}
         />
       )}
+      <IncomingPopups
+        requests={incomingRequests}
+        invites={incomingInvites}
+        onDismissRequest={dismissIncomingRequest}
+        onDismissInvite={dismissIncomingInvite}
+      />
       <CoinFxLayer />
     </div>
   );

@@ -30,6 +30,13 @@ export function unregisterEventStream(profileId: string, res: Response): void {
   if (set.size === 0) connections.delete(profileId);
 }
 
+/** Apakah profil ini punya minimal satu koneksi SSE aktif (aplikasi
+ *  sedang terbuka) — dipakai `realtime/presence.ts` sebagai sinyal
+ *  "online". */
+export function isOnline(profileId: string): boolean {
+  return connections.has(profileId);
+}
+
 /**
  * Kirim satu event SSE ke SEMUA koneksi aktif milik profil ini — no-op
  * kalau pemain itu sedang tidak membuka web sama sekali. Dipanggil
@@ -47,6 +54,27 @@ export function notifyProfile(profileId: string, event: string, data: unknown): 
       res.write(payload);
     } catch {
       unregisterEventStream(profileId, res);
+    }
+  }
+}
+
+/**
+ * Kirim satu event SSE ke SEMUA koneksi aktif, lintas profil — dipakai
+ * untuk dorongan yang relevan bagi siapa pun yang sedang membuka web
+ * (mis. perubahan presence pemain lain, lihat `realtime/presence.ts`).
+ * Skala aplikasi ini kecil, jadi broadcast global jauh lebih sederhana
+ * daripada melacak siapa sedang "berlangganan" siapa — lihat catatan di
+ * plan fitur presence.
+ */
+export function broadcastAll(event: string, data: unknown): void {
+  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const [profileId, set] of connections) {
+    for (const res of set) {
+      try {
+        res.write(payload);
+      } catch {
+        unregisterEventStream(profileId, res);
+      }
     }
   }
 }

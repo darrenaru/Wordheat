@@ -111,7 +111,7 @@ export function AddFriendButton({ profileId, variant = 'full' }: AddFriendButton
   const send = async () => {
     setBusy(true);
     try {
-      await api.sendFriendRequest(profileId);
+      await api.sendFriendRequest(profileId, loadProfile().avatar);
       toast.show('Permintaan pertemanan terkirim.');
       refreshFriends();
     } catch (err) {

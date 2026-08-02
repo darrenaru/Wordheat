@@ -5,6 +5,7 @@ import type {
   UserSummary,
 } from '@shared/types.ts';
 import { getServiceClient } from '../db/client.ts';
+import { getPresenceWithStoredLastSeen } from '../realtime/presence.ts';
 
 /** 3-20 karakter, harus diawali huruf, sisanya huruf/angka/underscore. */
 const USERNAME_PATTERN = /^[a-zA-Z][a-zA-Z0-9_]{2,19}$/;
@@ -149,6 +150,7 @@ interface UserRow {
   username: string | null;
   display_name: string | null;
   avatar: AvatarConfig | null;
+  last_seen_at: string | null;
 }
 
 function toUserSummary(row: UserRow): UserSummary {
@@ -157,6 +159,7 @@ function toUserSummary(row: UserRow): UserSummary {
     username: row.username ?? '',
     displayName: row.display_name ?? 'Pemain',
     avatar: row.avatar,
+    presence: getPresenceWithStoredLastSeen(row.profile_id, row.last_seen_at),
   };
 }
 
@@ -411,7 +414,7 @@ export async function searchUsers(query: string, excludeProfileId: string): Prom
   try {
     const { data, error } = await client
       .from('player_stats')
-      .select('profile_id, username, display_name, avatar')
+      .select('profile_id, username, display_name, avatar, last_seen_at')
       .ilike('username', `%${query}%`)
       .neq('profile_id', excludeProfileId)
       .limit(10);
@@ -424,26 +427,38 @@ export async function searchUsers(query: string, excludeProfileId: string): Prom
 
 export type FriendActionResult = { ok: true } | { ok: false; code: string; message: string };
 
-const UNAVAILABLE: FriendActionResult = {
-  ok: false,
+/** Sengaja TANPA anotasi `FriendActionResult` — cabang `ok:false`-nya
+ *  dipakai ulang oleh `sendFriendRequest` juga (`SendFriendRequestResult`,
+ *  yang cabang `ok:true`-nya beda bentuk, punya `id`), jadi bentuknya
+ *  dibiarkan disimpulkan TypeScript supaya cocok dengan keduanya. */
+const UNAVAILABLE = {
+  ok: false as const,
   code: 'unavailable',
   message: 'Fitur pertemanan sedang tidak tersedia.',
 };
 
+export type SendFriendRequestResult =
+  | { ok: true; id: string }
+  | { ok: false; code: string; message: string };
+
 export async function sendFriendRequest(
   fromProfileId: string,
   toProfileId: string,
-): Promise<FriendActionResult> {
+): Promise<SendFriendRequestResult> {
   if (fromProfileId === toProfileId) {
     return { ok: false, code: 'invalid', message: 'Tidak bisa menambahkan diri sendiri.' };
   }
   const client = getServiceClient();
   if (!client) return UNAVAILABLE;
   try {
-    const { error } = await client.from('friendships').insert({
-      requester_id: fromProfileId,
-      addressee_id: toProfileId,
-    });
+    const { data, error } = await client
+      .from('friendships')
+      .insert({
+        requester_id: fromProfileId,
+        addressee_id: toProfileId,
+      })
+      .select('id')
+      .single();
     if (error) {
       if (error.code === '23505') {
         return {
@@ -458,7 +473,7 @@ export async function sendFriendRequest(
       console.error('sendFriendRequest: gagal mengirim permintaan:', error.message);
       return { ok: false, code: 'invalid', message: 'Gagal mengirim permintaan.' };
     }
-    return { ok: true };
+    return { ok: true, id: (data as { id: string }).id };
   } catch (err) {
     console.error('sendFriendRequest: gagal mengirim permintaan:', err);
     return { ok: false, code: 'invalid', message: 'Gagal mengirim permintaan.' };
@@ -622,7 +637,7 @@ export async function listFriends(profileId: string): Promise<FriendsAndRequests
     );
     const { data: users } = await client
       .from('player_stats')
-      .select('profile_id, username, display_name, avatar')
+      .select('profile_id, username, display_name, avatar, last_seen_at')
       .in('profile_id', [...otherIds]);
     const usersById = new Map((users as UserRow[] | null ?? []).map((u) => [u.profile_id, toUserSummary(u)]));
 

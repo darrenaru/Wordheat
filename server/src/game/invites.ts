@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { AvatarConfig, RoomInviteSummary } from '@shared/types.ts';
+import { notifyProfile } from '../realtime/events.ts';
+import { getPresence } from '../realtime/presence.ts';
 
 /**
  * Kotak masuk undangan room, in-memory — pola sama seperti `rooms` di
@@ -30,9 +32,16 @@ export function sendInvite(
     fromAvatar: AvatarConfig | null;
   },
 ): void {
+  const stored: StoredInvite = { id: randomUUID(), createdAt: Date.now(), ...invite };
   const list = inbox.get(toProfileId) ?? [];
-  list.unshift({ id: randomUUID(), createdAt: Date.now(), ...invite });
+  list.unshift(stored);
   inbox.set(toProfileId, list.slice(0, MAX_INVITES_PER_PLAYER));
+  // Dorong real-time ke penerima (lihat `realtime/events.ts`) — no-op
+  // kalau dia sedang tidak membuka web sama sekali, `GET /friends`
+  // berikutnya tetap benar dari `inbox` di atas seperti biasa.
+  // `toSummary` dipakai ulang supaya bentuk payload SSE ini PERSIS sama
+  // dengan yang dibalas `GET /friends`, tidak ada dua definisi bentuk data.
+  notifyProfile(toProfileId, 'room-invite', toSummary(stored));
 }
 
 export function listInvites(profileId: string): RoomInviteSummary[] {
@@ -60,6 +69,7 @@ function toSummary(invite: StoredInvite): RoomInviteSummary {
       username: '',
       displayName: invite.fromDisplayName,
       avatar: invite.fromAvatar,
+      presence: getPresence(invite.fromProfileId),
     },
     createdAt: invite.createdAt,
   };

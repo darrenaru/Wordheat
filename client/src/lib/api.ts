@@ -156,10 +156,10 @@ export const api = {
       body: JSON.stringify({ text }),
     }),
 
-  sendFriendRequest: (toProfileId: string) =>
+  sendFriendRequest: (toProfileId: string, avatar: AvatarConfig) =>
     request<{ ok: true }>('/friends/request', {
       method: 'POST',
-      body: JSON.stringify({ toProfileId }),
+      body: JSON.stringify({ toProfileId, avatar }),
     }),
 
   respondFriendRequest: (id: string, accept: boolean) =>

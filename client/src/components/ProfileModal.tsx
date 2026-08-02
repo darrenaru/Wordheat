@@ -387,7 +387,6 @@ function UsernameField({
             </button>
           )}
         </div>
-        {!loggedIn && <p className="caption">Login dengan Google untuk mengatur username.</p>}
       </div>
     );
   }

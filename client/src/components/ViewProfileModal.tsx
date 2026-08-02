@@ -6,6 +6,7 @@ import { FALLBACK_AVATAR } from '../lib/avatar.ts';
 import { AddFriendButton } from './AddFriendButton.tsx';
 import { Avatar } from './Avatar.tsx';
 import { Modal } from './ui.tsx';
+import { PresenceBadge } from './PresenceBadge.tsx';
 import { RankBadge } from './RankBadge.tsx';
 import { StatsGrid } from './StatsGrid.tsx';
 import { XpBar } from './XpBar.tsx';
@@ -62,6 +63,7 @@ export function ViewProfileModal({ profileId, onClose }: ViewProfileModalProps) 
               <span className="view-profile__username">
                 {profile.username ? `@${profile.username}` : 'Belum punya username'}
               </span>
+              <PresenceBadge profileId={profile.profileId} initialPresence={profile.presence} />
               <RankBadge totalWins={profile.stats.totalWins} />
               {profile.bio && <p className="view-profile__bio">{profile.bio}</p>}
             </div>
