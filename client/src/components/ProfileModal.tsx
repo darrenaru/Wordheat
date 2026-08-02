@@ -43,6 +43,8 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
   const [editingName, setEditingName] = useState(false);
   const [stats, setStats] = useState<PlayerStats | null | undefined>(undefined);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const session = useSyncExternalStore(subscribeAuth, getAuthSession, () => null);
+  const loggedIn = session !== null;
 
   useEffect(() => {
     if (editingName) nameInputRef.current?.focus();
@@ -145,7 +147,7 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
               </div>
             )}
 
-            <UsernameField displayName={profile.name} avatar={profile.avatar} />
+            <UsernameField displayName={profile.name} avatar={profile.avatar} loggedIn={loggedIn} />
             <BioField displayName={profile.name} avatar={profile.avatar} />
           </div>
 
@@ -278,8 +280,23 @@ function cooldownMessage(changeableAt: string): string {
  * Identitas unik yang dipakai teman untuk menemukanmu lewat Add Friend —
  * diperiksa dan disimpan otomatis begitu pemain berhenti mengetik sejenak
  * (tanpa tombol Simpan terpisah), ikon berputar menandai lagi diperiksa.
+ *
+ * Guest (`!loggedIn`) cuma bisa MELIHAT username acak yang sudah diberikan
+ * server (`ensureUsername` di `social/store.ts`) — tombol ubah disembunyikan
+ * dan server sendiri menolak `POST /username` tanpa sesi login (lihat
+ * `router.post('/username', ...)` di `http/api.ts`), supaya identitas unik
+ * itu tidak bisa diklaim lalu ditinggal begitu saja oleh Guest yang tidak
+ * pernah terverifikasi ke akun manapun.
  */
-function UsernameField({ displayName, avatar }: { displayName: string; avatar: PlayerProfile['avatar'] }) {
+function UsernameField({
+  displayName,
+  avatar,
+  loggedIn,
+}: {
+  displayName: string;
+  avatar: PlayerProfile['avatar'];
+  loggedIn: boolean;
+}) {
   const [value, setValue] = useState('');
   const [saved, setSaved] = useState<string | null>(null);
   const [changeableAt, setChangeableAt] = useState<string | null>(null);
@@ -359,15 +376,18 @@ function UsernameField({ displayName, avatar }: { displayName: string; avatar: P
       <div className="identity-username">
         <div className="identity-editable">
           <span className="identity-username-display">@{saved || 'username_kamu'}</span>
-          <button
-            type="button"
-            className="identity-editable__icon"
-            onClick={() => setEditing(true)}
-            aria-label="Ubah username"
-          >
-            <EditIcon />
-          </button>
+          {loggedIn && (
+            <button
+              type="button"
+              className="identity-editable__icon"
+              onClick={() => setEditing(true)}
+              aria-label="Ubah username"
+            >
+              <EditIcon />
+            </button>
+          )}
         </div>
+        {!loggedIn && <p className="caption">Login dengan Google untuk mengatur username.</p>}
       </div>
     );
   }

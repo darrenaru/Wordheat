@@ -39,13 +39,26 @@ const RANDOM_USERNAME_ATTEMPTS = 5;
 
 /**
  * Isi username acak kalau profil ini belum punya — dipanggil best-effort
- * begitu baris `player_stats` pertama kali dibuat (main pertama kali atau
- * login pertama kali), supaya SEMUA pemain punya username (dipakai Add
- * Friend) tanpa perlu mengaturnya sendiri dulu.
+ * begitu profil ini pertama kali disentuh (main pertama kali, login
+ * pertama kali, ATAU sekadar membuka Profil Saya sebagai Guest yang belum
+ * pernah main — lihat `GET /username` di `http/api.ts`), supaya SEMUA
+ * pemain punya username (dipakai Add Friend) tanpa perlu mengaturnya
+ * sendiri dulu — Guest sendiri memang sengaja tidak boleh mengatur
+ * username sendiri (lihat `POST /username`), jadi ini satu-satunya cara
+ * dia punya username sama sekali.
  *
- * `UPDATE ... WHERE username IS NULL` atomik di level database — aman
- * dipanggil berkali-kali atau bersamaan; 0 baris ter-update cukup berarti
- * username sudah terisi (baik oleh percobaan lain atau pemain sendiri).
+ * Baris `player_stats` boleh belum ada sama sekali di titik ini (Guest
+ * yang baru buka Profil Saya sebelum pernah main) — makanya di sini
+ * fetch-lalu-upsert baris PENUH (pola sama seperti `setUsername`/`setBio`
+ * di bawah), bukan `UPDATE ... WHERE username IS NULL` (yang cuma
+ * menyentuh baris yang SUDAH ada, jadi tidak berbuat apa-apa untuk Guest
+ * yang barisnya belum tercipta).
+ *
+ * Konflik `profile_id` sendiri tidak mungkin memicu error di sini — upsert
+ * meng-update baris yang sudah ada lewat primary key itu, bukan menolaknya
+ * — jadi satu-satunya sumber error `23505` yang mungkin muncul adalah
+ * tabrakan kandidat username dengan pemain lain, aman dicoba ulang dengan
+ * kandidat baru.
  *
  * SENGAJA tidak menyentuh `username_changed_at`: supaya saat pemain nanti
  * mengganti username acak ini dengan pilihannya sendiri, itu tetap
@@ -53,24 +66,52 @@ const RANDOM_USERNAME_ATTEMPTS = 5;
  *
  * Kolom `username` sengaja TETAP nullable (tidak di-`NOT NULL`-kan) —
  * kegagalan di sini (mis. kolisi beruntun) tidak boleh menggagalkan
- * pemanggilnya (`recordGameResult`/`linkAccountProfile`), jadi semua error
- * ditelan setelah percobaan habis.
+ * pemanggilnya, jadi semua error ditelan setelah percobaan habis.
  */
 export async function ensureUsername(profileId: string): Promise<void> {
   const client = getServiceClient();
   if (!client) return;
-  for (let attempt = 0; attempt < RANDOM_USERNAME_ATTEMPTS; attempt++) {
-    const { error } = await client
+  try {
+    const { data: existing } = await client
       .from('player_stats')
-      .update({ username: randomUsername() })
+      .select('*')
       .eq('profile_id', profileId)
-      .is('username', null);
-    if (!error) return;
-    if (error.code !== '23505') {
-      console.error('ensureUsername: gagal mengisi username acak:', error.message);
-      return;
+      .maybeSingle();
+    if ((existing as StatsRow | null)?.username) return;
+
+    const row: StatsRow = (existing as StatsRow | null) ?? {
+      profile_id: profileId,
+      user_id: null,
+      display_name: null,
+      avatar: null,
+      username: null,
+      username_changed_at: null,
+      bio: null,
+      xp: 0,
+      total_games: 0,
+      total_wins: 0,
+      total_guesses: 0,
+      best_guess_count: null,
+      current_streak: 0,
+      longest_streak: 0,
+      last_played_date: null,
+    };
+
+    for (let attempt = 0; attempt < RANDOM_USERNAME_ATTEMPTS; attempt++) {
+      const { error } = await client.from('player_stats').upsert({
+        ...row,
+        username: randomUsername(),
+        updated_at: new Date().toISOString(),
+      });
+      if (!error) return;
+      if (error.code !== '23505') {
+        console.error('ensureUsername: gagal mengisi username acak:', error.message);
+        return;
+      }
+      // 23505: kandidat itu sudah dipakai pemain lain — coba kandidat lain.
     }
-    // 23505: kandidat itu sudah dipakai pemain lain — coba kandidat lain.
+  } catch (err) {
+    console.error('ensureUsername: gagal mengisi username acak:', err);
   }
 }
 
@@ -361,8 +402,9 @@ export async function getBio(profileId: string): Promise<{ bio: string | null }>
 /** Cari lewat kecocokan di MANA SAJA dalam username (bukan cuma awalan) —
  *  username auto-generate (pola `AdjectiveNoun1234`, lihat `ensureUsername`)
  *  wajar dicari lewat kata di tengahnya juga (mis. "fox" untuk
- *  "SwiftFox4821"). Cuma pemain yang sudah mengatur username sendiri yang
- *  bisa ketemu — `ilike` otomatis tidak mencocokkan NULL. */
+ *  "SwiftFox4821"). Semua pemain punya username (diisi otomatis lewat
+ *  `ensureUsername`) jadi `ilike` di sini selalu bisa menemukan siapa pun
+ *  yang sudah pernah membuka Profil Saya atau main sekali. */
 export async function searchUsers(query: string, excludeProfileId: string): Promise<UserSummary[]> {
   const client = getServiceClient();
   if (!client) return [];

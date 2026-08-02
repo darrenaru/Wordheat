@@ -130,7 +130,8 @@ export interface ApiError {
     | 'blocked'
     | 'insufficient_funds'
     | 'out_of_stock'
-    | 'cooldown';
+    | 'cooldown'
+    | 'unauthorized';
   message: string;
 }
 
@@ -267,14 +268,26 @@ export interface PublicProfile {
 /* ------------------------------------------------------------------ */
 
 /** Identitas publik seorang pemain — dipakai di hasil pencarian, daftar
- *  teman, dan permintaan pertemanan. Cuma pemain yang sudah mengatur
- *  username sendiri yang bisa muncul di sini. */
+ *  teman, dan permintaan pertemanan. Cuma pemain yang sudah punya username
+ *  yang bisa muncul di sini. */
 export interface UserSummary {
   profileId: string;
   username: string;
   displayName: string;
   avatar: AvatarConfig | null;
 }
+
+/**
+ * Hasil `POST /account/link`. `conflict: true` berarti akun Google ini
+ * sudah punya progres tersimpan di device/sesi lain — client WAJIB
+ * menampilkan prompt konfirmasi (lihat `AccountLinkConflictModal`) dan
+ * memanggil ulang endpoint ini dengan `confirm: true` sebelum progres tamu
+ * di device ini dibuang. Tanpa ini, login bisa diam-diam menimpa/membuang
+ * progres pemain tanpa persetujuan.
+ */
+export type AccountLinkResult =
+  | { conflict: false; profileId: string; displayName: string | null; avatar: AvatarConfig | null }
+  | { conflict: true; canonical: { displayName: string; avatar: AvatarConfig | null; xp: number; totalWins: number } };
 
 export interface FriendSummary {
   friendshipId: string;

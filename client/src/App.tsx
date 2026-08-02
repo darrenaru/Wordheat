@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { FriendsPayload, PlayerProfile } from '@shared/types.ts';
+import type { AccountLinkResult, FriendsPayload, PlayerProfile } from '@shared/types.ts';
 import { api } from './lib/api.ts';
 import { registerCoinFxOrigin } from './lib/coinFx.ts';
 import { getFriends, refreshFriends, subscribeFriends } from './lib/friends.ts';
@@ -13,13 +13,14 @@ import {
   subscribeSoundtrack,
   toggleSoundtrack,
 } from './lib/soundtrack.ts';
-import { getAuthSession, isAuthAvailable, subscribeAuth } from './lib/supabase.ts';
+import { getAuthSession, isAuthAvailable, signOut, subscribeAuth } from './lib/supabase.ts';
 import { applyBalance, getBalance, subscribeWallet } from './lib/wallet.ts';
+import { AccountLinkConflictModal } from './components/AccountLinkConflictModal.tsx';
 import { Avatar } from './components/Avatar.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
 import { CoinFxLayer } from './components/CoinFx.tsx';
 import { ProfileModal } from './components/ProfileModal.tsx';
-import { BackIcon, SoundOffIcon, SoundOnIcon, UsersIcon } from './components/ui.tsx';
+import { BackIcon, SoundOffIcon, SoundOnIcon, UsersIcon, useToast } from './components/ui.tsx';
 import { WelcomeModal } from './components/WelcomeModal.tsx';
 import { FriendListScreen } from './screens/FriendListScreen.tsx';
 import { HomeScreen } from './screens/HomeScreen.tsx';
@@ -76,6 +77,52 @@ export function App() {
     saveProfile(next);
   };
 
+  const toast = useToast();
+
+  // Saluran notifikasi real-time (Server-Sent Events, `GET /api/events`
+  // di server) — dibuka selama app ini terbuka, TIDAK terikat ke ruang
+  // permainan mana pun, supaya permintaan pertemanan yang masuk langsung
+  // terasa (badge + `FriendListScreen` ikut ter-update lewat `refreshFriends()`
+  // karena keduanya sama-sama baca dari store `friends.ts`) di mana pun
+  // pemain sedang berada di app, tanpa perlu refresh. Dibuka ulang tiap kali
+  // `profile.id` berganti (login/logout/account-link) — `EventSource`
+  // browser sudah otomatis coba sambung ulang sendiri kalau koneksi putus,
+  // jadi tidak perlu logika retry manual di sini.
+  useEffect(() => {
+    const source = new EventSource(`/api/events?profileId=${encodeURIComponent(profile.id)}`);
+    source.addEventListener('friend-request', (event) => {
+      const data = JSON.parse((event as MessageEvent).data) as { fromName: string };
+      refreshFriends();
+      toast.show(`${data.fromName} mengirim permintaan pertemanan.`);
+    });
+    return () => source.close();
+  }, [profile.id, toast]);
+
+  // Konflik "akun ini sudah punya progres di device/sesi lain" (Kasus B
+  // spesifikasi akun) — non-`null` berarti `AccountLinkConflictModal` harus
+  // ditampilkan. Diisi oleh effect linking di bawah, dikosongkan lagi oleh
+  // handler confirm/cancel-nya.
+  const [linkConflict, setLinkConflict] = useState<Extract<AccountLinkResult, { conflict: true }>['canonical'] | null>(
+    null,
+  );
+  const [linkBusy, setLinkBusy] = useState(false);
+
+  /** Terapkan hasil link yang TIDAK berkonflik — sama seperti sebelumnya:
+   *  cuma menyegarkan wallet/inventory/friends kalau `profileId` benar-benar
+   *  berganti (device ini baru saja "menjadi" profil kanonik akun itu). */
+  const applyLinkedProfile = (linked: Extract<AccountLinkResult, { conflict: false }>) => {
+    if (linked.profileId === profile.id) return;
+    updateProfile({
+      ...profile,
+      id: linked.profileId,
+      name: linked.displayName ?? profile.name,
+      avatar: linked.avatar ?? profile.avatar,
+    });
+    void api.wallet().then(applyBalance).catch(() => {});
+    void api.inventory().then(applyInventory).catch(() => {});
+    refreshFriends();
+  };
+
   // Ditautkan sekali tiap kali akun berbeda login — kalau akun itu sudah
   // pernah dipakai sebelumnya (di perangkat ini atau lain), server membalas
   // `profileId` kanonik akun itu SEKALIGUS `displayName`/`avatar` yang
@@ -83,6 +130,12 @@ export function App() {
   // bukan cuma id-nya yang berganti sementara nama/avatar tetap punya
   // profil device yang lama. `linkedUserId` menjaga supaya ini tidak
   // diulang tiap render selama sesinya masih akun yang sama.
+  //
+  // Kalau server melaporkan `conflict: true` (akun ini sudah punya progres
+  // di device/sesi lain), TIDAK langsung diterapkan — `linkConflict` diisi
+  // supaya `AccountLinkConflictModal` tampil dulu, dan progres Guest device
+  // ini TIDAK disentuh sama sekali sampai pemain menyetujui lewat modal itu
+  // (lihat `confirmLinkConflict`/`cancelLinkConflict` di bawah).
   const linkedUserId = useRef<string | null>(null);
   useEffect(() => {
     const userId = session?.user.id ?? null;
@@ -90,20 +143,44 @@ export function App() {
     linkedUserId.current = userId;
     api
       .linkAccount(profile.name, profile.avatar)
-      .then((linked) => {
-        if (linked.profileId === profile.id) return;
-        updateProfile({
-          ...profile,
-          id: linked.profileId,
-          name: linked.displayName ?? profile.name,
-          avatar: linked.avatar ?? profile.avatar,
-        });
-        void api.wallet().then(applyBalance).catch(() => {});
-        void api.inventory().then(applyInventory).catch(() => {});
-        refreshFriends();
+      .then((result) => {
+        if (result.conflict) {
+          setLinkConflict(result.canonical);
+          return;
+        }
+        applyLinkedProfile(result);
       })
       .catch(() => {});
   }, [session]);
+
+  const confirmLinkConflict = () => {
+    if (!linkConflict) return;
+    setLinkBusy(true);
+    api
+      .linkAccount(profile.name, profile.avatar, true)
+      .then((result) => {
+        if (!result.conflict) applyLinkedProfile(result);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setLinkBusy(false);
+        setLinkConflict(null);
+      });
+  };
+
+  // Batal cuma boleh membatalkan TAWARAN login — profil Guest device ini
+  // (identitas + progres yang sudah ada SEBELUM mencoba login) harus utuh
+  // apa adanya, BUKAN direset ke tamu baru acak. `signOut()` di sini
+  // memang memicu transisi `session` non-null→null yang sama seperti
+  // logout sungguhan, jadi `skipNextLogoutReset` dipakai menandai effect
+  // logout di bawah supaya melewati `resetProfile()`-nya sekali untuk
+  // transisi ini saja.
+  const skipNextLogoutReset = useRef(false);
+  const cancelLinkConflict = () => {
+    skipNextLogoutReset.current = true;
+    setLinkConflict(null);
+    void signOut();
+  };
 
   // Logout tidak boleh sekadar mengosongkan sesi Supabase — `profile.id`
   // di localStorage harus ikut diganti ke tamu baru, kalau tidak permainan
@@ -119,6 +196,15 @@ export function App() {
     if (!justSignedOut) return;
 
     linkedUserId.current = null;
+
+    // Lihat komentar `cancelLinkConflict` — transisi ini dipicu OLEH kita
+    // sendiri untuk membatalkan tawaran link, bukan logout pemain
+    // sungguhan, jadi profil Guest device ini TIDAK boleh direset.
+    if (skipNextLogoutReset.current) {
+      skipNextLogoutReset.current = false;
+      return;
+    }
+
     setProfile(resetProfile());
     void api.wallet().then(applyBalance).catch(() => {});
     void api.inventory().then(applyInventory).catch(() => {});
@@ -224,6 +310,14 @@ export function App() {
       )}
       {showAuth && (
         <AuthModal onClose={() => setShowAuth(false)} onSignedIn={() => setShowAuth(false)} />
+      )}
+      {linkConflict && (
+        <AccountLinkConflictModal
+          canonical={linkConflict}
+          busy={linkBusy}
+          onConfirm={confirmLinkConflict}
+          onCancel={cancelLinkConflict}
+        />
       )}
       <CoinFxLayer />
     </div>

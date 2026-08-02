@@ -157,12 +157,62 @@ export interface LinkedProfile {
 }
 
 /**
- * Dipanggil begitu pemain login — menautkan profil perangkat ini ke akun.
+ * Ringkasan profil kanonik akun Google yang SUDAH punya progres di
+ * device/sesi lain — dipakai menyusun prompt konfirmasi "Kesalahan Fatal"
+ * (lihat `peekAccountLink`) sebelum progres tamu di device ini dibuang.
+ */
+export interface AccountLinkConflict {
+  displayName: string;
+  avatar: AvatarConfig | null;
+  xp: number;
+  totalWins: number;
+}
+
+/**
+ * Dipanggil SEBELUM `linkAccountProfile` tiap kali pemain mencoba login —
+ * murni baca, tidak pernah menulis apa pun. Mengembalikan `null` kalau
+ * aman langsung lanjut ke `linkAccountProfile` (akun ini belum pernah
+ * dipakai, device ini sudah jadi profil akun ini, atau device ini sudah
+ * dimiliki akun LAIN — kasus terakhir tetap silent-switch, tidak ada
+ * progres tamu yang bakal dibuang). Mengembalikan ringkasan profil
+ * kanonik kalau akun Google ini SUDAH punya progres tersimpan di
+ * device/sesi lain DAN device saat ini masih tamu murni — di titik ini
+ * caller (`POST /account/link`) wajib menampilkan prompt konfirmasi ke
+ * pemain dulu, BUKAN langsung memanggil `linkAccountProfile` (yang kalau
+ * dilanjutkan akan membuang progres tamu di device ini, lihat komentar
+ * di RPC `link_account_profile`).
+ */
+export async function peekAccountLink(
+  userId: string,
+  profileId: string,
+): Promise<AccountLinkConflict | null> {
+  const client = getServiceClient();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.rpc('peek_account_link', {
+      p_user_id: userId,
+      p_profile_id: profileId,
+    });
+    if (error || !data) return null;
+    const row = data as { displayName: string; avatar: AvatarConfig | null; xp: number; totalWins: number };
+    return { displayName: row.displayName, avatar: row.avatar, xp: row.xp, totalWins: row.totalWins };
+  } catch (err) {
+    console.error('peekAccountLink: gagal memeriksa konflik akun:', err);
+    return null;
+  }
+}
+
+/**
+ * Dipanggil begitu pemain login (dan, kalau `peekAccountLink` sebelumnya
+ * melaporkan konflik, SETELAH pemain menyetujui prompt konfirmasi) —
+ * menautkan profil perangkat ini ke akun.
  *
  * RPC `link_account_profile` (atomik di sisi database) menangani tiga
- * kasus: akun ini sudah pernah dipakai (gabung progres device KALAU device
- * ini masih murni tamu, atau langsung pindah ke profil kanonik kalau device
- * ini kebetulan sedang dipegang akun lain — progres akun lain itu tidak
+ * kasus: akun ini sudah pernah dipakai (progres tamu di device ini
+ * DIBUANG lalu dipindah ke profil kanonik KALAU device ini masih murni
+ * tamu — pemain sudah menyetujui ini lewat prompt sebelumnya; atau
+ * langsung pindah ke profil kanonik tanpa membuang apa pun kalau device
+ * ini kebetulan sedang dipegang akun lain, progres akun lain itu tidak
  * boleh ikut tertarik), atau akun ini belum pernah dipakai sama sekali
  * (device tamu jadi miliknya, atau baris baru dibuat kalau device ini juga
  * sedang dipegang akun lain).

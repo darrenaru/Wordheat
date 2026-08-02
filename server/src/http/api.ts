@@ -14,10 +14,12 @@ import {
 } from '../game/solo.ts';
 import { getRoom, roomCount } from '../game/rooms.ts';
 import { dismissInvite, listInvites, sendInvite } from '../game/invites.ts';
+import { notifyProfile, registerEventStream, unregisterEventStream } from '../realtime/events.ts';
 import { addPowerup, getInventory } from '../powerup/store.ts';
 import { countUnreadMessages, listConversation, sendMessage } from '../chat/store.ts';
 import {
   areFriends,
+  ensureUsername,
   getBio,
   getUsername,
   listFriends,
@@ -34,6 +36,7 @@ import {
   getPublicProfile,
   getStats,
   linkAccountProfile,
+  peekAccountLink,
   verifyToken,
 } from '../stats/store.ts';
 import { getBalance, spendWallet } from '../wallet/store.ts';
@@ -190,9 +193,17 @@ export function createApiRouter(): Router {
 
   /**
    * Dipanggil sekali tiap kali pemain login. Menautkan profil perangkat ini
-   * ke akunnya — kalau akun itu sudah pernah dipakai di perangkat lain,
-   * saldo/statistik/stok profil ini digabung ke profil kanonik akun
-   * tersebut dan `profileId` baru inilah yang wajib dipakai client ke depan.
+   * ke akunnya. Kalau akun itu SUDAH pernah dipakai di perangkat lain DAN
+   * device ini masih tamu murni — melanjutkan akan MEMBUANG progres tamu
+   * di device ini (lihat komentar `peekAccountLink`/RPC
+   * `link_account_profile`), jadi dulu dulu dipeek: kalau ada konflik dan
+   * client belum kirim `confirm: true`, balas `{conflict:true, canonical}`
+   * TANPA menulis apa pun sama sekali, supaya client bisa menampilkan
+   * prompt konfirmasi dulu ke pemain ("Kesalahan Fatal" yang harus
+   * dihindari: jangan pernah diam-diam menimpa/membuang progres pemain
+   * tanpa persetujuan). Kalau tidak ada konflik, atau client sudah kirim
+   * `confirm: true` (pemain sudah menyetujui prompt), lanjut ke
+   * `linkAccountProfile` seperti biasa.
    */
   router.post('/account/link', async (req, res) => {
     const userId = await resolveUserId(req);
@@ -208,30 +219,61 @@ export function createApiRouter(): Router {
     const name =
       typeof req.body?.name === 'string' ? req.body.name.trim().slice(0, 32) || undefined : undefined;
     const avatar = resolveAvatar(req.body);
+    const confirm = req.body?.confirm === true;
+
+    if (!confirm) {
+      const conflict = await peekAccountLink(userId, profileId);
+      if (conflict) {
+        res.json({ ok: true, conflict: true, canonical: conflict });
+        return;
+      }
+    }
+
     const linked = await linkAccountProfile(userId, profileId, name, avatar);
     res.json({
       ok: true,
+      conflict: false,
       profileId: linked.profileId,
       displayName: linked.displayName,
       avatar: linked.avatar,
     });
   });
 
-  /** Username pemain sendiri (kalau sudah pernah diatur) + kapan boleh diganti lagi. */
+  /**
+   * Username pemain sendiri (kalau sudah pernah diatur) + kapan boleh
+   * diganti lagi. `ensureUsername` dipanggil dulu di sini (bukan cuma di
+   * `recordGameResult`/`linkAccountProfile`) supaya Guest yang belum
+   * pernah main pun langsung punya username acak begitu buka Profil Saya —
+   * sebelum ini dia melihat placeholder kosong karena baris
+   * `player_stats`-nya belum tercipta sama sekali.
+   */
   router.get('/username', async (req, res) => {
     const profileId = resolveProfileId(req);
     if (!profileId) {
       res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
       return;
     }
+    await ensureUsername(profileId);
     const { username, changeableAt } = await getUsername(profileId);
     res.json({ ok: true, username, changeableAt });
   });
 
-  /** Set/ganti username sendiri — identitas unik yang dipakai Add Friend.
+  /** Set/ganti username sendiri — identitas publik yang dipakai Add Friend.
    *  Klaim pertama bebas; ganti berikutnya kena cooldown 7 hari (lihat
-   *  `setUsername` di `social/store.ts`). */
+   *  `setUsername` di `social/store.ts`). Guest sengaja tidak boleh mengatur
+   *  username sendiri (cuma dapat username acak dari `ensureUsername`) —
+   *  mengizinkannya percuma begitu dia login Google nanti dan profilnya
+   *  ditautkan (`linkAccountProfile`), karena identitas Guest itu tidak
+   *  pernah terverifikasi ke akun manapun.
+   */
   router.post('/username', async (req, res) => {
+    const userId = await resolveUserId(req);
+    if (!userId) {
+      res
+        .status(401)
+        .json({ ok: false, code: 'unauthorized', message: 'Login dulu untuk mengatur username.' });
+      return;
+    }
     const profileId = resolveProfileId(req);
     if (!profileId) {
       res.status(400).json({ ok: false, code: 'invalid', message: 'Profil pemain tidak valid.' });
@@ -323,7 +365,7 @@ export function createApiRouter(): Router {
     res.json({ ok: true });
   });
 
-  /** Cari pemain lewat awalan username, buat Add Friend. */
+  /** Cari pemain lewat username, buat Add Friend. */
   router.get('/users/search', async (req, res) => {
     const profileId = resolveProfileId(req);
     if (!profileId) {
@@ -352,6 +394,39 @@ export function createApiRouter(): Router {
       countUnreadMessages(profileId),
     ]);
     res.json({ ok: true, friends, incoming, outgoing, invites, unreadMessages });
+  });
+
+  /**
+   * Saluran notifikasi real-time (Server-Sent Events) — dipakai supaya
+   * permintaan pertemanan masuk langsung terasa tanpa refresh, di mana pun
+   * pemain berada di app (beda dari WebSocket ruang permainan yang cuma
+   * aktif selama di dalam satu ruang). `EventSource` browser tidak bisa
+   * mengirim header custom, jadi identitas di sini WAJIB lewat query
+   * `profileId`, bukan header `x-player-id` seperti endpoint lain.
+   * `profileId` sendiri bukan rahasia (sudah dipakai apa adanya di URL
+   * publik `GET /players/:profileId`) — koneksi ini cuma menerima DORONGAN
+   * notifikasi, tidak pernah membocorkan data yang butuh otorisasi.
+   */
+  router.get('/events', (req, res) => {
+    const profileId = typeof req.query.profileId === 'string' ? req.query.profileId : '';
+    if (profileId.length < 6) {
+      res.status(400).end();
+      return;
+    }
+    res.writeHead(200, {
+      'content-type': 'text/event-stream',
+      'cache-control': 'no-cache',
+      connection: 'keep-alive',
+    });
+    res.write(':ok\n\n');
+    registerEventStream(profileId, res);
+    // Menjaga koneksi tetap hidup lewat proxy/load balancer yang menutup
+    // koneksi idle — pola sama seperti heartbeat WebSocket di `ws/gateway.ts`.
+    const heartbeat = setInterval(() => res.write(':hb\n\n'), 25_000);
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      unregisterEventStream(profileId, res);
+    });
   });
 
   /** Isi percakapan dengan seorang teman — sekaligus menandai pesan masuk
@@ -390,6 +465,12 @@ export function createApiRouter(): Router {
       return;
     }
     const result = await sendFriendRequest(profileId, toProfileId);
+    if (result.ok) {
+      // Dorong real-time ke penerima lewat `GET /events` — no-op kalau dia
+      // sedang tidak membuka web sama sekali, `GET /friends` berikutnya
+      // tetap benar dari database seperti biasa.
+      notifyProfile(toProfileId, 'friend-request', { fromName: resolvePlayerName(req) ?? 'Pemain' });
+    }
     res.status(result.ok ? 200 : 400).json(result);
   });
 

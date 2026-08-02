@@ -1,4 +1,5 @@
 import type {
+  AccountLinkResult,
   ApiError,
   AvatarConfig,
   ChatMessage,
@@ -89,16 +90,21 @@ export const api = {
     ),
 
   /**
-   * Dipanggil sekali tiap login. `profileId` wajib dipakai ke depan;
+   * Dipanggil sekali tiap login, dan sekali lagi dengan `confirm: true`
+   * kalau panggilan pertama melaporkan `conflict: true` (akun Google ini
+   * sudah punya progres di device/sesi lain — pemain harus menyetujui dulu
+   * lewat `AccountLinkConflictModal` sebelum progres tamu di device ini
+   * dibuang, lihat `AccountLinkResult` di `shared/types.ts`). Saat
+   * `conflict: false`, `profileId` wajib dipakai ke depan;
    * `displayName`/`avatar` adalah identitas TERSIMPAN milik akun itu
    * (`null` kalau akun belum pernah menyimpan apa pun) — dipakai memulihkan
    * nama/avatar akun ke UI, bukan cuma mengikuti profil device saat ini.
    */
-  linkAccount: (name: string, avatar: AvatarConfig) =>
-    request<{ profileId: string; displayName: string | null; avatar: AvatarConfig | null }>(
-      '/account/link',
-      { method: 'POST', body: JSON.stringify({ name, avatar }) },
-    ),
+  linkAccount: (name: string, avatar: AvatarConfig, confirm = false) =>
+    request<AccountLinkResult>('/account/link', {
+      method: 'POST',
+      body: JSON.stringify({ name, avatar, confirm }),
+    }),
 
   username: () =>
     request<{ username: string | null; changeableAt: string | null }>('/username').then((r) => ({
