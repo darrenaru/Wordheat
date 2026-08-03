@@ -1,18 +1,16 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import type { ChatMessage, FriendsPayload } from '@shared/types.ts';
+import type { ChatMessage } from '@shared/types.ts';
 import { api, ApiFailure } from '../lib/api.ts';
 import { FALLBACK_AVATAR } from '../lib/avatar.ts';
 import { groupChatMessages, isEmojiOnlyMessage } from '../lib/chatGrouping.ts';
 import { renderChatText } from '../lib/chatText.tsx';
 import { emojiIconUrl } from '../lib/emojis.ts';
-import { getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts';
+import { EMPTY_FRIENDS_PAYLOAD, getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts';
 import { loadProfile } from '../lib/profile.ts';
 import { Avatar } from './Avatar.tsx';
 import { EmojiPicker } from './EmojiPicker.tsx';
 import { PresenceBadge } from './PresenceBadge.tsx';
 import { Modal, SendIcon, useToast } from './ui.tsx';
-
-const EMPTY_FRIENDS: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
 
 interface ChatModalProps {
   profileId: string;
@@ -31,7 +29,7 @@ interface ChatModalProps {
  * lewat saluran SSE (`App.tsx`/`lib/presence.ts`).
  */
 export function ChatModal({ profileId, onClose }: ChatModalProps) {
-  const friendsPayload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS);
+  const friendsPayload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS_PAYLOAD);
   const friend = friendsPayload.friends.find((f) => f.user.profileId === profileId)?.user;
   const myId = loadProfile().id;
 

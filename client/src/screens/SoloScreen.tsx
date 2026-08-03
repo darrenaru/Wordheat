@@ -9,6 +9,8 @@ import { GuessFxLayer } from '../components/GuessFx.tsx';
 import { GuessInput } from '../components/GuessInput.tsx';
 import { GuessList } from '../components/GuessList.tsx';
 import { HeatMeter } from '../components/HeatMeter.tsx';
+import { LetterRevealBanner } from '../components/LetterRevealBanner.tsx';
+import { formatDuration } from '../components/PlayerList.tsx';
 import { BulbIcon, EyeIcon, FlagIcon, ShareIcon, TargetIcon, useToast } from '../components/ui.tsx';
 
 interface SoloScreenProps {
@@ -91,13 +93,17 @@ export function SoloScreen({ mode }: SoloScreenProps) {
       const word = await api.hint(state.sessionId);
       toast.show(`Petunjuk: coba kata yang berkaitan dengan "${word}".`);
     } catch (error) {
-      toast.show(error instanceof Error ? error.message : 'Petunjuk tidak tersedia.', 'error');
+      toast.show(error instanceof Error ? error.message : 'Petunjuknya belum tersedia.', 'error');
     }
   };
 
   const surrender = async () => {
     if (!state) return;
-    setState(await api.reveal(state.sessionId));
+    try {
+      setState(await api.reveal(state.sessionId));
+    } catch (error) {
+      toast.show(error instanceof Error ? error.message : 'Gagal menyerah, coba lagi.', 'error');
+    }
   };
 
   const useNearestGuess = async () => {
@@ -108,7 +114,7 @@ export function SoloScreen({ mode }: SoloScreenProps) {
       setLatest(result.guess);
       applyInventory(result.inventory);
     } catch (error) {
-      toast.show(error instanceof Error ? error.message : 'Powerup tidak tersedia.', 'error');
+      toast.show(error instanceof Error ? error.message : 'Powerup-nya belum tersedia.', 'error');
     }
   };
 
@@ -116,11 +122,10 @@ export function SoloScreen({ mode }: SoloScreenProps) {
     if (!state) return;
     try {
       const result = await api.soloPowerupLetter(state.sessionId);
-      setState({ ...state, letterRevealed: true });
+      setState({ ...state, revealedLetter: result.letter, secretLength: result.wordLength });
       applyInventory(result.inventory);
-      toast.show(`Bocoran huruf pertama: "${result.letter}"`);
     } catch (error) {
-      toast.show(error instanceof Error ? error.message : 'Powerup tidak tersedia.', 'error');
+      toast.show(error instanceof Error ? error.message : 'Powerup-nya belum tersedia.', 'error');
     }
   };
 
@@ -187,10 +192,10 @@ export function SoloScreen({ mode }: SoloScreenProps) {
             <button
               className="btn btn--ghost btn--sm"
               onClick={() => void useLetterReveal()}
-              disabled={state.letterRevealed || inventory.letterReveal < 1}
+              disabled={state.revealedLetter !== null || inventory.letterReveal < 1}
               title={
-                state.letterRevealed
-                  ? 'Sudah dipakai di ronde ini'
+                state.revealedLetter !== null
+                  ? 'Udah dipakai di ronde ini'
                   : inventory.letterReveal < 1
                     ? 'Beli di Shop'
                     : `${inventory.letterReveal} tersisa`
@@ -214,6 +219,10 @@ export function SoloScreen({ mode }: SoloScreenProps) {
         </>
       )}
 
+      {state.revealedLetter !== null && state.secretLength !== null && (
+        <LetterRevealBanner letter={state.revealedLetter} wordLength={state.secretLength} />
+      )}
+
       <GuessList
         guesses={state.guesses}
         latestWord={latest?.word ?? null}
@@ -234,8 +243,6 @@ function ResultPanel({
 }) {
   const toast = useToast();
   const durationMs = (state.finishedAt ?? Date.now()) - state.startedAt;
-  const minutes = Math.floor(durationMs / 60000);
-  const seconds = Math.floor((durationMs % 60000) / 1000);
 
   const share = async () => {
     const headline = state.solved
@@ -246,7 +253,7 @@ function ResultPanel({
       if (navigator.share) await navigator.share({ text });
       else {
         await navigator.clipboard.writeText(text);
-        toast.show('Hasil disalin ke papan klip.');
+        toast.show('Hasil udah disalin ke clipboard.');
       }
     } catch {
       /* pengguna membatalkan dialog berbagi */
@@ -270,9 +277,7 @@ function ResultPanel({
             <span className="caption">tebakan</span>
           </span>
           <span className="stat">
-            <span className="stat__value tnum">
-              {minutes > 0 ? `${minutes}m ${seconds}d` : `${seconds}d`}
-            </span>
+            <span className="stat__value tnum">{formatDuration(durationMs)}</span>
             <span className="caption">waktu</span>
           </span>
         </div>
@@ -290,7 +295,7 @@ function ResultPanel({
         </div>
 
         {mode === 'daily' && (
-          <p className="caption">Kata harian berikutnya muncul besok pagi.</p>
+          <p className="caption">Kata harian berikutnya muncul besok pagi, ya.</p>
         )}
       </div>
     </div>

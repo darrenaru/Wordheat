@@ -3,7 +3,6 @@ import { replayAnimation, usePrefersReducedMotion } from '../lib/motion.ts';
 
 interface GuessInputProps {
   onSubmit(word: string): void;
-  disabled?: boolean;
   busy?: boolean;
   placeholder?: string;
   /**
@@ -15,7 +14,6 @@ interface GuessInputProps {
 
 export function GuessInput({
   onSubmit,
-  disabled = false,
   busy = false,
   placeholder = 'Tebak katanya...',
   errorSignal = 0,
@@ -26,8 +24,8 @@ export function GuessInput({
   const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
-    if (!disabled) inputRef.current?.focus();
-  }, [disabled]);
+    inputRef.current?.focus();
+  }, []);
 
   // Kedua kelas menganimasikan elemen yang sama, jadi yang lama harus dilepas
   // dulu — kalau tidak, getaran penolakan bisa tertimpa kilatan "terkirim".
@@ -51,7 +49,7 @@ export function GuessInput({
       onSubmit={(event) => {
         event.preventDefault();
         const word = value.trim();
-        if (!word || disabled || busy) return;
+        if (!word || busy) return;
         flash('guess-form--sent');
         onSubmit(word);
         setValue('');
@@ -66,7 +64,6 @@ export function GuessInput({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder={placeholder}
-        disabled={disabled}
         autoComplete="off"
         autoCapitalize="none"
         autoCorrect="off"
@@ -78,7 +75,7 @@ export function GuessInput({
       <button
         className="btn btn--brand"
         type="submit"
-        disabled={disabled || busy || value.trim().length === 0}
+        disabled={busy || value.trim().length === 0}
       >
         {busy ? (
           <span className="dots" aria-label="Mengirim tebakan">

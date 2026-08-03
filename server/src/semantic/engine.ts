@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Guess, Temperature } from '@shared/types.ts';
+import { TEMPERATURE_ORDER, type Guess, type Temperature } from '@shared/types.ts';
 import { cosine, normalizeWord, loadEmbeddingLexicon, type Lexicon, type WordVector } from './embeddings.ts';
 import { isMorphologicalVariant, morphologicalVariantsOf } from './morphology.ts';
 import { loadAssociations } from './associations.ts';
@@ -73,10 +73,8 @@ const SIMILARITY_FLOOR: Array<{ temperature: Temperature; min: number }> = [
   { temperature: 'cold', min: 0.0001 },
 ];
 
-const TEMP_RANK: Temperature[] = ['freezing', 'cold', 'cool', 'warm', 'hot', 'very-hot', 'correct'];
-
 function coolerOf(a: Temperature, b: Temperature): Temperature {
-  return TEMP_RANK.indexOf(a) <= TEMP_RANK.indexOf(b) ? a : b;
+  return TEMPERATURE_ORDER.indexOf(a) <= TEMPERATURE_ORDER.indexOf(b) ? a : b;
 }
 
 /**
@@ -276,12 +274,6 @@ export class SemanticEngine {
       closeness: scored.closeness,
       temperature: scored.temperature,
     };
-  }
-
-  /** Kata terdekat ke-`n` dari target — dipakai untuk fitur petunjuk. */
-  hint(target: string, n: number): string | null {
-    const list = this.neighbors(target);
-    return list[n]?.word ?? null;
   }
 
   randomTarget(rng: () => number = Math.random): string {

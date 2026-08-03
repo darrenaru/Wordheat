@@ -41,7 +41,7 @@ export function WelcomeModal({ onContinueAsGuest }: WelcomeModalProps) {
     <Modal title="Selamat datang di Wordheat" onClose={continueAsGuest}>
       <div className="stack" style={{ gap: 16 }}>
         <p className="caption">
-          Main sebagai tamu, atau masuk dengan Google supaya coin dan statistikmu ikut kalau
+          Main aja sebagai tamu, atau masuk pakai Google biar coin dan statistikmu ikut kalau
           ganti perangkat.
         </p>
 
@@ -51,13 +51,13 @@ export function WelcomeModal({ onContinueAsGuest }: WelcomeModalProps) {
           disabled={busy}
         >
           <GoogleIcon />
-          {busy ? 'Membuka Google...' : 'Masuk dengan Google'}
+          {busy ? 'Buka Google...' : 'Masuk dengan Google'}
         </button>
 
         {error && <p className="form-error">{error}</p>}
 
         <button className="btn btn--ghost btn--block" onClick={continueAsGuest} disabled={busy}>
-          Lanjutkan sebagai Guest
+          Lanjut aja sebagai Guest
         </button>
       </div>
     </Modal>

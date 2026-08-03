@@ -46,7 +46,7 @@ export function AccountLinkConflictModal({
       <div className="stack" style={{ alignItems: 'center', textAlign: 'center' }}>
         <Avatar config={canonical.avatar ?? FALLBACK_AVATAR} size={72} alt={canonical.displayName} />
         <p style={{ margin: 0 }}>
-          Akun Google ini sudah memiliki data permainan sebagai{' '}
+          Akun Google ini udah punya data permainan sebagai{' '}
           <strong>{canonical.displayName}</strong> (Level {level}).
         </p>
         <p className="caption" style={{ margin: 0 }}>

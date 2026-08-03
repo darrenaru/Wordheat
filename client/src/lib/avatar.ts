@@ -105,17 +105,27 @@ export function avatarEngineVersion(): number {
   return engine ? 1 : 0;
 }
 
+/** Hasilnya sendiri statis begitu `engine` siap (skema DiceBear tidak
+ *  berubah di runtime) — dihitung sekali lalu disimpan di sini, bukan
+ *  diulang tiap kali `avatarParts()` dipanggil (`AvatarStudio` memanggilnya
+ *  langsung di body render, jadi tanpa ini filter+map+sort di atas jalan
+ *  ulang tiap kali komponennya re-render, mis. tiap klik ganti bagian). */
+let partsCache: AvatarPart[] | null = null;
+
 /** Bagian yang bisa disetel, atau `null` bila mesinnya belum siap. */
 export function avatarParts(): AvatarPart[] | null {
   if (!engine) {
     ensureAvatarEngine();
     return null;
   }
-  return engine
-    .describeStyle()
-    .filter((part) => part.values.length > 1 && part.key in PART_LABELS)
-    .map((part) => ({ ...part, label: PART_LABELS[part.key] }))
-    .sort((a, b) => PART_ORDER.indexOf(a.key) - PART_ORDER.indexOf(b.key));
+  if (!partsCache) {
+    partsCache = engine
+      .describeStyle()
+      .filter((part) => part.values.length > 1 && part.key in PART_LABELS)
+      .map((part) => ({ ...part, label: PART_LABELS[part.key] }))
+      .sort((a, b) => PART_ORDER.indexOf(a.key) - PART_ORDER.indexOf(b.key));
+  }
+  return partsCache;
 }
 
 const cache = new Map<string, RenderResult>();
@@ -141,13 +151,26 @@ function renderCached(config: AvatarConfig): RenderResult | null {
   }
   const key = avatarKey(config);
   const cached = cache.get(key);
-  if (cached) return cached;
+  if (cached) {
+    // Pindahkan ke posisi "paling baru dipakai" — `Map` mengiterasi sesuai
+    // urutan insersi, jadi hapus-lalu-set-ulang menggeser entri ini ke
+    // ujung tanpa mengubah nilainya (lihat pembuangan LRU di bawah).
+    cache.delete(key);
+    cache.set(key, cached);
+    return cached;
+  }
 
   const result = engine.render(config);
   // Batasnya cukup longgar: membuka satu bagian di studio saja sudah merender
   // puluhan pratinjau, dan berpindah bagian bolak-balik tidak boleh memaksa
-  // semuanya dirender ulang.
-  if (cache.size > 800) cache.clear();
+  // semuanya dirender ulang. Begitu penuh, buang entri PALING LAMA tidak
+  // disentuh (bukan seluruh cache sekaligus) — supaya konfigurasi yang masih
+  // aktif dipakai (mis. avatar profil sendiri) tidak ikut lenyap tepat saat
+  // batas tercapai.
+  if (cache.size >= 800) {
+    const oldest = cache.keys().next().value;
+    if (oldest !== undefined) cache.delete(oldest);
+  }
   cache.set(key, result);
   return result;
 }

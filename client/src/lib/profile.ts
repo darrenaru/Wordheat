@@ -89,6 +89,38 @@ export function loadProfile(): PlayerProfile {
   return profile;
 }
 
+const SECRET_KEY = 'wordheat:deviceSecret';
+
+function randomSecret(): string {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Secret device — bukti kepemilikan `profile.id`, TIDAK PERNAH dikirim ke
+ * pemain lain (beda dari `profile.id` sendiri, yang tampil apa adanya di
+ * leaderboard/profil publik/daftar pemain room). Dibuat sekali per device,
+ * dipakai lewat header `x-player-secret` (HTTP, lihat `lib/api.ts`) dan
+ * field `secret` pesan `hello` (WebSocket, lihat `lib/ws.ts`) — tanpa ini
+ * siapa pun yang tahu `profile.id` orang lain bisa mengaku sebagai dia.
+ * Satu secret dipakai terus walau `profile.id` berganti (logout, dsb.) —
+ * itu tidak masalah, server mengikat secret ke profileId apa pun yang
+ * memakainya, bukan sebaliknya (lihat `server/src/http/identity.ts`).
+ */
+export function getDeviceSecret(): string {
+  try {
+    const existing = localStorage.getItem(SECRET_KEY);
+    if (existing) return existing;
+    const created = randomSecret();
+    localStorage.setItem(SECRET_KEY, created);
+    return created;
+  } catch {
+    // localStorage diblokir (mode privat) — secret baru tiap panggilan.
+    return randomSecret();
+  }
+}
+
 export function saveProfile(profile: PlayerProfile): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));

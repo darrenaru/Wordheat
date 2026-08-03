@@ -22,6 +22,7 @@ import {
   type Room,
 } from '../game/rooms.ts';
 import { getInventory } from '../powerup/store.ts';
+import { verifyProfileOwnership } from '../http/identity.ts';
 import { verifyToken } from '../stats/store.ts';
 
 interface Connection {
@@ -31,6 +32,27 @@ interface Connection {
   /** Kanal milik koneksi INI — dipakai untuk membedakannya dari socket pengganti. */
   channel: PlayerChannel | null;
   alive: boolean;
+  /** Jumlah pesan di jendela rate-limit berjalan — lihat `checkMessageRate`. */
+  msgCount: number;
+  msgWindowStart: number;
+}
+
+/** Batas laju pesan WebSocket per koneksi — jalur tebakan ruang tidak
+ *  lewat Express (lihat `guessLimiter` di `http/api.ts`), jadi tidak
+ *  kena rate limit HTTP sama sekali tanpa ini. 40 pesan/10 detik jauh di
+ *  atas kecepatan mengetik manusia wajar, tapi menahan skrip yang
+ *  membanjiri tebakan/powerup. */
+const MSG_WINDOW_MS = 10_000;
+const MSG_LIMIT = 40;
+
+function checkMessageRate(conn: Connection): boolean {
+  const now = Date.now();
+  if (now - conn.msgWindowStart > MSG_WINDOW_MS) {
+    conn.msgWindowStart = now;
+    conn.msgCount = 0;
+  }
+  conn.msgCount += 1;
+  return conn.msgCount <= MSG_LIMIT;
 }
 
 /**
@@ -106,6 +128,8 @@ export function attachGateway(server: Server): void {
       room: null,
       channel: null,
       alive: true,
+      msgCount: 0,
+      msgWindowStart: Date.now(),
     };
     liveness.set(socket, conn);
 
@@ -114,6 +138,10 @@ export function attachGateway(server: Server): void {
     });
 
     socket.on('message', (raw) => {
+      if (!checkMessageRate(conn)) {
+        notice(socket, 'error', 'Terlalu banyak permintaan, coba lagi sebentar.');
+        return;
+      }
       let message: ClientMessage;
       try {
         message = JSON.parse(String(raw)) as ClientMessage;
@@ -230,6 +258,18 @@ async function handleHello(
   const avatar = sanitizeAvatar(profile.avatar);
   const userId = message.authToken ? await verifyToken(message.authToken) : null;
 
+  // `profile.id` sendiri tidak rahasia (lihat komentar `secret` di
+  // `shared/types.ts`) — tanpa verifikasi ini, siapa pun yang tahu id
+  // pemain lain (mis. dari leaderboard) bisa "menyambung ulang" ke room
+  // itu dan mengambil-alih kursinya (server memperlakukan sambungan kedua
+  // dengan id yang sama sebagai reconnect sah, lihat `joinRoom`).
+  const owned = await verifyProfileOwnership(profile.id, { userId, secret: message.secret ?? null });
+  if (!owned) {
+    notice(socket, 'error', 'Profil pemain tidak valid.');
+    socket.close();
+    return;
+  }
+
   let room: Room | null;
   if (message.create) {
     try {
@@ -266,6 +306,12 @@ async function handleHello(
   if (guesses.length > 0) {
     send(socket, { type: 'guessResult', guess: guesses[0], guesses });
   }
+  // Sama seperti riwayat tebakan — bocoran huruf yang sudah dipakai sebelum
+  // koneksi putus tidak boleh "hilang" begitu pemain menyambung ulang.
+  const player = room.players.get(profile.id);
+  if (player?.letterRevealed && room.secret) {
+    send(socket, { type: 'letterReveal', letter: room.secret[0], wordLength: room.secret.length });
+  }
   notifyRoom(room);
 }
 
@@ -295,13 +341,15 @@ async function handleNearestGuessPowerup(socket: WebSocket, room: Room, playerId
   send(socket, { type: 'inventory', inventory: await getInventory(playerId) });
 }
 
-/** Huruf bocoran cuma dikirim ke pemain yang memakainya, tidak pernah disiarkan. */
+/** Huruf bocoran cuma dikirim ke pemain yang memakainya, tidak pernah disiarkan —
+ *  lewat pesan `letterReveal` terstruktur (bukan `notice` teks bebas) supaya
+ *  klien bisa menampilkan huruf+placeholder sisa kata, bukan cuma teks. */
 async function handleLetterRevealPowerup(socket: WebSocket, room: Room, playerId: string): Promise<void> {
   const result = await useRoomLetterReveal(room, playerId);
   if ('error' in result) {
     notice(socket, 'error', result.error);
     return;
   }
-  notice(socket, 'info', `Bocoran huruf pertama: "${result.letter}"`);
+  send(socket, { type: 'letterReveal', letter: result.letter, wordLength: result.wordLength });
   send(socket, { type: 'inventory', inventory: result.inventory });
 }

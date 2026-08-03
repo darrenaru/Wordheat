@@ -1,7 +1,8 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { PlayerProfile } from '@shared/types.ts';
 import { api } from '../lib/api.ts';
-import { getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts';
+import { FALLBACK_AVATAR } from '../lib/avatar.ts';
+import { EMPTY_FRIENDS_PAYLOAD, getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts';
 import { Avatar } from './Avatar.tsx';
 import { Modal, useToast } from './ui.tsx';
 
@@ -11,14 +12,11 @@ interface InviteFriendsModalProps {
   onClose(): void;
 }
 
-const FALLBACK_AVATAR = { seed: 'pemain', backgroundColor: '2A2A2E' };
-const EMPTY = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
-
 /** Undang teman langsung dari lobi — masuk kotak undangan Friend List
  *  mereka (lihat `server/src/game/invites.ts`), bukan tautan yang harus
  *  dibagikan lewat aplikasi luar. */
 export function InviteFriendsModal({ roomCode, profile, onClose }: InviteFriendsModalProps) {
-  const { friends } = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY);
+  const { friends } = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS_PAYLOAD);
   const [sentTo, setSentTo] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
   const toast = useToast();

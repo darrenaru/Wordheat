@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ROOM_CODE_LENGTH } from '@shared/types.ts';
 import { api } from '../lib/api.ts';
 import { navigate } from '../lib/router.ts';
 import { Ambient } from '../components/Ambient.tsx';
@@ -44,7 +45,7 @@ export function HomeScreen() {
   const joinRoom = async (event: React.FormEvent) => {
     event.preventDefault();
     const trimmed = code.trim().toUpperCase();
-    if (trimmed.length < 4) return;
+    if (trimmed.length < ROOM_CODE_LENGTH) return;
     setChecking(true);
     try {
       // Divalidasi lewat HTTP dulu supaya kode salah ketik langsung ketahuan,
@@ -52,7 +53,7 @@ export function HomeScreen() {
       await api.roomInfo(trimmed);
       navigate(`/ruang/${trimmed}`);
     } catch (error) {
-      toast.show(error instanceof Error ? error.message : 'Ruang tidak ditemukan.', 'error');
+      toast.show(error instanceof Error ? error.message : 'Ruangnya tidak ditemukan.', 'error');
     } finally {
       setChecking(false);
     }
@@ -76,8 +77,8 @@ export function HomeScreen() {
         </h1>
 
         <p className="launch__tag">
-          Tebak kata rahasianya. Setiap tebakan dinilai dari kedekatan makna — makin dekat, makin
-          panas.
+          Tebak kata rahasianya. Tiap tebakan dinilai dari seberapa dekat maknanya — makin dekat,
+          makin panas.
         </p>
 
         {health && (
@@ -98,16 +99,16 @@ export function HomeScreen() {
         onSubmit={joinRoom}
       >
         <label className="join-bar__title" htmlFor="kode-ruang">
-          Sudah punya kode?
+          Udah punya kode?
         </label>
         <div className="cell__row">
           <input
             id="kode-ruang"
             className="input input--code"
             value={code}
-            onChange={(event) => setCode(event.target.value.toUpperCase().slice(0, 5))}
+            onChange={(event) => setCode(event.target.value.toUpperCase().slice(0, ROOM_CODE_LENGTH))}
             placeholder="ABCDE"
-            maxLength={5}
+            maxLength={ROOM_CODE_LENGTH}
             autoComplete="off"
             autoCapitalize="characters"
             spellCheck={false}
@@ -115,7 +116,7 @@ export function HomeScreen() {
           <button
             className="btn btn--secondary"
             type="submit"
-            disabled={code.trim().length < 4 || checking}
+            disabled={code.trim().length < ROOM_CODE_LENGTH || checking}
           >
             {checking ? 'Mencari...' : 'Gabung'}
           </button>
@@ -130,7 +131,7 @@ export function HomeScreen() {
         >
           <UsersIcon />
           <span className="cell__title">Main bareng</span>
-          <span className="cell__body">Buat ruang, undang teman lewat kode.</span>
+          <span className="cell__body">Buat ruang, terus undang teman pakai kode.</span>
           <span className="cell__cta">
             Buat ruang
             <ArrowIcon />
@@ -145,7 +146,7 @@ export function HomeScreen() {
           <CalendarIcon />
           <span className="cell__title">Kata harian</span>
           <span className="cell__body">
-            Satu kata yang sama untuk semua orang. Berganti tiap tengah malam.
+            Kata yang sama buat semua orang, ganti tiap tengah malam.
           </span>
           <span className="cell__foot">
             <span className="cell__cta">
@@ -163,7 +164,7 @@ export function HomeScreen() {
         >
           <PlayIcon />
           <span className="cell__title">Main sendiri</span>
-          <span className="cell__body">Kata acak, tanpa batas waktu.</span>
+          <span className="cell__body">Kata acak, santai tanpa batas waktu.</span>
           <span className="cell__cta">
             Mulai
             <ArrowIcon />
@@ -177,7 +178,7 @@ export function HomeScreen() {
         >
           <ShopIcon />
           <span className="cell__title">Shop</span>
-          <span className="cell__body">Belanjakan coin untuk powerup.</span>
+          <span className="cell__body">Belanja coin buat powerup.</span>
           <span className="cell__cta">
             Buka
             <ArrowIcon />
@@ -191,7 +192,7 @@ export function HomeScreen() {
         >
           <TrophyIcon />
           <span className="cell__title">Leaderboard</span>
-          <span className="cell__body">Lihat peringkat coin, menang, streak, dan tebakan.</span>
+          <span className="cell__body">Lihat peringkat coin, menang, streak, sampai tebakan.</span>
           <span className="cell__cta">
             Lihat
             <ArrowIcon />

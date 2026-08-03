@@ -67,7 +67,7 @@ export function LeaderboardScreen() {
           <ol className="result-ranks">
             {entries.map((entry, index) => (
               <li
-                key={`${entry.profileId}-${index}`}
+                key={entry.profileId}
                 className="result-rank"
                 data-rank={index < 3 ? index + 1 : undefined}
               >

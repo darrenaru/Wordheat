@@ -9,7 +9,7 @@ import type {
   RoomStatus,
   ServerMessage,
 } from '@shared/types.ts';
-import { compareGuesses, DEFAULT_ROOM_SETTINGS } from '@shared/types.ts';
+import { compareGuesses, DEFAULT_ROOM_SETTINGS, guessedWords, ROOM_CODE_LENGTH } from '@shared/types.ts';
 import { config } from '../config.ts';
 import { getEngine } from '../semantic/engine.ts';
 import { getInventory, usePowerup } from '../powerup/store.ts';
@@ -73,14 +73,13 @@ export type JoinResult =
 // Huruf yang mudah dibaca dan diucapkan — tanpa O/0, I/1, dan sejenisnya,
 // karena kode ini akan sering dibacakan lewat suara atau diketik ulang.
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const CODE_LENGTH = 5;
 
 const rooms = new Map<string, Room>();
 
 function generateCode(): string {
   for (let attempt = 0; attempt < 50; attempt++) {
     let code = '';
-    for (let i = 0; i < CODE_LENGTH; i++) {
+    for (let i = 0; i < ROOM_CODE_LENGTH; i++) {
       code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
     }
     if (!rooms.has(code)) return code;
@@ -309,6 +308,11 @@ export function kickPlayer(room: Room, hostId: string, targetId: string): string
   const host = room.players.get(hostId);
   if (!host?.isHost) return 'Hanya host yang bisa mengeluarkan pemain.';
   if (hostId === targetId) return 'Host tidak bisa mengeluarkan dirinya sendiri.';
+  // Klien menyembunyikan tombol ini selama ronde berjalan (lihat
+  // `RoomScreen.tsx`, `canKick`) — ditegakkan di sini juga supaya pesan WS
+  // `kick` yang dikirim manual tidak bisa dipakai buat mengganggu pemain
+  // yang hampir menang di tengah ronde.
+  if (room.status === 'playing') return 'Tidak bisa mengeluarkan pemain saat ronde berjalan.';
   const target = room.players.get(targetId);
   if (!target) return 'Pemain tidak ditemukan.';
 
@@ -468,8 +472,18 @@ export async function useRoomNearestGuess(room: Room, playerId: string): Promise
   if (player.solved || player.gaveUp) {
     return { ok: false, message: 'Kamu sudah menyelesaikan ronde ini.' };
   }
+  // Sama seperti tebakan manual (`submitRoomGuess`) — tanpa pengecekan ini,
+  // pemain dengan stok powerup bisa melewati batas tebakan yang diset host
+  // (atau pengaman anti-spam global) selama stoknya masih ada.
+  if (room.settings.maxGuesses > 0 && player.guesses.length >= room.settings.maxGuesses) {
+    return { ok: false, message: 'Jatah tebakanmu sudah habis.' };
+  }
+  if (player.guesses.length >= config.maxGuessesPerPlayer) {
+    return { ok: false, message: 'Jatah tebakanmu sudah habis.' };
+  }
+
   const engine = getEngine();
-  const already = new Set(player.guesses.map((g) => g.word));
+  const already = guessedWords(player.guesses);
   const nearest = engine.neighbors(room.secret).find((n) => !already.has(n.word));
   if (!nearest) return { ok: false, message: 'Tidak ada kata tersisa untuk ditebak.' };
 
@@ -477,7 +491,18 @@ export async function useRoomNearestGuess(room: Room, playerId: string): Promise
   if (!used) return { ok: false, message: 'Belum punya stok — beli dulu di Shop.' };
 
   room.lastActivity = Date.now();
-  const { guess, balance } = await applyRoomGuess(room, player, nearest.word);
+  // Dihitung ulang dari state TERKINI, bukan `already`/`nearest` di atas —
+  // request lain untuk pemain yang sama (mis. klik ganda) bisa saja sudah
+  // diproses di sela-sela `await usePowerup` barusan, dan tebakan manual
+  // maupun `applyRoomGuess` sendiri tidak menjaga dari kata yang sama
+  // ditebak dua kali lewat jalur ini.
+  const stillGuessed = guessedWords(player.guesses);
+  const target = stillGuessed.has(nearest.word)
+    ? engine.neighbors(room.secret).find((n) => !stillGuessed.has(n.word))
+    : nearest;
+  if (!target) return { ok: false, message: 'Tidak ada kata tersisa untuk ditebak.' };
+
+  const { guess, balance } = await applyRoomGuess(room, player, target.word);
   const sorted = [...player.guesses].sort(compareGuesses);
   broadcastRoom(room);
   maybeEndRound(room);
@@ -489,7 +514,7 @@ export async function useRoomNearestGuess(room: Room, playerId: string): Promise
 export async function useRoomLetterReveal(
   room: Room,
   playerId: string,
-): Promise<{ letter: string; inventory: PowerupInventory } | { error: string }> {
+): Promise<{ letter: string; wordLength: number; inventory: PowerupInventory } | { error: string }> {
   const player = room.players.get(playerId);
   if (!player) return { error: 'Kamu tidak ada di ruang ini.' };
   if (room.status !== 'playing' || !room.secret) return { error: 'Ronde belum dimulai.' };
@@ -504,7 +529,7 @@ export async function useRoomLetterReveal(
   player.letterRevealed = true;
   room.lastActivity = Date.now();
   const inventory = await getInventory(player.id);
-  return { letter: room.secret[0], inventory };
+  return { letter: room.secret[0], wordLength: room.secret.length, inventory };
 }
 
 /**
@@ -580,6 +605,14 @@ export function endRound(room: Room, reason: string): void {
 export function resetToLobby(room: Room, requesterId: string): string | null {
   const requester = room.players.get(requesterId);
   if (!requester?.isHost) return 'Hanya host yang bisa memulai ronde baru.';
+  // Tombol "Main Lagi" di client cuma muncul saat ronde sudah `finished`
+  // (lihat `RoomScreen.tsx`, `RoundResult`) — ditegakkan di sini juga,
+  // kalau tidak host bisa membatalkan ronde yang sedang berjalan kapan
+  // saja (mis. saat sedang kalah) dan menghapus progres pemain lain tanpa
+  // `roundEnded` resmi.
+  if (room.status === 'playing' || room.status === 'starting') {
+    return 'Ronde masih berjalan.';
+  }
   room.status = 'lobby';
   room.secret = null;
   room.startedAt = null;

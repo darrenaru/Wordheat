@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage } from '@shared/types.ts';
+import { getDeviceSecret } from './profile.ts';
 import { getAuthToken } from './supabase.ts';
 
 export type ConnectionStatus = 'connecting' | 'open' | 'reconnecting' | 'closed';
@@ -11,6 +12,10 @@ interface RoomSocketOptions {
 }
 
 const RECONNECT_DELAYS_MS = [500, 1000, 2000, 4000, 8000];
+/** Batas total percobaan sambung ulang — tanpa ini, ruang yang hilang
+ *  tanpa kode penutupan fatal (mis. server restart membersihkan ruang
+ *  in-memory) membuat client "Menyambung ulang..." selamanya. */
+const MAX_RECONNECT_ATTEMPTS = 20;
 
 /**
  * Kode penutupan yang berarti "berhenti di sini". Menyambung ulang setelah
@@ -57,11 +62,13 @@ export class RoomSocket {
       if (this.handshake) {
         // Token diambil segar di setiap (re)koneksi, bukan disimpan di
         // handshake sejak awal — sesi bisa berubah (login/refresh) sementara
-        // koneksi ini hidup lama.
+        // koneksi ini hidup lama. `secret` (bukti kepemilikan `profile.id`,
+        // lihat `lib/profile.ts`/`server/src/http/identity.ts`) ditempel di
+        // sini juga supaya pemanggil `connect()` tidak perlu mengingatnya.
         const authToken = getAuthToken();
         const message =
-          this.handshake.type === 'hello' && authToken
-            ? { ...this.handshake, authToken }
+          this.handshake.type === 'hello'
+            ? { ...this.handshake, secret: getDeviceSecret(), ...(authToken ? { authToken } : {}) }
             : this.handshake;
         socket.send(JSON.stringify(message));
       }
@@ -95,6 +102,12 @@ export class RoomSocket {
   }
 
   private scheduleReconnect(): void {
+    if (this.attempt >= MAX_RECONNECT_ATTEMPTS) {
+      this.closedByUs = true;
+      this.options.onStatus('closed');
+      this.options.onFatal('Tidak bisa tersambung ke ruang. Coba muat ulang halaman.');
+      return;
+    }
     const delay = RECONNECT_DELAYS_MS[Math.min(this.attempt, RECONNECT_DELAYS_MS.length - 1)];
     this.attempt += 1;
     this.options.onStatus('reconnecting');
@@ -108,10 +121,13 @@ export class RoomSocket {
     }
   }
 
-  send(message: ClientMessage): void {
-    if (this.socket?.readyState === WebSocket.OPEN) {
-      this.socket.send(JSON.stringify(message));
-    }
+  /** Mengembalikan `false` kalau pesan tidak terkirim (koneksi belum/tidak
+   *  lagi terbuka) — pemanggil bisa memberi tahu pemain alih-alih diam-diam
+   *  kehilangan aksinya (mis. tebakan yang dikirim tepat saat reconnect). */
+  send(message: ClientMessage): boolean {
+    if (this.socket?.readyState !== WebSocket.OPEN) return false;
+    this.socket.send(JSON.stringify(message));
+    return true;
   }
 
   close(): void {

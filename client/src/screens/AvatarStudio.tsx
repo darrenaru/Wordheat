@@ -235,7 +235,7 @@ export function AvatarStudio({ avatar: initial, onSave, onClose }: AvatarStudioP
               Acak semua
             </button>
             <p className="caption studio__actions-hint">
-              Acak semua akan memilih kombinasi secara acak dari semua kategori.
+              Acak semua akan memilih kombinasi acak dari semua kategori.
             </p>
 
             <button

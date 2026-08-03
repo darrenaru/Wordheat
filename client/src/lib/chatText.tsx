@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react';
-import { emojiIconUrl, isKnownEmojiSlug } from './emojis.ts';
-
-const TOKEN_PATTERN = /:([a-z0-9-]+):/g;
+import { emojiIconUrl, emojiTokenPattern, isKnownEmojiSlug } from './emojis.ts';
 
 /**
  * Pecah isi pesan chat pada token `:slug:` yang cocok manifest emoji
@@ -18,7 +16,7 @@ export function renderChatText(body: string, emojiSize = 20): ReactNode[] {
   let lastIndex = 0;
   let key = 0;
 
-  for (const match of body.matchAll(TOKEN_PATTERN)) {
+  for (const match of body.matchAll(emojiTokenPattern())) {
     const slug = match[1];
     if (!isKnownEmojiSlug(slug)) continue;
     const start = match.index ?? 0;

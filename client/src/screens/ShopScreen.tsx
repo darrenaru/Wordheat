@@ -23,7 +23,7 @@ const POWERUPS: Powerup[] = [
     accent: 'var(--hot)',
     title: 'Tebak Terdekat',
     cost: POWERUP_COSTS.nearestGuess,
-    body: 'Otomatis mengisi & mengirim kata terdekat yang belum pernah kamu tebak sebagai satu tebakan sungguhan. Selalu sedekat mungkin, tapi tidak menjamin langsung menang.',
+    body: 'Otomatis mengisi & mengirim kata terdekat yang belum pernah kamu tebak, sebagai satu tebakan sungguhan. Selalu sedekat mungkin, tapi tidak menjamin langsung menang.',
   },
   {
     key: 'letterReveal',
@@ -31,7 +31,7 @@ const POWERUPS: Powerup[] = [
     accent: 'var(--cool)',
     title: 'Bocoran Huruf',
     cost: POWERUP_COSTS.letterReveal,
-    body: 'Membuka huruf pertama kata rahasia. Sekali pakai per ronde.',
+    body: 'Buka huruf pertama kata rahasia. Sekali pakai per ronde, ya.',
   },
 ];
 
@@ -77,8 +77,8 @@ export function ShopScreen() {
           </span>
         </div>
         <p className="caption" style={{ textAlign: 'center', marginTop: 4 }}>
-          Beli powerup di sini pakai coin hasil menang bermain. Stok yang sudah dibeli dipakai
-          langsung di dalam ronde, lewat tombol di sebelah "Petunjuk"/"Menyerah".
+          Beli powerup di sini pakai coin hasil menang main. Stok yang udah dibeli langsung
+          dipakai di dalam ronde, lewat tombol di sebelah "Petunjuk"/"Menyerah".
         </p>
       </div>
 

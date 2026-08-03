@@ -1,6 +1,6 @@
 import { nanoid } from 'nanoid';
 import type { ApiError, GameMode, Guess, PowerupInventory, SoloSessionState } from '@shared/types.ts';
-import { compareGuesses } from '@shared/types.ts';
+import { compareGuesses, guessedWords } from '@shared/types.ts';
 import { config } from '../config.ts';
 import { getEngine } from '../semantic/engine.ts';
 import { getInventory, usePowerup } from '../powerup/store.ts';
@@ -39,7 +39,8 @@ function toState(session: SoloSession): SoloSessionState {
     startedAt: session.startedAt,
     finishedAt: session.finishedAt,
     puzzleDate: session.puzzleDate,
-    letterRevealed: session.letterRevealed,
+    revealedLetter: session.letterRevealed ? session.secret[0] : null,
+    secretLength: session.letterRevealed ? session.secret.length : null,
   };
 }
 
@@ -179,10 +180,13 @@ export function soloHint(id: string): { word: string } | ApiError {
     return { ok: false, code: 'finished', message: 'Permainan ini sudah selesai.' };
   }
   const engine = getEngine();
-  const already = new Set(session.guesses.map((g) => g.word));
-  // Petunjuk diambil dari peringkat 10 ke bawah, bukan peringkat 1, supaya
-  // tetap menantang: pemain dapat arah, bukan jawaban.
-  for (const neighbor of engine.neighbors(session.secret).slice(9, 40)) {
+  const already = guessedWords(session.guesses);
+  // Dicari mulai dari peringkat ke-10 (indeks 9), bukan peringkat 1, supaya
+  // tetap menantang: pemain dapat arah, bukan jawaban yang nyaris pasti.
+  // Tanpa batas ATAS (dulu dipotong di indeks 40) — batas tebakan per
+  // pemain jauh lebih besar dari lebar jendela 31 kata itu, jadi tanpa
+  // perluasan ini hint bisa habis jauh sebelum kuota tebakan pemain.
+  for (const neighbor of engine.neighbors(session.secret).slice(9)) {
     if (!already.has(neighbor.word)) return { word: neighbor.word };
   }
   return { ok: false, code: 'invalid', message: 'Tidak ada petunjuk yang tersisa.' };
@@ -195,7 +199,7 @@ export function soloHint(id: string): { word: string } | ApiError {
 export async function soloRevealLetter(
   id: string,
   profileId: string,
-): Promise<{ letter: string; inventory: PowerupInventory } | ApiError> {
+): Promise<{ letter: string; wordLength: number; inventory: PowerupInventory } | ApiError> {
   const session = sessions.get(id);
   if (!session) {
     return { ok: false, code: 'not_found', message: 'Sesi permainan tidak ditemukan.' };
@@ -212,7 +216,11 @@ export async function soloRevealLetter(
   }
   session.letterRevealed = true;
   session.lastTouched = Date.now();
-  return { letter: session.secret[0], inventory: await getInventory(profileId) };
+  return {
+    letter: session.secret[0],
+    wordLength: session.secret.length,
+    inventory: await getInventory(profileId),
+  };
 }
 
 /**
@@ -232,8 +240,14 @@ export async function soloNearestGuessPowerup(
   if (session.solved || session.revealed) {
     return { ok: false, code: 'finished', message: 'Permainan ini sudah selesai.' };
   }
+  // Sama seperti tebakan manual (`submitSoloGuess`) — tanpa ini, pemain
+  // dengan stok powerup bisa melewati pengaman anti-spam global selama
+  // stoknya masih ada.
+  if (session.guesses.length >= config.maxGuessesPerPlayer) {
+    return { ok: false, code: 'finished', message: 'Batas tebakan tercapai.' };
+  }
   const engine = getEngine();
-  const already = new Set(session.guesses.map((g) => g.word));
+  const already = guessedWords(session.guesses);
   const nearest = engine.neighbors(session.secret).find((n) => !already.has(n.word));
   if (!nearest) {
     return { ok: false, code: 'invalid', message: 'Tidak ada kata tersisa untuk ditebak.' };
@@ -243,7 +257,16 @@ export async function soloNearestGuessPowerup(
     return { ok: false, code: 'out_of_stock', message: 'Belum punya stok — beli dulu di Shop.' };
   }
   session.lastTouched = Date.now();
-  const guess = applyGuess(session, nearest.word);
+  // Dihitung ulang dari state TERKINI — lihat komentar serupa di
+  // `useRoomNearestGuess` (rooms.ts) soal race lewat `await usePowerup` di atas.
+  const stillGuessed = guessedWords(session.guesses);
+  const target = stillGuessed.has(nearest.word)
+    ? engine.neighbors(session.secret).find((n) => !stillGuessed.has(n.word))
+    : nearest;
+  if (!target) {
+    return { ok: false, code: 'invalid', message: 'Tidak ada kata tersisa untuk ditebak.' };
+  }
+  const guess = applyGuess(session, target.word);
   const inventory = await getInventory(profileId);
   return { ok: true, guess, state: toState(session), inventory };
 }

@@ -41,8 +41,15 @@ export async function sendMessage(
   toProfileId: string,
   rawBody: string,
 ): Promise<SendMessageResult> {
-  const body = rawBody.trim().slice(0, MESSAGE_MAX_LENGTH);
+  const body = rawBody.trim();
   if (!body) return { ok: false, code: 'invalid', message: 'Pesan kosong.' };
+  if (body.length > MESSAGE_MAX_LENGTH) {
+    return {
+      ok: false,
+      code: 'invalid',
+      message: `Pesan maksimal ${MESSAGE_MAX_LENGTH} karakter.`,
+    };
+  }
   if (fromProfileId === toProfileId) {
     return { ok: false, code: 'invalid', message: 'Tidak bisa mengirim pesan ke diri sendiri.' };
   }
@@ -107,16 +114,26 @@ export async function listConversation(
     ].sort((a, b) => a.created_at.localeCompare(b.created_at));
 
     // Best-effort — kegagalan menandai terbaca tidak boleh menggagalkan
-    // pemain melihat isi percakapannya sendiri.
-    void client
-      .from('direct_messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('recipient_id', profileId)
-      .eq('sender_id', otherProfileId)
-      .is('read_at', null)
-      .then(({ error }) => {
+    // pemain melihat isi percakapannya sendiri. Dibungkus try/catch di
+    // dalam IIFE async (bukan cuma `.then()`) — builder Supabase adalah
+    // `PromiseLike`, bukan `Promise` penuh, jadi tidak bisa langsung
+    // di-`.catch()` — dan tanpa penanganan reject sama sekali, satu
+    // gangguan jaringan sesaat ke Supabase di sini jadi unhandled
+    // rejection yang mematikan seluruh proses Node (default sejak Node 15)
+    // untuk semua pemain yang sedang online.
+    void (async () => {
+      try {
+        const { error } = await client
+          .from('direct_messages')
+          .update({ read_at: new Date().toISOString() })
+          .eq('recipient_id', profileId)
+          .eq('sender_id', otherProfileId)
+          .is('read_at', null);
         if (error) console.error('listConversation: gagal menandai terbaca:', error.message);
-      });
+      } catch (err) {
+        console.error('listConversation: gagal menandai terbaca:', err);
+      }
+    })();
 
     return rows.map(toChatMessage);
   } catch (err) {

@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { normalizeWord } from './embeddings.ts';
 
-const ASSOCIATION_LINE = /^\+\s*([a-z]+)\s*:\s*(.+)$/i;
+// Grup kata sebelum titik dua mengizinkan strip (`-`) — beberapa kata
+// target adalah kata majemuk berhubung strip (mis. "lumba-lumba",
+// "kupu-kupu"); tanpa `-` di sini, baris `+` untuk kata-kata itu gagal
+// cocok dan diam-diam diabaikan (lihat `loadAssociations`).
+const ASSOCIATION_LINE = /^\+\s*([a-z-]+)\s*:\s*(.+)$/i;
 const WEIGHTED_TOKEN = /^([a-z]+)([1-3])$/i;
 
 /**

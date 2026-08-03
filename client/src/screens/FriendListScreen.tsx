@@ -2,15 +2,13 @@ import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react
 import type { RoomInviteSummary, UserSummary } from '@shared/types.ts';
 import { api, ApiFailure } from '../lib/api.ts';
 import { getFriends, refreshFriends, subscribeFriends } from '../lib/friends.ts';
+import { FALLBACK_AVATAR } from '../lib/avatar.ts';
 import { loadProfile } from '../lib/profile.ts';
 import { navigate } from '../lib/router.ts';
 import { Avatar } from '../components/Avatar.tsx';
 import { ChatModal } from '../components/ChatModal.tsx';
 import { PresenceBadge } from '../components/PresenceBadge.tsx';
 import { MessageIcon, useToast } from '../components/ui.tsx';
-
-/** Placeholder avatar netral untuk baris tanpa data avatar (mis. profil lama). */
-const FALLBACK_AVATAR = { seed: 'pemain', backgroundColor: '2A2A2E' };
 
 const EMPTY = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
 
@@ -54,6 +52,8 @@ export function FriendListScreen() {
   const dismissInvite = async (id: string) => {
     try {
       await api.dismissInvite(id);
+    } catch {
+      toast.show('Gagal mengabaikan undangan.', 'error');
     } finally {
       refreshFriends();
     }
@@ -154,7 +154,7 @@ export function FriendListScreen() {
 
       <Section title="Daftar teman">
         {payload.friends.length === 0 ? (
-          <p className="empty">Belum ada teman. Cari lewat username di atas.</p>
+          <p className="empty">Belum ada teman. Coba cari lewat username di atas.</p>
         ) : (
           <ul className="players">
             {payload.friends.map((friend) => (
@@ -248,7 +248,7 @@ function AddFriendCard({
     setBusyId(user.profileId);
     try {
       await api.sendFriendRequest(user.profileId, loadProfile().avatar);
-      toast.show(`Permintaan terkirim ke @${user.username}.`);
+      toast.show(`Permintaan udah terkirim ke @${user.username}.`);
       setResults((current) => current.filter((u) => u.profileId !== user.profileId));
       onSent();
     } catch (err) {

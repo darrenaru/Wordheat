@@ -2,15 +2,14 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type {
   AccountLinkResult,
   FriendRequestSummary,
-  FriendsPayload,
   PlayerProfile,
   Presence,
   RoomInviteSummary,
 } from '@shared/types.ts';
 import { api } from './lib/api.ts';
 import { registerCoinFxOrigin } from './lib/coinFx.ts';
-import { getFriends, refreshFriends, subscribeFriends } from './lib/friends.ts';
-import { applyInventory } from './lib/inventory.ts';
+import { EMPTY_FRIENDS_PAYLOAD, getFriends, refreshFriends, subscribeFriends } from './lib/friends.ts';
+import { refreshInventory } from './lib/inventory.ts';
 import { applyPresenceUpdate } from './lib/presence.ts';
 import { hasChosenSignInMethod, loadProfile, resetProfile, saveProfile } from './lib/profile.ts';
 import { navigate, useRoute } from './lib/router.ts';
@@ -22,7 +21,7 @@ import {
   toggleSoundtrack,
 } from './lib/soundtrack.ts';
 import { getAuthSession, isAuthAvailable, signOut, subscribeAuth } from './lib/supabase.ts';
-import { applyBalance, getBalance, subscribeWallet } from './lib/wallet.ts';
+import { getBalance, refreshWallet, subscribeWallet } from './lib/wallet.ts';
 import { AccountLinkConflictModal } from './components/AccountLinkConflictModal.tsx';
 import { Avatar } from './components/Avatar.tsx';
 import { AuthModal } from './components/AuthModal.tsx';
@@ -38,15 +37,13 @@ import { RoomScreen } from './screens/RoomScreen.tsx';
 import { ShopScreen } from './screens/ShopScreen.tsx';
 import { SoloScreen } from './screens/SoloScreen.tsx';
 
-const EMPTY_FRIENDS: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
-
 export function App() {
   const route = useRoute();
   const [profile, setProfile] = useState<PlayerProfile>(loadProfile);
   const [showProfile, setShowProfile] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const balance = useSyncExternalStore(subscribeWallet, getBalance, () => 0);
-  const friendsPayload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS);
+  const friendsPayload = useSyncExternalStore(subscribeFriends, getFriends, () => EMPTY_FRIENDS_PAYLOAD);
   const pendingFriendCount =
     friendsPayload.incoming.length + friendsPayload.invites.length + friendsPayload.unreadMessages;
   const coinChipRef = useRef<HTMLButtonElement>(null);
@@ -140,19 +137,25 @@ export function App() {
   );
   const [linkBusy, setLinkBusy] = useState(false);
 
-  /** Terapkan hasil link yang TIDAK berkonflik — sama seperti sebelumnya:
-   *  cuma menyegarkan wallet/inventory/friends kalau `profileId` benar-benar
-   *  berganti (device ini baru saja "menjadi" profil kanonik akun itu). */
+  /** Terapkan hasil link yang TIDAK berkonflik. Nama/avatar kanonik akun
+   *  SELALU diterapkan ulang di sini — walau `profileId` device ini sudah
+   *  sama dengan punya akun itu — supaya perubahan yang disimpan dari
+   *  device lain (mis. ganti avatar di HP) ikut kelihatan begitu device ini
+   *  login ulang/dibuka lagi, bukan cuma sekali saat pertama kali tertaut.
+   *  wallet/inventory/friends tetap cuma disegarkan kalau `profileId`
+   *  benar-benar berganti (device ini baru saja "menjadi" profil kanonik
+   *  akun itu) — fetch itu tidak perlu diulang kalau id-nya sama. */
   const applyLinkedProfile = (linked: Extract<AccountLinkResult, { conflict: false }>) => {
-    if (linked.profileId === profile.id) return;
+    const idChanged = linked.profileId !== profile.id;
     updateProfile({
       ...profile,
       id: linked.profileId,
       name: linked.displayName ?? profile.name,
       avatar: linked.avatar ?? profile.avatar,
     });
-    void api.wallet().then(applyBalance).catch(() => {});
-    void api.inventory().then(applyInventory).catch(() => {});
+    if (!idChanged) return;
+    refreshWallet();
+    refreshInventory();
     refreshFriends();
   };
 
@@ -239,8 +242,8 @@ export function App() {
     }
 
     setProfile(resetProfile());
-    void api.wallet().then(applyBalance).catch(() => {});
-    void api.inventory().then(applyInventory).catch(() => {});
+    refreshWallet();
+    refreshInventory();
     refreshFriends();
     setShowProfile(false);
     setShowWelcome(true);

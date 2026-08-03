@@ -74,6 +74,16 @@ export async function getStats(profileId: string): Promise<PlayerStats | null> {
  * sedang login (bukan syarat) — dan `displayName`/`avatar` disegarkan tiap
  * kali diberikan, supaya leaderboard menampilkan nama/avatar terbaru.
  *
+ * Increment (total_games/total_wins/xp/dst) dilakukan ATOMIC di database
+ * lewat RPC `record_game_result` (satu statement `INSERT ... ON CONFLICT
+ * DO UPDATE` yang membaca nilai lama dan menulis nilai baru dalam operasi
+ * yang sama) — BUKAN fetch-lalu-upsert di sini. Pemain bisa punya sesi solo
+ * di satu tab dan ruang aktif di tab lain sekaligus, jadi dua pemanggilan
+ * fungsi ini untuk `profileId` yang sama bisa betul-betul bersamaan; fetch-
+ * lalu-upsert di kode aplikasi akan membuat salah satu hasilnya (XP/menang/
+ * streak) hilang diam-diam kalau keduanya membaca nilai lama yang sama
+ * sebelum salah satunya sempat menulis.
+ *
  * Selalu "best effort" — kegagalan di sini tidak boleh mengganggu jalannya
  * permainan, jadi semua error ditelan dan cuma dicatat ke log.
  */
@@ -86,63 +96,28 @@ export async function recordGameResult(
   if (!client) return;
 
   try {
-    const { data: existing } = await client
-      .from('player_stats')
-      .select('*')
-      .eq('profile_id', profileId)
-      .maybeSingle();
-
-    const row: StatsRow = (existing as StatsRow | null) ?? {
-      profile_id: profileId,
-      user_id: null,
-      display_name: null,
-      avatar: null,
-      total_games: 0,
-      total_wins: 0,
-      total_guesses: 0,
-      best_guess_count: null,
-      current_streak: 0,
-      longest_streak: 0,
-      last_played_date: null,
-      xp: 0,
-    };
-
     const today = currentPuzzleDate();
     const yesterday = currentPuzzleDate(new Date(Date.now() - 24 * 3600_000));
 
-    let currentStreak = row.current_streak;
-    if (row.last_played_date === today) {
-      // Sudah tercatat main hari ini — streak tidak berubah lagi.
-    } else if (row.last_played_date === yesterday) {
-      currentStreak += 1;
-    } else {
-      currentStreak = 1;
-    }
-
-    const bestGuessCount =
-      outcome.won && (row.best_guess_count === null || outcome.guessCount < row.best_guess_count)
-        ? outcome.guessCount
-        : row.best_guess_count;
-
-    const { error } = await client.from('player_stats').upsert({
-      profile_id: profileId,
-      user_id: meta?.userId ?? row.user_id,
-      display_name: meta?.displayName ?? row.display_name,
-      avatar: meta?.avatar ?? row.avatar,
-      total_games: row.total_games + 1,
-      total_wins: row.total_wins + (outcome.won ? 1 : 0),
-      total_guesses: row.total_guesses + outcome.guessCount,
-      best_guess_count: bestGuessCount,
-      current_streak: currentStreak,
-      longest_streak: Math.max(row.longest_streak, currentStreak),
-      last_played_date: today,
-      xp: row.xp + (outcome.xpEarned ?? 0),
-      updated_at: new Date().toISOString(),
+    const { error } = await client.rpc('record_game_result', {
+      p_profile_id: profileId,
+      p_user_id: meta?.userId ?? null,
+      p_display_name: meta?.displayName ?? null,
+      p_avatar: meta?.avatar ?? null,
+      p_won: outcome.won,
+      p_guess_count: outcome.guessCount,
+      p_xp_earned: outcome.xpEarned ?? 0,
+      p_today: today,
+      p_yesterday: yesterday,
     });
-    if (error) console.error('recordGameResult: gagal upsert statistik:', error.message);
-    // Baris ini baru pertama kali dibuat (main pertama kali) — pastikan
-    // langsung punya username, jangan dibiarkan `null` selamanya.
-    else if (!existing) await ensureUsername(profileId);
+    if (error) {
+      console.error('recordGameResult: gagal mencatat statistik:', error.message);
+      return;
+    }
+    // Best-effort, no-op kalau username sudah ada — lihat `ensureUsername`.
+    // Dipanggil tanpa syarat (bukan cuma saat baris baru) karena RPC di atas
+    // tidak melaporkan balik apakah barisnya baru dibuat atau sudah ada.
+    await ensureUsername(profileId);
   } catch (err) {
     console.error('recordGameResult: gagal mencatat statistik:', err);
   }

@@ -21,6 +21,11 @@ export function getServiceClient(): SupabaseClient | null {
     return client;
   }
 
-  client = createClient(url, key, { auth: { persistSession: false } });
+  try {
+    client = createClient(url, key, { auth: { persistSession: false } });
+  } catch (err) {
+    console.error('getServiceClient: gagal membuat client Supabase:', err);
+    client = null;
+  }
   return client;
 }

@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import type { Temperature } from '@shared/types.ts';
 
 /** Keluarga suhu — menentukan "rasa" partikel yang dipakai. */
-export type HeatFamily = 'cold' | 'warm' | 'correct';
+type HeatFamily = 'cold' | 'warm' | 'correct';
 
 export function heatFamily(temperature: Temperature): HeatFamily {
   if (temperature === 'correct') return 'correct';

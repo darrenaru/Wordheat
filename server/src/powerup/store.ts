@@ -22,33 +22,40 @@ export async function getInventory(profileId: string): Promise<PowerupInventory>
   }
 }
 
+export type BuyPowerupResult =
+  | { ok: true; balance: number; count: number }
+  | { ok: false; balance?: number };
+
 /**
- * Dipanggil setelah pembelian di Shop sukses memotong saldo. Best-effort
- * seperti `creditWallet` — kegagalan menambah stok tidak boleh terjadi
- * diam-diam tanpa saldo ikut kembali, jadi pemanggil (`POST /api/shop/buy`)
- * tetap melaporkan hasilnya ke pemain lewat log server kalau ini gagal.
+ * Satu-satunya cara membeli powerup — memotong saldo DAN menambah stok
+ * dalam satu RPC atomic (`buy_powerup`), bukan dua panggilan terpisah
+ * (`spendWallet` lalu `addPowerup`). Dua panggilan terpisah punya celah:
+ * kalau yang kedua gagal (network blip, dsb) setelah yang pertama sukses,
+ * pemain kehilangan coin tanpa dapat item, dan tidak ada mekanisme refund.
  */
-export async function addPowerup(
+export async function buyPowerup(
   profileId: string,
   powerup: keyof PowerupInventory,
-  qty = 1,
-): Promise<number> {
+  cost: number,
+): Promise<BuyPowerupResult> {
   const client = getServiceClient();
-  if (!client) return 0;
+  if (!client) return { ok: false };
   try {
-    const { data, error } = await client.rpc('add_powerup', {
+    const { data, error } = await client.rpc('buy_powerup', {
       p_profile_id: profileId,
       p_powerup: powerup,
-      p_qty: qty,
+      p_cost: cost,
     });
     if (error) {
-      console.error('addPowerup: gagal menambah stok:', error.message);
-      return 0;
+      console.error('buyPowerup: gagal membeli powerup:', error.message);
+      return { ok: false };
     }
-    return data as number;
+    const result = data as { ok: boolean; balance: number; count?: number };
+    if (!result.ok) return { ok: false, balance: result.balance };
+    return { ok: true, balance: result.balance, count: result.count ?? 0 };
   } catch (err) {
-    console.error('addPowerup: gagal menambah stok:', err);
-    return 0;
+    console.error('buyPowerup: gagal membeli powerup:', err);
+    return { ok: false };
   }
 }
 

@@ -106,6 +106,50 @@
   flex: none;
 }
 
+/* ---------------------------------------------------------- letter reveal */
+
+/* Bocoran huruf pertama (`LetterRevealBanner.tsx`) — kotak per huruf, sama
+   seperti ubin kata pada game tebak kata pada umumnya, supaya posisi huruf
+   yang terbuka dan panjang kata tetap kelihatan selama pemain menebak
+   (bukan cuma teks sekali lewat). Ditaruh tepat di atas `.guesses`. */
+.letter-reveal {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.letter-reveal__label {
+  font-size: 13px;
+  color: var(--text-dim);
+  flex: none;
+}
+
+.letter-reveal__tiles {
+  display: flex;
+  gap: 4px;
+}
+
+.letter-reveal__tile {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.letter-reveal__tile--empty {
+  background: transparent;
+  border-style: dashed;
+}
+
 /* -------------------------------------------------------------- riwayat */
 
 .guesses {

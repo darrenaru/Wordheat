@@ -133,3 +133,18 @@ export function isKnownEmojiSlug(slug: string): boolean {
 export function emojiIconUrl(slug: string): string {
   return `/emojis/emoji-${slug}.svg`;
 }
+
+/**
+ * Grammar token `:slug:` dipakai chat — satu sumber untuk `chatGrouping.ts`
+ * (deteksi pesan-emoji-murni) dan `chatText.tsx` (render inline), supaya
+ * keduanya tidak diam-diam menyimpang kalau formatnya berubah.
+ *
+ * Fungsi (bukan konstanta regex langsung) supaya tiap pemanggil dapat
+ * instance `RegExp` sendiri — regex ber-flag `g` menyimpan posisi terakhir
+ * (`lastIndex`) di objeknya sendiri, jadi satu instance yang dibagi dua
+ * tempat berisiko saling mengganggu urutan pencarian kalau salah satu
+ * pemakaiannya berubah pola di masa depan (mis. loop manual `exec`).
+ */
+export function emojiTokenPattern(): RegExp {
+  return /:([a-z0-9-]+):/g;
+}

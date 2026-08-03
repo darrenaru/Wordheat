@@ -7,9 +7,25 @@
 import type { FriendsPayload } from '@shared/types.ts';
 import { api } from './api.ts';
 
-const EMPTY: FriendsPayload = { friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: 0 };
+/** Fallback dipakai `useSyncExternalStore` di komponen mana pun yang
+ *  bergantung pada store ini — diekspor dari sini (bukan ditulis ulang di
+ *  tiap pemanggil) supaya cuma ada satu bentuk "kosong" yang dikenal. */
+export const EMPTY_FRIENDS_PAYLOAD: FriendsPayload = {
+  friends: [],
+  incoming: [],
+  outgoing: [],
+  invites: [],
+  unreadMessages: 0,
+};
+
+const EMPTY = EMPTY_FRIENDS_PAYLOAD;
 
 let payload: FriendsPayload = EMPTY;
+/** Mencegah refresh yang tumpang tindih saling menimpa dengan urutan
+ *  terbalik — `refreshFriends()` dipanggil dari banyak tempat sekaligus
+ *  (listener SSE, `FriendListScreen`), jadi lebih dari satu `load()` bisa
+ *  berjalan bersamaan; cuma hasil dari panggilan TERAKHIR yang dipakai. */
+let version = 0;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -17,9 +33,11 @@ function emit(): void {
 }
 
 function load(): void {
+  const requestVersion = ++version;
   void api
     .friends()
     .then((next) => {
+      if (requestVersion !== version) return;
       payload = next;
       emit();
     })

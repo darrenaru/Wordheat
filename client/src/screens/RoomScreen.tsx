@@ -20,6 +20,7 @@ import { InviteFriendsModal } from '../components/InviteFriendsModal.tsx';
 import { GuessInput } from '../components/GuessInput.tsx';
 import { GuessList } from '../components/GuessList.tsx';
 import { HeatMeter } from '../components/HeatMeter.tsx';
+import { LetterRevealBanner } from '../components/LetterRevealBanner.tsx';
 import { PlayerList } from '../components/PlayerList.tsx';
 import { PlayerProfileModal } from '../components/PlayerProfileModal.tsx';
 import {
@@ -62,12 +63,17 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
   const [fatal, setFatal] = useState<string | null>(null);
   /** Naik tiap tebakan ditolak — memicu getaran pada kolom input. */
   const [rejections, setRejections] = useState(0);
+  /** Tebakan lewat WebSocket bersifat fire-and-forget (beda dari solo yang
+   *  menunggu respons HTTP) — tanpa ini, tombol "Tebak" tidak pernah
+   *  ter-disable selagi menunggu `guessResult`, jadi pemain bisa mengirim
+   *  beberapa tebakan beruntun tanpa sadar sebelum UI sempat ter-update. */
+  const [guessBusy, setGuessBusy] = useState(false);
   /** Pemain yang kartu profilnya sedang dibuka lewat daftar Pemain. */
   const [viewingPlayer, setViewingPlayer] = useState<PlayerPublicState | null>(null);
   /** Status "Bocoran Huruf" bersifat privat (tidak ada di `PlayerPublicState`),
-   *  jadi dilacak lokal di sini — direset tiap ronde baru. */
-  const [letterRevealed, setLetterRevealed] = useState(false);
-  const pendingLetterReveal = useRef(false);
+   *  jadi dilacak lokal di sini lewat pesan WS `letterReveal` — direset tiap
+   *  ronde baru, dikirim ulang server saat menyambung ulang di tengah ronde. */
+  const [revealedLetter, setRevealedLetter] = useState<{ letter: string; wordLength: number } | null>(null);
   const socketRef = useRef<RoomSocket | null>(null);
   const toast = useToast();
   const inventory = useSyncExternalStore(subscribeInventory, getInventory, () => ({
@@ -108,12 +114,16 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
           case 'guessResult':
             setGuesses(message.guesses);
             setLatest(message.guess);
+            setGuessBusy(false);
             break;
           case 'inventory':
             applyInventory(message.inventory);
             break;
           case 'wallet':
             applyBalance(message.balance);
+            break;
+          case 'letterReveal':
+            setRevealedLetter({ letter: message.letter, wordLength: message.wordLength });
             break;
           case 'notice':
             // Error sebelum berhasil masuk (kode salah, ruang penuh, ronde
@@ -123,10 +133,9 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
               setFatal(message.message);
               socket.close();
             } else {
-              if (message.level === 'error') setRejections((count) => count + 1);
-              if (pendingLetterReveal.current) {
-                pendingLetterReveal.current = false;
-                if (message.level !== 'error') setLetterRevealed(true);
+              if (message.level === 'error') {
+                setRejections((count) => count + 1);
+                setGuessBusy(false);
               }
               toast.show(message.message, message.level);
             }
@@ -144,10 +153,16 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
       socket.close();
       socketRef.current = null;
     };
-    // `profile` sengaja tidak jadi dependensi: mengganti avatar di tengah ronde
-    // tidak boleh memutus dan menyambung ulang koneksi ruang.
+    // `profile` (objeknya) sengaja TIDAK jadi dependensi: mengganti avatar/
+    // nama di tengah ronde tidak boleh memutus dan menyambung ulang koneksi
+    // ruang. Tapi `profile.id` KHUSUS harus, karena bisa berganti di tengah
+    // sesi lewat login/link akun Google (`applyLinkedProfile` di App.tsx) —
+    // tanpa reconnect, server tetap mengenali pemain lewat id LAMA yang
+    // dikirim saat `hello`, jadi `room.players.find(p => p.id === profile.id)`
+    // di bawah gagal menemukan diri sendiri dan status host/highlight
+    // tebakan sendiri jadi salah tanpa error apa pun yang terlihat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code]);
+  }, [code, profile.id]);
 
   // Ronde baru harus mengosongkan riwayat lokal, kalau tidak tebakan ronde
   // sebelumnya ikut terbawa ke papan yang baru.
@@ -156,7 +171,7 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
     if (room?.status === 'playing') {
       setGuesses([]);
       setLatest(null);
-      setLetterRevealed(false);
+      setRevealedLetter(null);
     }
   }, [round]);
 
@@ -167,13 +182,13 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
     [room?.players],
   );
 
-  const send = (message: Parameters<RoomSocket['send']>[0]) => socketRef.current?.send(message);
+  const send = (message: Parameters<RoomSocket['send']>[0]) => {
+    const sent = socketRef.current?.send(message) ?? false;
+    if (!sent) toast.show('Belum tersambung ke ruang, coba lagi sebentar.', 'error');
+  };
 
   const useNearestGuess = () => send({ type: 'powerupNearestGuess' });
-  const useLetterReveal = () => {
-    pendingLetterReveal.current = true;
-    send({ type: 'powerupLetterReveal' });
-  };
+  const useLetterReveal = () => send({ type: 'powerupLetterReveal' });
 
   const you = room?.players.find((p) => p.id === profile.id) ?? null;
   const isHost = you?.isHost ?? false;
@@ -235,14 +250,22 @@ export function RoomScreen({ code, profile }: RoomScreenProps) {
           latest={latest}
           fx={fx}
           rejections={rejections}
+          busy={guessBusy}
           finished={Boolean(you?.solved || you?.gaveUp)}
           inventory={inventory}
-          letterRevealed={letterRevealed}
-          onGuess={(word) => send({ type: 'guess', word })}
+          letterRevealed={revealedLetter !== null}
+          onGuess={(word) => {
+            setGuessBusy(true);
+            send({ type: 'guess', word });
+          }}
           onGiveUp={() => send({ type: 'giveUp' })}
           onUseNearestGuess={useNearestGuess}
           onUseLetterReveal={useLetterReveal}
         />
+      )}
+
+      {room.status === 'playing' && revealedLetter && (
+        <LetterRevealBanner letter={revealedLetter.letter} wordLength={revealedLetter.wordLength} />
       )}
 
       {room.status === 'playing' && room.guesses.length > 0 && (
@@ -317,7 +340,7 @@ function Lobby({
       await navigator.clipboard.writeText(text);
       toast.show(message);
     } catch {
-      toast.show('Tidak bisa menyalin. Salin manual dari layar.', 'error');
+      toast.show('Tidak bisa menyalin otomatis. Coba salin manual dari layar.', 'error');
     }
   };
 
@@ -325,7 +348,7 @@ function Lobby({
     const text = `Ayo main Wordheat bareng. Kode ruang: ${room.code}\n${inviteUrl}`;
     try {
       if (navigator.share) await navigator.share({ text });
-      else await copy(text, 'Undangan disalin ke papan klip.');
+      else await copy(text, 'Undangan udah disalin ke clipboard.');
     } catch {
       /* dialog berbagi dibatalkan */
     }
@@ -341,7 +364,7 @@ function Lobby({
           </div>
           <button
             className="btn btn--ghost btn--icon"
-            onClick={() => copy(room.code, 'Kode ruang disalin.')}
+            onClick={() => copy(room.code, 'Kode ruang udah disalin.')}
             aria-label="Salin kode ruang"
           >
             <CopyIcon />
@@ -359,7 +382,7 @@ function Lobby({
         </button>
 
         <p className="caption" style={{ textAlign: 'center' }}>
-          Teman yang membuka tautan ini langsung masuk ke ruangmu.
+          Teman yang buka tautan ini langsung masuk ke ruangmu.
         </p>
       </div>
 
@@ -377,7 +400,7 @@ function Lobby({
         <div className="setting">
           <span className="setting__text">
             <span>Batas waktu</span>
-            <span className="caption">Ronde berhenti otomatis saat waktu habis</span>
+            <span className="caption">Ronde otomatis berhenti kalau waktu habis</span>
           </span>
           <Segmented
             disabled={!isHost}
@@ -416,7 +439,7 @@ function Lobby({
           Mulai ronde {room.round + 1}
         </button>
       ) : (
-        <p className="empty">Menunggu host memulai ronde...</p>
+        <p className="empty">Menunggu host mulai ronde...</p>
       )}
     </div>
   );
@@ -474,6 +497,7 @@ function Playing({
   latest,
   fx,
   rejections,
+  busy,
   finished,
   inventory,
   letterRevealed,
@@ -487,6 +511,7 @@ function Playing({
   latest: Guess | null;
   fx: GuessFx | null;
   rejections: number;
+  busy: boolean;
   finished: boolean;
   inventory: PowerupInventory;
   letterRevealed: boolean;
@@ -522,11 +547,11 @@ function Playing({
 
       {finished ? (
         <p className="empty">
-          Kamu sudah selesai. Tunggu pemain lain — kata rahasianya dibuka setelah ronde berakhir.
+          Kamu sudah selesai. Tinggal tunggu pemain lain — kata rahasianya dibuka saat ronde berakhir.
         </p>
       ) : (
         <>
-          <GuessInput onSubmit={onGuess} errorSignal={rejections} />
+          <GuessInput onSubmit={onGuess} busy={busy} errorSignal={rejections} />
           <div className="row">
             <button
               className="btn btn--ghost btn--sm"
@@ -544,7 +569,7 @@ function Playing({
               disabled={letterRevealed || inventory.letterReveal < 1}
               title={
                 letterRevealed
-                  ? 'Sudah dipakai di ronde ini'
+                  ? 'Udah dipakai di ronde ini'
                   : inventory.letterReveal < 1
                     ? 'Beli di Shop'
                     : `${inventory.letterReveal} tersisa`
@@ -625,7 +650,7 @@ function RoundResult({
 
         <p className="small muted">
           {winner
-            ? `${winner.name} menemukannya lebih dulu dalam ${winner.guessCount} tebakan.`
+            ? `${winner.name} menemukannya duluan dalam ${winner.guessCount} tebakan.`
             : 'Tidak ada yang menemukan kata ini. Ronde berikutnya, ya.'}
         </p>
 

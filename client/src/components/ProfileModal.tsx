@@ -22,6 +22,13 @@ interface ProfileModalProps {
   onClose(): void;
 }
 
+/** Referensi stabil (bukan `() => {}` inline di JSX) — `Modal` memasang
+ *  ulang listener Escape tiap kali `onClose` berganti identitas
+ *  (`useEffect(..., [onClose])` di `ui.tsx`), jadi fungsi baru tiap render
+ *  selama `AvatarStudio` terbuka berarti attach/detach berulang-ulang
+ *  tanpa perlu. */
+const NOOP = () => {};
+
 /**
  * Pusat pengaturan akun. Ubah avatar sengaja tidak ditaruh di sini sebagai
  * field biasa — pemilihan bagian wajah butuh ruang sendiri (lihat
@@ -89,7 +96,7 @@ export function ProfileModal({ profile, onSave, onClose }: ProfileModalProps) {
         // ikut menutup, bukan cuma AvatarStudio-nya) karena keduanya tetap
         // sama-sama terpasang di `window` selama keduanya dirender bersamaan
         // (lihat komentar di bawah kenapa modal ini tidak lagi di-unmount).
-        onClose={showAvatarStudio ? () => {} : onClose}
+        onClose={showAvatarStudio ? NOOP : onClose}
         footer={
           dirty ? (
             <div className="row" style={{ gap: 8 }}>
@@ -259,10 +266,10 @@ function AccountField() {
         </div>
       ) : (
         <>
-          <p className="caption">Kamu main sebagai Guest.</p>
+          <p className="caption">Kamu lagi main sebagai Guest.</p>
           <button className="btn btn--secondary btn--block" onClick={login} disabled={busy}>
             <GoogleIcon />
-            {busy ? 'Membuka Google...' : 'Login dengan Google'}
+            {busy ? 'Buka Google...' : 'Login dengan Google'}
           </button>
         </>
       )}
@@ -273,7 +280,7 @@ function AccountField() {
 
 function cooldownMessage(changeableAt: string): string {
   const days = Math.max(1, Math.ceil((new Date(changeableAt).getTime() - Date.now()) / 86_400_000));
-  return `Username cuma bisa diganti tiap 7 hari sekali. Coba lagi dalam ${days} hari.`;
+  return `Username cuma bisa diganti tiap 7 hari sekali. Coba lagi ${days} hari lagi, ya.`;
 }
 
 /**
@@ -501,7 +508,7 @@ function BioField({ displayName, avatar }: { displayName: string; avatar: Player
           onClick={() => setEditing(true)}
           aria-label="Ubah bio"
         >
-          <span className="bio-field__text">{saved || 'No bio'}</span>
+          <span className="bio-field__text">{saved || 'Belum ada bio'}</span>
           <span className="bio-field__icon" aria-hidden="true">
             <EditIcon />
           </span>

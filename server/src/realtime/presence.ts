@@ -12,7 +12,7 @@ import { broadcastAll, isOnline } from './events.ts';
  */
 const playing = new Map<string, Set<string>>();
 
-export function isPlaying(profileId: string): boolean {
+function isPlaying(profileId: string): boolean {
   return (playing.get(profileId)?.size ?? 0) > 0;
 }
 

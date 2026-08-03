@@ -21,6 +21,11 @@ const CLIENT_DIST = resolve(ROOT, 'dist/client');
 const engine = getEngine();
 
 const app = express();
+// Railway (dan platform serupa) menaruh server ini di belakang reverse
+// proxy — tanpa ini, `req.ip` selalu alamat proxy itu sendiri, bukan IP
+// pemain sungguhan, dan rate limiting per-IP (lihat `http/api.ts`) jadi
+// memperlakukan SEMUA pemain sebagai satu IP yang sama.
+if (config.isProduction) app.set('trust proxy', 1);
 app.use(express.json({ limit: '16kb' }));
 app.use('/api', createApiRouter());
 

@@ -42,27 +42,3 @@ export async function creditWallet(profileId: string, amount: number): Promise<n
     return undefined;
   }
 }
-
-/**
- * Beda dari `creditWallet`: ini mengontrol akses ke efek gameplay nyata
- * (powerup), jadi fail-closed — Supabase tidak terkonfigurasi atau saldo
- * kurang sama-sama berarti "tidak boleh", bukan diam-diam diloloskan.
- */
-export async function spendWallet(profileId: string, amount: number): Promise<boolean> {
-  const client = getServiceClient();
-  if (!client) return false;
-  try {
-    const { data, error } = await client.rpc('spend_wallet', {
-      p_profile_id: profileId,
-      p_amount: amount,
-    });
-    if (error) {
-      console.error('spendWallet: gagal memotong saldo:', error.message);
-      return false;
-    }
-    return Boolean(data);
-  } catch (err) {
-    console.error('spendWallet: gagal memotong saldo:', err);
-    return false;
-  }
-}

@@ -12,7 +12,7 @@ import type {
   SoloSessionState,
   UserSummary,
 } from '@shared/types.ts';
-import { loadProfile } from './profile.ts';
+import { getDeviceSecret, loadProfile } from './profile.ts';
 import { getAuthToken } from './supabase.ts';
 
 export class ApiFailure extends Error {
@@ -34,13 +34,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: {
       'content-type': 'application/json',
       'x-player-id': profile.id,
+      'x-player-secret': getDeviceSecret(),
       'x-player-name': encodeURIComponent(profile.name),
       ...(token ? { authorization: `Bearer ${token}` } : {}),
     },
     ...init,
   });
   const body = await response.json().catch(() => null);
-  if (!response.ok || body?.ok === false) {
+  // `body === null` juga menutup kasus respons 200 yang isinya bukan JSON
+  // valid (mis. gangguan proxy/CDN) — tanpa ini, `null as T` lolos ke
+  // pemanggil yang langsung mengakses propertinya (`r.balance`, `r.state`,
+  // dst.), jadi `TypeError` yang membingungkan alih-alih pesan error jelas.
+  if (!response.ok || body === null || body.ok === false) {
     throw new ApiFailure(
       body ?? { ok: false, code: 'invalid', message: 'Server tidak merespons dengan benar.' },
     );
@@ -192,7 +197,8 @@ export const api = {
     ),
 
   soloPowerupLetter: (id: string) =>
-    request<{ letter: string; inventory: PowerupInventory }>(`/solo/${id}/powerup/letter`, {
-      method: 'POST',
-    }),
+    request<{ letter: string; wordLength: number; inventory: PowerupInventory }>(
+      `/solo/${id}/powerup/letter`,
+      { method: 'POST' },
+    ),
 };

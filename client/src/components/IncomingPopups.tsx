@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
 import type { FriendRequestSummary, RoomInviteSummary } from '@shared/types.ts';
 import { api } from '../lib/api.ts';
+import { FALLBACK_AVATAR } from '../lib/avatar.ts';
 import { refreshFriends } from '../lib/friends.ts';
 import { navigate } from '../lib/router.ts';
 import { Avatar } from './Avatar.tsx';
-import { CheckIcon, CloseIcon, PlayIcon, UserPlusIcon } from './ui.tsx';
-
-const FALLBACK_AVATAR = { seed: 'pemain', backgroundColor: '2A2A2E' };
+import { CheckIcon, CloseIcon, PlayIcon, UserPlusIcon, useToast } from './ui.tsx';
 
 /** Berapa lama popup dibiarkan sebelum hilang sendiri kalau tidak
  *  disentuh — permintaan/undangannya sendiri TETAP ada (masih kelihatan
@@ -63,11 +62,14 @@ function useAutoDismiss(onDismiss: () => void): void {
 
 function FriendRequestPopup({ request, onDismiss }: { request: FriendRequestSummary; onDismiss(): void }) {
   useAutoDismiss(onDismiss);
+  const toast = useToast();
 
   const respond = async (accept: boolean) => {
     onDismiss();
     try {
       await api.respondFriendRequest(request.id, accept);
+    } catch {
+      toast.show('Gagal merespons permintaan.', 'error');
     } finally {
       refreshFriends();
     }
@@ -103,6 +105,7 @@ function FriendRequestPopup({ request, onDismiss }: { request: FriendRequestSumm
 
 function RoomInvitePopup({ invite, onDismiss }: { invite: RoomInviteSummary; onDismiss(): void }) {
   useAutoDismiss(onDismiss);
+  const toast = useToast();
 
   const join = () => {
     onDismiss();
@@ -114,6 +117,8 @@ function RoomInvitePopup({ invite, onDismiss }: { invite: RoomInviteSummary; onD
     onDismiss();
     try {
       await api.dismissInvite(invite.id);
+    } catch {
+      toast.show('Gagal mengabaikan undangan.', 'error');
     } finally {
       refreshFriends();
     }

@@ -46,11 +46,14 @@ export interface RankInfo {
   nextLabel: string | null;
 }
 
-export function rankForWins(totalWins: number): RankInfo {
-  const rankIndex = Math.min(
-    Math.floor(Math.max(0, totalWins) / WINS_PER_STEP),
-    TOTAL_STEPS - 1,
-  );
+export function rankForWins(totalWinsRaw: number): RankInfo {
+  // Data bisa datang dari respons server yang belum tentu terjamin bentuknya
+  // di runtime (lihat `api.ts`) — tanpa penjagaan ini, `NaN`/`Infinity`
+  // membuat `RANK_TIERS[tierIndex]` jadi `undefined` dan merusak render
+  // seluruh komponen yang memanggil fungsi ini (`RankBadge`, `ProfileModal`,
+  // `LeaderboardScreen`, `ViewProfileModal`).
+  const totalWins = Number.isFinite(totalWinsRaw) ? Math.max(0, totalWinsRaw) : 0;
+  const rankIndex = Math.min(Math.floor(totalWins / WINS_PER_STEP), TOTAL_STEPS - 1);
   const tierIndex = Math.floor(rankIndex / SUB_LEVELS);
   const subLevel = (rankIndex % SUB_LEVELS) + 1;
   const tier = RANK_TIERS[tierIndex];

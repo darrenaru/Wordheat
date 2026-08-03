@@ -48,7 +48,7 @@ export function AuthModal({ onClose, onSignedIn }: AuthModalProps) {
         return;
       }
       if (mode === 'signup') {
-        setInfo('Akun dibuat. Cek email untuk konfirmasi, lalu masuk.');
+        setInfo('Akun sudah dibuat. Cek email untuk konfirmasi, lalu masuk.');
         setMode('signin');
         return;
       }
@@ -62,7 +62,7 @@ export function AuthModal({ onClose, onSignedIn }: AuthModalProps) {
     <Modal title={mode === 'signin' ? 'Masuk' : 'Buat akun'} onClose={onClose}>
       <form className="auth-form" onSubmit={submit}>
         <p className="caption">
-          Login opsional — cuma dipakai untuk menyimpan statistik pribadimu lintas perangkat.
+          Login itu opsional — cuma dipakai untuk menyimpan statistik pribadimu lintas perangkat.
         </p>
 
         <button
@@ -72,7 +72,7 @@ export function AuthModal({ onClose, onSignedIn }: AuthModalProps) {
           disabled={googleBusy || busy}
         >
           <GoogleIcon />
-          {googleBusy ? 'Membuka Google...' : 'Lanjutkan dengan Google'}
+          {googleBusy ? 'Buka Google...' : 'Lanjutkan dengan Google'}
         </button>
 
         <div className="auth-divider">

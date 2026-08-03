@@ -102,15 +102,27 @@ function waitForGesture(): void {
   for (const type of EVENTS) window.addEventListener(type, go, { once: true, passive: true });
 }
 
+/** Mencegah `start()` bertumpuk — toggle on/off/on cepat bisa memanggilnya
+ *  lagi sebelum percobaan sebelumnya selesai. */
+let starting = false;
+
 async function start(): Promise<void> {
-  if (unavailable) return;
+  if (unavailable || starting) return;
+  starting = true;
   const el = element();
   try {
     await el.play();
     fadeTo(VOLUME);
-  } catch {
-    // Hampir selalu kebijakan autoplay, bukan berkas rusak.
+  } catch (err) {
+    // `el.pause()` yang dipanggil sementara `play()` masih pending (mis.
+    // toggle off yang menyusul cepat, lihat `toggleSoundtrack`) membuat
+    // `play()` reject dengan `AbortError` — itu BUKAN kebijakan autoplay,
+    // jadi jangan tunggu gestur lagi untuk kasus ini.
+    if (err instanceof DOMException && err.name === 'AbortError') return;
+    // Selain itu hampir selalu kebijakan autoplay, bukan berkas rusak.
     waitForGesture();
+  } finally {
+    starting = false;
   }
 }
 

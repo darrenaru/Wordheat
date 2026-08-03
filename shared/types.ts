@@ -65,6 +65,13 @@ export function compareGuesses(a: Guess, b: Guess): number {
   return a.order - b.order;
 }
 
+/** Kata-kata yang sudah pernah ditebak, dipakai berulang untuk menyaring
+ *  petunjuk/tetangga terdekat yang belum ditebak (lihat `game/solo.ts`,
+ *  `game/rooms.ts`). */
+export function guessedWords(guesses: Guess[]): Set<string> {
+  return new Set(guesses.map((g) => g.word));
+}
+
 export type GameMode = 'practice' | 'daily' | 'race';
 
 export interface PlayerProfile {
@@ -109,8 +116,14 @@ export interface SoloSessionState {
   finishedAt: number | null;
   /** Untuk mode daily: tanggal WIB dalam format YYYY-MM-DD. */
   puzzleDate?: string;
-  /** Powerup "Bocoran Huruf" cuma bisa dibeli sekali per ronde. */
-  letterRevealed: boolean;
+  /** Huruf pertama kata rahasia dari powerup "Bocoran Huruf" — `null`
+   *  kalau belum dipakai di sesi ini (powerup cuma bisa sekali per sesi). */
+  revealedLetter: string | null;
+  /** Panjang kata rahasia — cuma terisi begitu `revealedLetter` terisi
+   *  (atau `secret` sendiri sudah terisi), supaya klien bisa menampilkan
+   *  "M____" (huruf terbuka + placeholder sisa huruf) tanpa membocorkan
+   *  hurufnya sendiri lebih awal. */
+  secretLength: number | null;
 }
 
 export interface GuessResponse {
@@ -138,6 +151,9 @@ export interface ApiError {
 /* ------------------------------------------------------------------ */
 /* Mode multiplayer (race) — lewat WebSocket                            */
 /* ------------------------------------------------------------------ */
+
+/** Panjang tetap kode ruang (lihat `server/src/game/rooms.ts`, `generateCode`). */
+export const ROOM_CODE_LENGTH = 5;
 
 export type RoomStatus = 'lobby' | 'starting' | 'playing' | 'finished';
 
@@ -369,6 +385,12 @@ export type ClientMessage =
       /** Access token Supabase — opsional, cuma diisi kalau pemain login.
        *  Server verifikasi sekali saat join untuk mencatat statistik pribadi. */
       authToken?: string;
+      /** Secret device — bukti kepemilikan `profile.id` (lihat
+       *  `server/src/http/identity.ts`). Guest tanpa `authToken` WAJIB
+       *  mengisi ini supaya pemain lain tidak bisa mengklaim/mengambil-alih
+       *  kursinya di room hanya dengan tahu `profile.id`-nya (yang memang
+       *  tidak rahasia, tampil apa adanya di leaderboard/profil publik). */
+      secret?: string;
     }
   | { type: 'start' }
   | { type: 'guess'; word: string }
@@ -390,4 +412,9 @@ export type ServerMessage
   | { type: 'wallet'; balance: number }
   /** Stok powerup terbaru pemain itu sendiri, setelah dipakai di ronde. */
   | { type: 'inventory'; inventory: PowerupInventory }
+  /** Hasil powerup "Bocoran Huruf" — cuma dikirim ke pemain yang memakainya
+   *  (atau yang menyambung ulang setelah memakainya di ronde berjalan),
+   *  tidak pernah disiarkan ke pemain lain. `wordLength` dipakai klien
+   *  menampilkan "M____" (huruf terbuka + placeholder sisa huruf). */
+  | { type: 'letterReveal'; letter: string; wordLength: number }
   | { type: 'pong' };

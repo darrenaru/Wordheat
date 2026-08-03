@@ -1,5 +1,5 @@
 import type { ChatMessage } from '@shared/types.ts';
-import { isKnownEmojiSlug } from './emojis.ts';
+import { emojiTokenPattern, isKnownEmojiSlug } from './emojis.ts';
 
 /** Jeda maksimum antar pesan berturutan dari pengirim yang sama supaya
  *  masih dianggap satu "kumpulan" (avatar+waktu cuma tampil sekali). */
@@ -81,15 +81,13 @@ export function groupChatMessages(messages: ChatMessage[], myId: string): ChatIt
   return items;
 }
 
-const EMOJI_TOKEN = /:([a-z0-9-]+):/g;
-
 /** Pesan yang isinya MURNI satu/lebih token emoji dikenal (tanpa teks
  *  lain) ditampilkan lebih besar tanpa latar bubble — pola lazim di
  *  aplikasi chat modern untuk reaksi emoji tunggal. */
 export function isEmojiOnlyMessage(body: string): boolean {
   const trimmed = body.trim();
   if (!trimmed) return false;
-  const stripped = trimmed.replace(EMOJI_TOKEN, (full, slug: string) =>
+  const stripped = trimmed.replace(emojiTokenPattern(), (full, slug: string) =>
     isKnownEmojiSlug(slug) ? '' : full,
   );
   return stripped.trim().length === 0;

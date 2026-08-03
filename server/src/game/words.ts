@@ -38,7 +38,7 @@ export function dailyWord(date: string = currentPuzzleDate()): string {
   // ditampilkan, melainkan bagian dari fungsi hash — mengubahnya akan
   // memetakan ulang setiap tanggal ke kata yang berbeda, termasuk hari ini.
   const rng = mulberry32(hashSeed(`panas-dingin:${date}`));
-  return engine.targets[Math.floor(rng() * engine.targets.length)];
+  return engine.randomTarget(rng);
 }
 
 export function randomWord(): string {

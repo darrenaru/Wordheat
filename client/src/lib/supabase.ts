@@ -25,10 +25,13 @@ function emit(): void {
   for (const listener of listeners) listener();
 }
 
-client?.auth.getSession().then(({ data }) => {
-  session = data.session;
-  emit();
-});
+client?.auth
+  .getSession()
+  .then(({ data }) => {
+    session = data.session;
+    emit();
+  })
+  .catch(() => {});
 
 client?.auth.onAuthStateChange((_event, next) => {
   session = next;
