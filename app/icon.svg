@@ -1,0 +1,9 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Latar gelap dipasang tetap: ikon tab dilukis di atas krom browser yang
+       warnanya tidak bisa kita ketahui, dan tanda merah muda tipis ini hilang
+       di atas latar terang. -->
+  <rect width="64" height="64" rx="14" fill="#150710"/>
+  <g transform="translate(6.5 14.6) scale(0.01096)">
+    <path d="M2242.01 433.251L1504.01 704.251L1.51001 2807.75L2002.01 1877.25L2388.51 3383.75L3760.01 1346.25H3381.01L3874.01 1149.25L4649.01 0.750977L3904.51 161.251L2477.51 1981.75V955.751L1411.01 1660.75L2242.01 433.251Z" fill="#FF319F"/>
+  </g>
+</svg>

@@ -1,0 +1,545 @@
+{
+  "vocabSize": 56734,
+  "puzzles": [
+    {
+      "id": 1,
+      "date": "2026-08-15",
+      "word": "aktif",
+      "wordIndex": 634,
+      "neighbours": [
+        "aktip",
+        "pasif",
+        "terlibat",
+        "berpartisipasi",
+        "seaktif",
+        "teraktif",
+        "berperan",
+        "aktivitas",
+        "beraktivitas",
+        "bergiat"
+      ]
+    },
+    {
+      "id": 2,
+      "date": "2026-08-16",
+      "word": "luas",
+      "wordIndex": 349,
+      "neighbours": [
+        "luasan",
+        "meluas",
+        "sempit",
+        "cakupan",
+        "keluasan",
+        "terbatas",
+        "seluas",
+        "jangkauan",
+        "tersebar",
+        "lingkup"
+      ]
+    },
+    {
+      "id": 3,
+      "date": "2026-08-17",
+      "word": "cetak",
+      "wordIndex": 2741,
+      "neighbours": [
+        "cetakan",
+        "cetak-mencetak",
+        "percetakan",
+        "dicetak",
+        "tercetak",
+        "pencetakan",
+        "sablon",
+        "media",
+        "mencetak",
+        "elektronik"
+      ]
+    },
+    {
+      "id": 4,
+      "date": "2026-08-18",
+      "word": "durasi",
+      "wordIndex": 2885,
+      "neighbours": [
+        "berdurasi",
+        "waktu",
+        "intensitas",
+        "keberangkatan",
+        "jangka",
+        "rentang",
+        "menit",
+        "panjang",
+        "memperlama",
+        "kurun"
+      ]
+    },
+    {
+      "id": 5,
+      "date": "2026-08-19",
+      "word": "leher",
+      "wordIndex": 2299,
+      "neighbours": [
+        "tengkuk",
+        "setangan",
+        "bahu",
+        "pundak",
+        "pergelangan",
+        "lengan",
+        "dada",
+        "punggung",
+        "kepala",
+        "pinggang"
+      ]
+    },
+    {
+      "id": 6,
+      "date": "2026-08-20",
+      "word": "misi",
+      "wordIndex": 1544,
+      "neighbours": [
+        "visi",
+        "misioner",
+        "mengemban",
+        "tugas",
+        "tujuan",
+        "penjangkauan",
+        "perutusan",
+        "diemban",
+        "misiologi",
+        "menjalankan"
+      ]
+    },
+    {
+      "id": 7,
+      "date": "2026-08-21",
+      "word": "halaman",
+      "wordIndex": 530,
+      "neighbours": [
+        "berhalaman",
+        "web",
+        "artikel",
+        "kampung",
+        "situs",
+        "beranda",
+        "laman",
+        "pojok",
+        "judul",
+        "teks"
+      ]
+    },
+    {
+      "id": 8,
+      "date": "2026-08-22",
+      "word": "akurat",
+      "wordIndex": 2547,
+      "neighbours": [
+        "akurasi",
+        "terakurat",
+        "tepat",
+        "seakurat",
+        "keakuratan",
+        "valid",
+        "informasi",
+        "komprehensif",
+        "lengkap",
+        "cepat"
+      ]
+    },
+    {
+      "id": 9,
+      "date": "2026-08-23",
+      "word": "konsumsi",
+      "wordIndex": 1448,
+      "neighbours": [
+        "mengkonsumsi",
+        "mengonsumsi",
+        "dikonsumsi",
+        "pengonsumsian",
+        "pengonsumsi",
+        "asupan",
+        "makanan",
+        "dikonsumsikan",
+        "pengeluaran",
+        "produksi"
+      ]
+    },
+    {
+      "id": 10,
+      "date": "2026-08-24",
+      "word": "tutup",
+      "wordIndex": 2878,
+      "neighbours": [
+        "buka",
+        "ditutup",
+        "menutup",
+        "tutupi",
+        "dibuka",
+        "tertutup",
+        "penutup",
+        "membuka",
+        "ditutupkan",
+        "bertutup"
+      ]
+    },
+    {
+      "id": 11,
+      "date": "2026-08-25",
+      "word": "daya",
+      "wordIndex": 423,
+      "neighbours": [
+        "sumberdaya",
+        "sumber",
+        "tarik",
+        "dayakan",
+        "kekuatan",
+        "kemampuan",
+        "pikat",
+        "tahan",
+        "potensi",
+        "saing"
+      ]
+    },
+    {
+      "id": 12,
+      "date": "2026-08-26",
+      "word": "tabung",
+      "wordIndex": 2857,
+      "neighbours": [
+        "pipa",
+        "tube",
+        "tabungan",
+        "mikropipet",
+        "pitot",
+        "elpiji",
+        "katoda",
+        "magnetron",
+        "botol",
+        "paralon"
+      ]
+    },
+    {
+      "id": 13,
+      "date": "2026-08-27",
+      "word": "gaya",
+      "wordIndex": 573,
+      "neighbours": [
+        "bergaya",
+        "pola",
+        "elektromotif",
+        "hidup",
+        "grafitasi",
+        "resultan",
+        "berbusana",
+        "dipola",
+        "gerak",
+        "gravitas"
+      ]
+    },
+    {
+      "id": 14,
+      "date": "2026-08-28",
+      "word": "kreatif",
+      "wordIndex": 2177,
+      "neighbours": [
+        "kreativitas",
+        "inovatif",
+        "kreatifitas",
+        "kreativ",
+        "berkreativitas",
+        "kreasi",
+        "terkreatif",
+        "berkreasi",
+        "imajinatif",
+        "cerdas"
+      ]
+    },
+    {
+      "id": 15,
+      "date": "2026-08-29",
+      "word": "foto",
+      "wordIndex": 486,
+      "neighbours": [
+        "poto",
+        "gambar",
+        "jepretan",
+        "photo",
+        "dijepret",
+        "difoto",
+        "memotret",
+        "pemotretan",
+        "swafoto",
+        "potret"
+      ]
+    },
+    {
+      "id": 16,
+      "date": "2026-08-30",
+      "word": "lupa",
+      "wordIndex": 934,
+      "neighbours": [
+        "terlupa",
+        "lupa-lupa",
+        "ingat",
+        "melupa",
+        "lupakan",
+        "ingatkan",
+        "kelupaan",
+        "jangan",
+        "lalai",
+        "melupakan"
+      ]
+    },
+    {
+      "id": 17,
+      "date": "2026-08-31",
+      "word": "browser",
+      "wordIndex": 2688,
+      "neighbours": [
+        "peramban",
+        "perambanan",
+        "web",
+        "html",
+        "situs",
+        "aplikasi",
+        "komputer",
+        "internet",
+        "destop",
+        "tab"
+      ]
+    },
+    {
+      "id": 18,
+      "date": "2026-09-01",
+      "word": "janin",
+      "wordIndex": 2798,
+      "neighbours": [
+        "kehamilan",
+        "fetus",
+        "bayi",
+        "plasenta",
+        "rahim",
+        "embrio",
+        "hamil",
+        "diaborsi",
+        "jabang",
+        "ketuban"
+      ]
+    },
+    {
+      "id": 19,
+      "date": "2026-09-02",
+      "word": "bunga",
+      "wordIndex": 697,
+      "neighbours": [
+        "bungan",
+        "sebuket",
+        "mawar",
+        "krisan",
+        "setangkai",
+        "bebungaan",
+        "bugenvil",
+        "sekuntum",
+        "berbunga",
+        "anggrek"
+      ]
+    },
+    {
+      "id": 20,
+      "date": "2026-09-03",
+      "word": "korupsi",
+      "wordIndex": 2138,
+      "neighbours": [
+        "koruptif",
+        "koruptor",
+        "dikorupsi",
+        "suap",
+        "mengkorupsi",
+        "korup",
+        "kolusi",
+        "penyelewengan",
+        "pungli",
+        "mengorupsi"
+      ]
+    },
+    {
+      "id": 21,
+      "date": "2026-09-04",
+      "word": "asing",
+      "wordIndex": 837,
+      "neighbours": [
+        "lokal",
+        "valuta",
+        "familiar",
+        "berbahasa",
+        "domestik",
+        "bahasa",
+        "indonesia",
+        "mancanegara",
+        "turis",
+        "internasional"
+      ]
+    },
+    {
+      "id": 22,
+      "date": "2026-09-05",
+      "word": "sabar",
+      "wordIndex": 2270,
+      "neighbours": [
+        "bersabar",
+        "sabaran",
+        "sesabar",
+        "kesabaran",
+        "penyabar",
+        "tekun",
+        "telaten",
+        "menyabarkan",
+        "tabah",
+        "menunggu"
+      ]
+    },
+    {
+      "id": 23,
+      "date": "2026-09-06",
+      "word": "kondisi",
+      "wordIndex": 336,
+      "neighbours": [
+        "keadaan",
+        "situasi",
+        "cuaca",
+        "lingkungan",
+        "suasana",
+        "iklim",
+        "berkondisi",
+        "perkembangan",
+        "memperburuk",
+        "saat"
+      ]
+    },
+    {
+      "id": 24,
+      "date": "2026-09-07",
+      "word": "muda",
+      "wordIndex": 435,
+      "neighbours": [
+        "belia",
+        "tua",
+        "remaja",
+        "pemuda",
+        "berusia",
+        "usia",
+        "dewasa",
+        "berumur",
+        "mudi",
+        "berbakat"
+      ]
+    },
+    {
+      "id": 25,
+      "date": "2026-09-08",
+      "word": "naskah",
+      "wordIndex": 1809,
+      "neighbours": [
+        "manuskrip",
+        "teks",
+        "pernaskahan",
+        "tulisan",
+        "skrip",
+        "penulisan",
+        "drama",
+        "dokumen",
+        "salinan",
+        "buku"
+      ]
+    },
+    {
+      "id": 26,
+      "date": "2026-09-09",
+      "word": "nafas",
+      "wordIndex": 2817,
+      "neighbours": [
+        "napas",
+        "helaan",
+        "pernafasan",
+        "bernafas",
+        "pernapasan",
+        "hembuskan",
+        "hembus",
+        "tersengal-sengal",
+        "hela",
+        "mengembuskan"
+      ]
+    },
+    {
+      "id": 27,
+      "date": "2026-09-10",
+      "word": "hidung",
+      "wordIndex": 2894,
+      "neighbours": [
+        "berhidung",
+        "pesek",
+        "idung",
+        "mulut",
+        "telinga",
+        "pipi",
+        "memancungkan",
+        "bangir",
+        "meler",
+        "dahi"
+      ]
+    },
+    {
+      "id": 28,
+      "date": "2026-09-11",
+      "word": "pasal",
+      "wordIndex": 1524,
+      "neighbours": [
+        "ayat",
+        "undang-undang",
+        "juncto",
+        "undangundang",
+        "ketentuan",
+        "kuhp",
+        "bebel",
+        "uud",
+        "kuhd",
+        "mukadimah"
+      ]
+    },
+    {
+      "id": 29,
+      "date": "2026-09-12",
+      "word": "halus",
+      "wordIndex": 1459,
+      "neighbours": [
+        "kasar",
+        "lembut",
+        "sehalus",
+        "lebut",
+        "terhalus",
+        "kehalusan",
+        "kasap",
+        "berbutir",
+        "berbulu",
+        "penghalus"
+      ]
+    },
+    {
+      "id": 30,
+      "date": "2026-09-13",
+      "word": "makan",
+      "wordIndex": 277,
+      "neighbours": [
+        "makanan",
+        "menyantap",
+        "minum",
+        "sarapan",
+        "makan-makanan",
+        "makan-makan",
+        "siang",
+        "memasakkan",
+        "hidangan",
+        "hidang"
+      ]
+    }
+  ]
+}

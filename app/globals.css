@@ -1,0 +1,547 @@
+@import "tailwindcss";
+
+/* Token warna diambil dari DESIGN.md. Tema gelap memakai hitam netral
+   (bukan maroon) sebagai dasarnya, mengikuti palet proyek Wordheat
+   sebelumnya -- tintanya tetap krem hangat, jadi tidak terbaca sebagai
+   dark mode generik. */
+@theme {
+  --color-night: #0b0b0d;
+  --color-coal: #1f1f23;
+  --color-cream: #f3efda;
+  --color-plum: #3b142a;
+  --color-ember: #ffc48a;
+  --color-flare: #ff319f;
+  --color-gold: #f0b429;
+  --color-silver: #c7ccd1;
+  --color-bronze: #cd7f32;
+
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, monospace;
+
+  --radius-pill: 900px;
+}
+
+/* Tema gelap adalah bawaan. Peran warna dipetakan lewat variabel agar komponen
+   tidak perlu tahu tema mana yang sedang aktif. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: var(--color-night);
+  --fg: var(--color-cream);
+  --track: var(--color-coal);
+  --line: #2c2c31;
+  --muted: #a9a49b;
+  --card: #161618;
+  --field: #1f1f23;
+  --btn-bg: var(--color-cream);
+  --btn-fg: var(--color-night);
+  --glow-strength: 0.5;
+
+  /* Aksen kartu, dipakai untuk ikon dan panah. */
+  --accent-warm: var(--color-ember);
+  --accent-hot: var(--color-flare);
+  --accent-gold: var(--color-gold);
+  /* Medali papan peringkat, posisi 2 dan 3. */
+  --accent-silver: var(--color-silver);
+  --accent-bronze: var(--color-bronze);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f3efda;
+  --fg: var(--color-plum);
+  /* Lintasan kosong memakai token surface yang dilembutkan ke arah kertas,
+     supaya bar yang belum terisi tetap terbaca sebagai wadah, bukan isian. */
+  --track: color-mix(in oklab, var(--color-ember) 42%, #f3efda);
+  --line: rgb(59 20 42 / 0.18);
+  --muted: rgb(59 20 42 / 0.72);
+  --card: #f3efda;
+  --field: #f3efda;
+  --btn-bg: var(--color-plum);
+  --btn-fg: #f3efda;
+  --glow-strength: 0.45;
+
+  /* Oranye bara nyaris hilang di atas kertas krem. Anggur diambil dari ramp
+     suhu yang sama, jadi aksennya tetap satu keluarga sekaligus terbaca. */
+  --accent-warm: #7a1a4a;
+  --accent-hot: var(--color-flare);
+  /* Emas cerah nyaris hilang di atas kertas krem seperti bara; diredupkan ke
+     arah plum dengan teknik yang sama seperti --track supaya tetap terbaca
+     sekaligus tetap terasa "emas". */
+  --accent-gold: color-mix(in oklab, var(--color-gold) 55%, var(--color-plum));
+  /* Perak nyaris putih dan nyaris hilang di kertas krem seperti emas; perunggu
+     sudah cukup gelap sehingga diredupkan lebih sedikit. */
+  --accent-silver: color-mix(in oklab, var(--color-silver) 45%, var(--color-plum));
+  --accent-bronze: color-mix(in oklab, var(--color-bronze) 65%, var(--color-plum));
+}
+
+:root {
+  /* Disetel ulang oleh papan permainan mengikuti tebakan terbaik pemain.
+     Keduanya dihitung sekaligus; CSS yang memilih sesuai tema, sehingga
+     berganti tema tidak perlu menunggu React menghitung ulang warna. */
+  --heat-now-dark: rgb(59 20 42);
+  --heat-now-light: rgb(59 20 42);
+  --heat-now: var(--heat-now-dark);
+  --heat-glow: 0;
+}
+
+:root[data-theme="light"] {
+  --heat-now: var(--heat-now-light);
+}
+
+html {
+  background: var(--bg);
+}
+
+/* Body sengaja dibiarkan tembus pandang. Latar body dilukis setelah anak
+   ber-z-index negatif, sehingga memberinya warna akan menutupi lapisan
+   pendar. Warna dasarnya sudah dipegang html. */
+body {
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------- suasana --
+
+   Kabut warna yang melayang sangat pelan, ditambah bintik yang naik terus-
+   menerus di belakang seluruh isi halaman -- diadaptasi dari proyek Wordheat
+   sebelumnya, yang cuma punya satu tema (gelap). Tema terang di sini memakai
+   koreografi yang sama tapi warnanya disesuaikan sendiri: bintik krem tidak
+   akan terlihat di atas kertas terang, dan kabutnya perlu sedikit lebih
+   pekat supaya tetap kebaca di atas latar yang jauh lebih terang. Duduk di
+   belakang .heat-field supaya denyut yang membawa arti (dekat-tidaknya
+   tebakan) tetap jadi lapisan cahaya paling depan. */
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.ambient__blob {
+  position: absolute;
+  width: 52vmax;
+  height: 52vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--blob) 0%, transparent 68%);
+  opacity: 0.1;
+  will-change: transform;
+}
+
+:root[data-theme="light"] .ambient__blob {
+  opacity: 0.16;
+}
+
+.ambient__blob--a {
+  --blob: #4c8df6;
+  top: -18vmax;
+  left: -14vmax;
+  animation: ambient-blob-a 54s linear infinite;
+}
+
+.ambient__blob--b {
+  --blob: #ff8f4d;
+  bottom: -22vmax;
+  right: -16vmax;
+  animation: ambient-blob-b 67s linear infinite;
+}
+
+.ambient__blob--c {
+  --blob: var(--color-flare);
+  top: 26%;
+  left: 32%;
+  animation: ambient-blob-c 43s linear infinite;
+}
+
+@keyframes ambient-blob-a {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  33% {
+    transform: translate3d(14vmax, 9vmax, 0);
+  }
+  66% {
+    transform: translate3d(5vmax, 18vmax, 0);
+  }
+}
+
+@keyframes ambient-blob-b {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-17vmax, -11vmax, 0);
+  }
+}
+
+@keyframes ambient-blob-c {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40% {
+    transform: translate3d(-12vmax, 7vmax, 0);
+  }
+  75% {
+    transform: translate3d(9vmax, -6vmax, 0);
+  }
+}
+
+/* Bintik yang naik terus-menerus. Jeda mulainya negatif, jadi saat halaman
+   dibuka mereka sudah tersebar di tengah jalan -- bukan serentak dari bawah. */
+.ambient__mote {
+  position: absolute;
+  bottom: -8px;
+  left: var(--x);
+  width: var(--sz);
+  height: var(--sz);
+  border-radius: 50%;
+  background: var(--color-cream);
+  --mote-peak: 0.4;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation: ambient-mote-rise var(--life) linear var(--delay) infinite;
+}
+
+/* Tinta krem tenggelam di kertas krem; tema terang memakai tinta plum yang
+   sama dengan teks, dengan puncak opacity lebih rendah supaya tetap terasa
+   sebagai suasana, bukan noda kotor di atas kertas. */
+:root[data-theme="light"] .ambient__mote {
+  background: var(--color-plum);
+  --mote-peak: 0.22;
+}
+
+@keyframes ambient-mote-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  12% {
+    opacity: var(--mote-peak);
+  }
+  80% {
+    opacity: var(--mote-peak);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), -102vh, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambient {
+    display: none;
+  }
+}
+
+/* ---------------------------------------------------------------- pendar --
+
+   Elemen tanda tangan: halaman ikut memanas mengikuti tebakan terdekat. Di
+   tema gelap efeknya paling terasa, karena cahaya memang begitu -- ia butuh
+   kegelapan untuk terlihat. */
+
+.heat-field {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--heat-glow);
+  transition: opacity 900ms ease;
+}
+
+.heat-field::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 76%;
+  background: radial-gradient(
+    100% 100% at 50% 0%,
+    color-mix(in oklab, var(--heat-now) calc(var(--glow-strength) * 100%), transparent) 0%,
+    transparent 70%
+  );
+  transform-origin: 50% 0%;
+  /* Denyut lambat lewat transform, bukan opacity, supaya tidak bertabrakan
+     dengan transisi opacity di elemen induknya saat suhu berubah. */
+  animation: breathe 7.5s ease-in-out infinite;
+  transition: background 900ms ease;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.14);
+  }
+}
+
+/* Kilatan sekali jalan saat pemain menemukan jawabannya. */
+.heat-field[data-flare="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    90% 60% at 50% 0%,
+    color-mix(in oklab, var(--color-ember) 70%, transparent),
+    transparent 68%
+  );
+  animation: ignite 1400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes ignite {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+/* ------------------------------------------------------------- tipografi -- */
+
+/* Nama produk: hanya "heat" yang membawa gradien, sebagai satu-satunya tempat
+   skala suhu menyentuh tipografi. */
+.wordmark-heat {
+  background: linear-gradient(96deg, var(--color-flare) 8%, var(--color-ember) 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+:root[data-theme="light"] .wordmark-heat {
+  /* Oranye muda hilang di atas kertas krem, jadi gradien tema terang berhenti
+     di magenta. */
+  background: linear-gradient(96deg, #7a1a4a 0%, var(--color-flare) 78%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* -------------------------------------------------------- baris tebakan -- */
+
+/* Didaftarkan sebagai properti bertipe agar bisa dianimasikan. Satu nilai ini
+   menggerakkan lebar isian sekaligus batas potong lapisan teks kontras,
+   sehingga keduanya mustahil keluar dari sinkron. */
+@property --fill {
+  syntax: "<percentage>";
+  inherits: true;
+  initial-value: 0%;
+}
+
+.guess-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--track);
+  isolation: isolate;
+
+  /* Warna panas dihitung untuk kedua tema sekaligus di sisi React; di sini
+     tinggal dipilih mana yang dipakai. React menulis --heat-dark / --heat-light
+     sebagai style inline, jadi pemilihannya harus lewat nama variabel lain --
+     style inline selalu mengalahkan aturan stylesheet. */
+  --heat: var(--heat-dark);
+  --on-heat: var(--on-heat-dark);
+  --halo: var(--halo-dark);
+  --ring: 0 0 0 0 transparent;
+
+  /* Cincin dan pendar digabung dalam satu deklarasi supaya keduanya tidak
+     saling menimpa lewat perang spesifisitas. */
+  box-shadow: var(--ring), 0 0 var(--halo) calc(var(--halo) / -3) var(--heat);
+  transition: box-shadow 500ms ease;
+}
+
+:root[data-theme="light"] .guess-row {
+  --heat: var(--heat-light);
+  --on-heat: var(--on-heat-light);
+  /* Di atas kertas terang, cahaya yang meluber terbaca sebagai kotor, bukan
+     panas. */
+  --halo: 0px;
+}
+
+/* Isian bar sekaligus latar baris: satu elemen, bukan bar terpisah di dalam
+   kotak, supaya barisnya benar-benar terbaca sebagai alat ukur. */
+.guess-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: var(--fill);
+  background: var(--heat);
+}
+
+@keyframes sweep {
+  from {
+    --fill: 0%;
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* Hanya tebakan baru yang beranimasi. Saat halaman dimuat ulang, seluruh
+   riwayat langsung tampil utuh alih-alih menyapu serempak. */
+.guess-row[data-fresh="true"] {
+  animation:
+    sweep 620ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    settle 260ms ease-out both;
+}
+
+.guess-row[data-solved="true"] {
+  --ring: 0 0 0 2px var(--color-ember);
+  --halo: 34px;
+}
+
+/* Cincin bara nyaris hilang di atas kertas krem, jadi tema terang memakai
+   maroon yang justru paling tegas di sana. */
+:root[data-theme="light"] .guess-row[data-solved="true"] {
+  --ring: 0 0 0 2px var(--color-plum);
+}
+
+/* Momen kemenangan: cincin bara memuai keluar sekali, dan intinya berkedip
+   putih-panas. Ini satu-satunya tempat animasi dibiarkan mencolok.
+   Tanpa fill-mode, box-shadow kembali ke cincin tetap begitu animasi usai. */
+.guess-row[data-flare="true"] {
+  animation:
+    sweep 620ms cubic-bezier(0.22, 1, 0.36, 1) both,
+    flare-ring 1100ms cubic-bezier(0.16, 1, 0.3, 1) 120ms,
+    flare-core 900ms ease-out 120ms;
+}
+
+@keyframes flare-ring {
+  from {
+    box-shadow:
+      0 0 0 0 var(--color-ember),
+      0 0 34px -4px var(--color-flare);
+  }
+  to {
+    box-shadow:
+      0 0 0 22px transparent,
+      0 0 34px -4px var(--color-flare);
+  }
+}
+
+@keyframes flare-core {
+  0% {
+    filter: brightness(1);
+  }
+  22% {
+    filter: brightness(1.75) saturate(1.15);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+.row-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+/* Teks digambar dua kali di posisi yang sama persis: satu untuk bagian di atas
+   lintasan kosong, satu lagi dengan warna yang kontrasnya paling tinggi
+   terhadap isian. Potongannya jatuh tepat di tepi isian, jadi kontrasnya benar
+   pada setiap tingkat suhu. */
+.row-line-lit {
+  position: absolute;
+  inset: 0;
+  color: var(--on-heat);
+  clip-path: inset(0 calc(100% - var(--fill)) 0 0);
+}
+
+/* ------------------------------------------------------- masuk halaman -- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.rise {
+  animation: rise 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--step, 0) * 90ms);
+}
+
+/* --------------------------------------------------------------- dasar -- */
+
+/* Batang gulir bawaan sistem tampil sebagai potongan abu-abu terang yang
+   memotong permukaan gelap. Ditata ulang memakai token tema supaya ikut
+   berganti bersama tampilan lainnya. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--fg) 26%, transparent) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  /* Latar dipotong ke kotak isi supaya jempolnya tampak lebih ramping dari
+     lebar jalurnya, dengan jarak yang sama di kedua sisi. */
+  background: color-mix(in oklab, var(--fg) 22%, transparent);
+  background-clip: content-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--fg) 38%, transparent);
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Bilah tab digulir mendatar, dan batang gulirnya menutupi label tab paling
+   kiri. Isinya tetap bisa digulir dengan sentuh, roda, maupun keyboard. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+:where(a, button, input):focus-visible {
+  outline: 2px solid var(--color-flare);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heat-field::before,
+  .heat-field[data-flare="true"]::after,
+  .guess-row,
+  .guess-row[data-fresh="true"],
+  .guess-row[data-flare="true"],
+  .rise {
+    animation: none;
+    transition: none;
+  }
+}

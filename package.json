@@ -1,0 +1,28 @@
+{
+  "name": "wordheat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Game tebak kata berbasis kedekatan makna dalam Bahasa Indonesia",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@dicebear/adventurer": "^9.4.3",
+    "@dicebear/core": "^9.4.3",
+    "next": "^16.3.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "server-only": "^0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.7.0"
+  }
+}

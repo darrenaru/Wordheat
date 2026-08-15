@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Basis data akun: milik tiap pemasangan, bukan bagian dari kode
+data/wordheat.db
+data/wordheat.db-shm
+data/wordheat.db-wal
+
+# Artefak pipeline: besar dan bisa dibangkitkan ulang dengan
+# `python pipeline/build_vectors.py`
+pipeline/data/raw/
+pipeline/data/vectors.npy
+pipeline/data/*.log
+__pycache__/
+.venv/
+
+.env*.local
+.DS_Store
