@@ -144,14 +144,18 @@ function ColorRow({
   value,
   onPick,
   label,
+  compact,
 }: {
   colors: readonly string[];
   value?: string;
   onPick: (color: string) => void;
   label: string;
+  /** Dipakai di kolom preview mobile, yang ruangnya sempit -- swatch
+      diperkecil di sana dan kembali ke ukuran biasa mulai md. */
+  compact?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={`flex flex-wrap ${compact ? "gap-1 md:gap-2" : "gap-2"}`}>
       {colors.map((color) => (
         <button
           key={color}
@@ -163,7 +167,7 @@ function ColorRow({
           /* Penanda terpilih digambar ke dalam, bukan membesarkan petaknya:
              kolom ini bisa digulir, dan apa pun yang keluar dari kotaknya --
              termasuk hasil scale -- akan terpotong di tepi paling kiri. */
-          className={`size-8 rounded-full border-2 transition-colors ${
+          className={`rounded-full border-2 transition-colors ${compact ? "size-5 md:size-8" : "size-8"} ${
             value === color
               ? "border-[var(--fg)] ring-2 ring-inset ring-[var(--card)]"
               : "border-[var(--line)] hover:border-[var(--fg)]/55"
@@ -287,65 +291,78 @@ export default function AvatarStudio({
               atas kolom ini sudah diam sendiri (hanya kategori yang
               menggulir), jadi sticky-nya dilepas lagi supaya tidak
               mengganggu tata letak dua kolom yang sudah benar. */}
-          <aside className="sticky top-0 z-10 flex shrink-0 flex-col gap-3 border-b border-[var(--line)] bg-[var(--card)] pb-5 md:static md:w-[16.5rem] md:border-b-0 md:border-r md:pb-0 md:pr-6">
-            {/* Pratinjau ditaruh di tengah dan diberi jarak vertikal supaya
-                pendar cincinnya punya ruang; ukurannya dibatasi tinggi layar
-                agar sisa isi kolom tetap muat tanpa perlu digulir. */}
-            <div className="flex justify-center py-3">
+          {/* Susunannya baris di mobile (preview kecil + warna + aksi
+              berdampingan) supaya sticky header ini seringkas mungkin --
+              makin sedikit tingginya, makin banyak baris petak pilihan yang
+              kelihatan tanpa digulir. Di md kembali ke susunan kolom lama:
+              preview besar di tengah, label warna terlihat, tombol penuh
+              teks. */}
+          <aside className="sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b border-[var(--line)] bg-[var(--card)] py-3 md:static md:flex-col md:items-stretch md:gap-3 md:border-b-0 md:border-r md:py-0 md:pr-6 md:w-[16.5rem]">
+            <div className="flex shrink-0 justify-center md:py-3">
               <span className="rounded-full p-1 shadow-[0_0_0_2px_var(--color-flare),0_0_20px_-4px_var(--color-flare)]">
                 <img
                   src={avatarSrc({ seed: draft.seed, bg: draft.bg, ...draft.choices }, 400)}
                   alt=""
                   width={200}
                   height={200}
-                  /* Kolom ini tidak menggulir, jadi pratinjau hanya boleh
-                     sebesar sisa ruang setelah bagian tetap di bawahnya
-                     (~270px: dua baris warna, tombol acak, dan Kembalikan).
-                     Persentase layar saja tidak cukup -- bagian tetap itu
-                     tidak ikut mengecil saat jendela dipendekkan. Di layar
-                     normal 11rem yang menang, jadi ukurannya tidak berubah. */
-                  className="block size-[9rem] rounded-full md:size-[min(11rem,calc(70vh_-_270px))]"
+                  /* Kolom ini tidak menggulir di md, jadi pratinjau hanya
+                     boleh sebesar sisa ruang setelah bagian tetap di
+                     bawahnya (~270px: dua baris warna, tombol acak, dan
+                     Kembalikan). Persentase layar saja tidak cukup --
+                     bagian tetap itu tidak ikut mengecil saat jendela
+                     dipendekkan. Di layar normal 11rem yang menang, jadi
+                     ukurannya tidak berubah. Di mobile ukurannya tetap
+                     kecil karena kolom ini sebaris dengan warna dan aksi. */
+                  className="block size-16 rounded-full md:size-[min(11rem,calc(70vh_-_270px))]"
                 />
               </span>
             </div>
 
-            <div>
-              <p className="mb-2 text-[13px] font-bold">Warna latar</p>
-              <ColorRow
-                colors={AVATAR_BACKGROUNDS}
-                value={draft.bg}
-                onPick={(bg) => setDraft((prev) => ({ ...prev, bg }))}
-                label="Warna latar"
-              />
+            <div className="flex flex-1 flex-col gap-1.5 md:flex-none md:gap-3">
+              <div>
+                <p className="hidden text-[13px] font-bold md:mb-2 md:block">Warna latar</p>
+                <ColorRow
+                  compact
+                  colors={AVATAR_BACKGROUNDS}
+                  value={draft.bg}
+                  onPick={(bg) => setDraft((prev) => ({ ...prev, bg }))}
+                  label="Warna latar"
+                />
+              </div>
+
+              <div>
+                <p className="hidden text-[13px] font-bold md:mb-2 md:block">Warna kulit</p>
+                <ColorRow
+                  compact
+                  colors={AVATAR_OPTIONS.skinColor}
+                  value={draft.choices.skinColor}
+                  onPick={(skinColor) => setChoice({ skinColor })}
+                  label="Warna kulit"
+                />
+              </div>
             </div>
 
-            <div>
-              <p className="mb-2 text-[13px] font-bold">Warna kulit</p>
-              <ColorRow
-                colors={AVATAR_OPTIONS.skinColor}
-                value={draft.choices.skinColor}
-                onPick={(skinColor) => setChoice({ skinColor })}
-                label="Warna kulit"
-              />
+            <div className="flex shrink-0 items-center gap-2 md:mt-auto md:w-full md:flex-col md:items-stretch md:gap-3">
+              <button
+                type="button"
+                onClick={randomizeAll}
+                aria-label="Acak semua"
+                className="flex items-center justify-center gap-2 rounded-lg border border-[var(--line)] p-2 text-[14px] font-bold transition-colors hover:border-[var(--fg)]/35 md:w-full md:px-4 md:py-2.5"
+              >
+                <Icon>{DiceIcon}</Icon>
+                <span className="hidden md:inline">Acak semua</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDraft(initial)}
+                aria-label="Kembalikan"
+                className="flex items-center gap-2 rounded-lg border border-[var(--line)] p-2 text-[13px] text-[var(--muted)] transition-colors hover:text-[var(--fg)] md:self-start md:border-0 md:p-0"
+              >
+                <Icon className="size-4">{UndoIcon}</Icon>
+                <span className="hidden md:inline">Kembalikan</span>
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={randomizeAll}
-              className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--line)] px-4 py-2.5 text-[14px] font-bold transition-colors hover:border-[var(--fg)]/35"
-            >
-              <Icon>{DiceIcon}</Icon>
-              Acak semua
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setDraft(initial)}
-              className="flex items-center gap-2 self-start text-[13px] text-[var(--muted)] transition-colors hover:text-[var(--fg)]"
-            >
-              <Icon className="size-4">{UndoIcon}</Icon>
-              Kembalikan
-            </button>
           </aside>
 
           {/* Kolom kanan: kategori dan petak pilihannya. */}
