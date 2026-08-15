@@ -198,6 +198,41 @@ export function findAccountByUsername(username: string): Account | null {
   return row ? toAccount(row) : null;
 }
 
+export const FRIEND_SEARCH_MIN_LENGTH = 2;
+export const FRIEND_SEARCH_LIMIT = 8;
+
+/** Meloloskan karakter LIKE (%, _, \) supaya username berisi garis bawah
+ *  tidak diperlakukan sebagai wildcard satu-karakter. */
+function escapeLikePattern(raw: string): string {
+  return raw.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
+/** Pencarian awalan+substring untuk autolengkap "Tambah teman". Table scan
+ *  cukup murah untuk ukuran data permainan ini -- tidak perlu FTS. */
+export function searchAccounts(rawQuery: string, excludeId: string): PublicProfile[] {
+  const query = normalizeUsername(rawQuery);
+  if (query.length < FRIEND_SEARCH_MIN_LENGTH || !/^[a-z0-9_]+$/.test(query)) return [];
+
+  const escaped = escapeLikePattern(query);
+  const prefixPattern = `${escaped}%`;
+  const containsPattern = `%${escaped}%`;
+
+  const rows = db()
+    .prepare(
+      `SELECT * FROM accounts
+       WHERE id != ?
+         AND username LIKE ? ESCAPE '\\'
+       ORDER BY
+         CASE WHEN username LIKE ? ESCAPE '\\' THEN 0 ELSE 1 END,
+         LENGTH(username) ASC,
+         username ASC
+       LIMIT ?`,
+    )
+    .all(excludeId, containsPattern, prefixPattern, FRIEND_SEARCH_LIMIT) as AccountRow[];
+
+  return rows.map((row) => toPublicProfile(toAccount(row)));
+}
+
 export function findAccountById(id: string): Account | null {
   const row = db().prepare("SELECT * FROM accounts WHERE id = ?").get(id) as
     | AccountRow

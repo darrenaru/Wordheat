@@ -9,6 +9,7 @@ import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
 import ChatModal from "@/components/ChatModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import FriendSearch from "@/components/FriendSearch";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
 import { ChatIcon } from "@/components/icons";
 import type { PublicProfile } from "@/lib/profile";
@@ -85,7 +86,6 @@ function FriendsView() {
   const { me } = useAccount();
   const account = me!.account;
 
-  const [friendQuery, setFriendQuery] = useState("");
   const [friendNotice, setFriendNotice] = useState<Notice>(null);
   const [chatWith, setChatWith] = useState<PublicProfile | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<PublicProfile | null>(null);
@@ -109,27 +109,25 @@ function FriendsView() {
     [],
   );
 
-  const addFriend = useCallback(async () => {
-    const target = friendQuery.trim().toLowerCase();
-    if (!target) return;
+  const addFriend = useCallback(async (username: string): Promise<boolean> => {
     const res = await fetch("/api/friends", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "request", username: target }),
+      body: JSON.stringify({ action: "request", username }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       setFriendNotice({ tone: "error", text: data?.message ?? "Tidak berhasil." });
-      return;
+      return false;
     }
-    setFriendQuery("");
     setFriendNotice({
       tone: "info",
       text: data.autoAccepted
         ? `Kalian sekarang berteman — ${data.to.displayName} ternyata sudah mengirim permintaan lebih dulu.`
         : `Permintaan dikirim ke ${data.to.displayName}.`,
     });
-  }, [friendQuery]);
+    return true;
+  }, []);
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
@@ -143,31 +141,7 @@ function FriendsView() {
           </p>
         </div>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void addFriend();
-          }}
-          className="flex gap-2"
-        >
-          <input
-            value={friendQuery}
-            onChange={(e) => setFriendQuery(e.target.value.toLowerCase())}
-            maxLength={16}
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            placeholder="username teman"
-            aria-label="Username teman"
-            className="min-w-0 flex-1 rounded-pill border border-[var(--line)] bg-[var(--field)] px-4 py-2.5 text-[15px] outline-none placeholder:text-[var(--muted)]"
-          />
-          <button
-            type="submit"
-            className="rounded-pill bg-[var(--btn-bg)] px-5 py-2.5 text-[14px] font-bold text-[var(--btn-fg)]"
-          >
-            Tambah
-          </button>
-        </form>
+        <FriendSearch onSubmit={addFriend} />
 
         {friendNotice && (
           <p
