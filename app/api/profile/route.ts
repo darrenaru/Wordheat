@@ -11,6 +11,14 @@ const MESSAGES: Record<string, string> = {
   "bad-avatar": "Warna latar avatar itu tidak dikenali.",
 };
 
+/** "besok", "3 hari lagi", dst -- dibulatkan ke atas supaya tidak pernah
+ *  bilang "0 hari lagi" padahal cooldown-nya belum benar-benar habis. */
+function formatRetry(retryAt: number): string {
+  const days = Math.ceil((retryAt - Date.now()) / (24 * 60 * 60 * 1000));
+  if (days <= 1) return "besok";
+  return `${days} hari lagi`;
+}
+
 export async function PATCH(request: Request) {
   const account = await currentAccount();
   if (!account) return NextResponse.json({ error: "no-session" }, { status: 401 });
@@ -30,8 +38,12 @@ export async function PATCH(request: Request) {
 
   const result = updateProfile(account.id, body);
   if (!result.ok) {
+    const message =
+      result.error === "username-cooldown" && result.retryAt
+        ? `Kamu baru bisa ganti username lagi ${formatRetry(result.retryAt)}.`
+        : MESSAGES[result.error];
     return NextResponse.json(
-      { error: result.error, message: MESSAGES[result.error] },
+      { error: result.error, message, retryAt: result.retryAt },
       { status: 409 },
     );
   }

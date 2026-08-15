@@ -8,6 +8,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
 import AvatarStudio, { type AvatarDraft } from "@/components/AvatarStudio";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
 import { DEFAULT_AVATAR_BG, randomAvatarSeed } from "@/lib/avatar";
 import type { PublicProfile } from "@/lib/profile";
@@ -141,6 +142,17 @@ function CreateProfile() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
       <Header />
+
+      {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+        <div className="flex flex-col items-center gap-4 rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
+          <GoogleSignInButton onError={(text) => setNotice({ tone: "error", text })} />
+          <div className="flex w-full items-center gap-3 text-[12px] text-[var(--muted)]">
+            <div className="h-px flex-1 bg-[var(--line)]" />
+            atau
+            <div className="h-px flex-1 bg-[var(--line)]" />
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <button

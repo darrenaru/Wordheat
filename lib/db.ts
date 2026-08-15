@@ -107,6 +107,9 @@ function migrate(db: DatabaseSync) {
   `);
 
   addColumn(db, "accounts", "avatar_options", "TEXT NOT NULL DEFAULT '{}'");
+  // NULL berarti belum pernah diganti sejak dibuat -- pergantian pertama
+  // tidak boleh kena cooldown, hanya pergantian berikutnya.
+  addColumn(db, "accounts", "username_changed_at", "INTEGER");
 }
 
 /**

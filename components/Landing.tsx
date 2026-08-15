@@ -10,6 +10,7 @@ import ModeCard, { type ModeCardProps } from "@/components/ModeCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
+import WelcomeGate, { hasSeenWelcome } from "@/components/WelcomeGate";
 import { FriendsIcon, HelpIcon, PartyIcon, SoloIcon, TrophyIcon } from "@/components/icons";
 import { rememberMembership, readPlayerName, storePlayerName } from "@/lib/session";
 
@@ -17,8 +18,20 @@ type Mode = "idle" | "creating" | "joining";
 
 export default function Landing({ vocabSize }: { vocabSize: number }) {
   const router = useRouter();
-  const { me } = useAccount();
+  const { me, loaded, hasAccount } = useAccount();
   const [showHelp, setShowHelp] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
+
+  // Ditampilkan sekali per browser, hanya untuk pengunjung yang belum punya
+  // profil -- bukan gerbang global di layout, supaya tautan undangan room
+  // (/room/[code]) tetap bisa dibuka langsung tanpa gangguan. Dites lewat
+  // hasAccount, bukan `me`: pemilik akun sudah pasti "punya akun" begitu
+  // `loaded` true, tapi `me` (MeState lengkap) baru terisi belakangan lewat
+  // SSE -- memakai `!me` di sini akan mengedipkan gerbang ini ke pemain yang
+  // sebenarnya sudah masuk.
+  useEffect(() => {
+    if (loaded && hasAccount === false && !hasSeenWelcome()) setShowWelcome(true);
+  }, [loaded, hasAccount]);
   // Satu lencana untuk semua yang butuh perhatian di halaman Teman --
   // permintaan pertemanan masuk dan pesan belum dibaca sama-sama menunggu di
   // sana, jadi ikon navbar cukup menunjukkan totalnya.
@@ -225,6 +238,7 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
       </header>
 
       {showHelp && <HowToPlayModal vocabSize={vocabSize} onClose={() => setShowHelp(false)} />}
+      {showWelcome && <WelcomeGate onDismiss={() => setShowWelcome(false)} />}
 
       {/* Elemen utama halaman: pemain yang sudah dikirimi kode datang ke sini
           lebih dulu, sebelum melihat apa pun yang lain. */}

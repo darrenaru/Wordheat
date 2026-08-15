@@ -14,6 +14,13 @@ import type { MeState, PublicProfile } from "@/lib/profile";
 type AccountContextValue = {
   me: MeState | null;
   loaded: boolean;
+  /**
+   * Sudah pasti punya akun atau tidak, begitu `loaded` true -- beda dari
+   * `me`, yang untuk pemilik akun baru terisi belakangan lewat SSE. Dipakai
+   * saat sebuah keputusan UI ("tampilkan gerbang tamu?") tidak boleh keliru
+   * hanya karena `me` belum sempat terisi.
+   */
+  hasAccount: boolean | null;
   /** Dipanggil setelah membuat profil atau masuk, agar saluran pribadi terbuka. */
   adopt: (account: PublicProfile) => void;
   signOut: () => Promise<void>;
@@ -83,8 +90,8 @@ export default function AccountProvider({ children }: { children: React.ReactNod
   }, []);
 
   const value = useMemo(
-    () => ({ me, loaded, adopt, signOut }),
-    [me, loaded, adopt, signOut],
+    () => ({ me, loaded, hasAccount, adopt, signOut }),
+    [me, loaded, hasAccount, adopt, signOut],
   );
 
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;

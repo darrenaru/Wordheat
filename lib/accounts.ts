@@ -41,6 +41,8 @@ export type Account = {
   /** Pilihan rinci avatar. Bidang kosong berarti ikut benih. */
   avatarChoices: AvatarChoices;
   createdAt: number;
+  /** null berarti belum pernah diganti sejak akun dibuat. */
+  usernameChangedAt: number | null;
 };
 
 export type PublicProfile = Pick<
@@ -56,6 +58,7 @@ export type AccountRow = {
   avatar_bg: string;
   avatar_options: string;
   created_at: number;
+  username_changed_at: number | null;
 };
 
 /** Kolom disimpan sebagai JSON; isinya tetap disaring saat dibaca, karena
@@ -77,6 +80,7 @@ export function toAccount(row: AccountRow): Account {
     avatarBg: row.avatar_bg,
     avatarChoices: readChoices(row.avatar_options),
     createdAt: row.created_at,
+    usernameChangedAt: row.username_changed_at,
   };
 }
 
@@ -151,6 +155,7 @@ export function createAccount(input: {
     avatarBg: input.avatarBg && isValidAvatarBg(input.avatarBg) ? input.avatarBg : DEFAULT_AVATAR_BG,
     avatarChoices: sanitizeChoices(input.avatarChoices),
     createdAt: Date.now(),
+    usernameChangedAt: null,
   };
 
   database
@@ -233,6 +238,76 @@ export function searchAccounts(rawQuery: string, excludeId: string): PublicProfi
   return rows.map((row) => toPublicProfile(toAccount(row)));
 }
 
+export function findAccountByGoogleSub(sub: string): Account | null {
+  const row = db()
+    .prepare(
+      `SELECT a.* FROM accounts a
+       JOIN credentials c ON c.account_id = a.id AND c.kind = 'google'
+       WHERE c.identifier = ?`,
+    )
+    .get(sub) as AccountRow | undefined;
+  return row ? toAccount(row) : null;
+}
+
+function linkGoogleCredential(accountId: string, sub: string): void {
+  db()
+    .prepare(
+      `INSERT INTO credentials (account_id, kind, identifier, created_at)
+       VALUES (?, 'google', ?, ?)`,
+    )
+    .run(accountId, sub, Date.now());
+}
+
+/** Kandidat awal dari alamat surel/nama Google, lalu diadu keunikannya di createAccount. */
+function slugifyUsername(raw: string): string {
+  return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 16);
+}
+
+function generateUsernameFromGoogle(name: string, email: string): string {
+  const emailLocal = email.split("@")[0] ?? "";
+  let base = slugifyUsername(emailLocal) || slugifyUsername(name);
+  if (base.length < 3) base = (base + "pemain").slice(0, 3);
+  base = base.slice(0, 12); // sisakan ruang untuk akhiran angka sampai 16 karakter
+
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const candidate = attempt === 0 ? base : `${base}${randomInt(10, 9999)}`;
+    if (!findAccountByUsername(candidate)) return candidate;
+  }
+  return `${base}${randomInt(100000, 999999)}`.slice(0, 16);
+}
+
+/**
+ * Mencari akun yang sudah terikat ke `sub` Google ini, atau membuat akun baru
+ * kalau ini pertama kalinya. Username dibuat otomatis dari surel/nama --
+ * Google tidak pernah memberi username, dan meminta pemain mengetiknya di
+ * tengah alur masuk hanya menambah gesekan yang tidak perlu; ganti nama bisa
+ * kapan saja lewat halaman profil.
+ */
+export function findOrCreateGoogleAccount(claims: {
+  sub: string;
+  email?: string;
+  name?: string;
+}): { ok: true; account: Account; recoveryCode?: string } | { ok: false; error: "bad-request" } {
+  const existing = findAccountByGoogleSub(claims.sub);
+  if (existing) return { ok: true, account: existing };
+  if (!claims.sub) return { ok: false, error: "bad-request" };
+
+  const username = generateUsernameFromGoogle(claims.name ?? "", claims.email ?? "");
+  const result = createAccount({ username, displayName: claims.name });
+  if (!result.ok) {
+    // Tabrakan username sisa dari race kondisi jarang -- coba sekali lagi
+    // dengan akhiran acak baru alih-alih menampilkan galat mentah ke klik Google.
+    const retryUsername = `${username.slice(0, 10)}${randomInt(1000, 9999)}`;
+    const retry = createAccount({ username: retryUsername, displayName: claims.name });
+    if (!retry.ok) return { ok: false, error: "bad-request" };
+    linkGoogleCredential(retry.account.id, claims.sub);
+    return { ok: true, account: retry.account, recoveryCode: retry.recoveryCode };
+  }
+
+  linkGoogleCredential(result.account.id, claims.sub);
+  return { ok: true, account: result.account, recoveryCode: result.recoveryCode };
+}
+
 export function findAccountById(id: string): Account | null {
   const row = db().prepare("SELECT * FROM accounts WHERE id = ?").get(id) as
     | AccountRow
@@ -240,7 +315,11 @@ export function findAccountById(id: string): Account | null {
   return row ? toAccount(row) : null;
 }
 
-export type ProfileError = "bad-username" | "username-taken" | "bad-avatar";
+export type ProfileError = "bad-username" | "username-taken" | "bad-avatar" | "username-cooldown";
+
+/** Jeda wajib antar-pergantian username, supaya orang tidak bisa gonta-ganti
+ *  identitas tiap saat untuk mempersulit pencarian teman atau menyamar. */
+export const USERNAME_CHANGE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function updateProfile(
   accountId: string,
@@ -251,20 +330,31 @@ export function updateProfile(
     avatarBg?: string;
     avatarChoices?: unknown;
   },
-): { ok: true; account: Account } | { ok: false; error: ProfileError } {
+):
+  | { ok: true; account: Account }
+  | { ok: false; error: ProfileError; retryAt?: number } {
   const database = db();
   const current = findAccountById(accountId);
   if (!current) return { ok: false, error: "bad-username" };
 
   let username = current.username;
+  let usernameChangedAt = current.usernameChangedAt;
   if (patch.username !== undefined) {
     username = normalizeUsername(patch.username);
     if (!isValidUsername(username)) return { ok: false, error: "bad-username" };
     if (username !== current.username) {
+      // null berarti belum pernah diganti -- pergantian pertama sejak akun
+      // dibuat tidak boleh terhalang cooldown yang justru dimaksudkan untuk
+      // pergantian berulang.
+      if (current.usernameChangedAt !== null) {
+        const retryAt = current.usernameChangedAt + USERNAME_CHANGE_COOLDOWN_MS;
+        if (Date.now() < retryAt) return { ok: false, error: "username-cooldown", retryAt };
+      }
       const taken = database
         .prepare("SELECT id FROM accounts WHERE username = ?")
         .get(username);
       if (taken) return { ok: false, error: "username-taken" };
+      usernameChangedAt = Date.now();
     }
   }
 
@@ -284,7 +374,8 @@ export function updateProfile(
   database
     .prepare(
       `UPDATE accounts
-         SET username = ?, display_name = ?, avatar_seed = ?, avatar_bg = ?, avatar_options = ?
+         SET username = ?, display_name = ?, avatar_seed = ?, avatar_bg = ?, avatar_options = ?,
+             username_changed_at = ?
        WHERE id = ?`,
     )
     .run(
@@ -293,12 +384,13 @@ export function updateProfile(
       avatarSeed,
       avatarBg,
       JSON.stringify(avatarChoices),
+      usernameChangedAt,
       accountId,
     );
 
   return {
     ok: true,
-    account: { ...current, username, displayName, avatarSeed, avatarBg, avatarChoices },
+    account: { ...current, username, displayName, avatarSeed, avatarBg, avatarChoices, usernameChangedAt },
   };
 }
 
