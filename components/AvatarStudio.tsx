@@ -282,22 +282,21 @@ export default function AvatarStudio({
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pb-5 md:flex-row md:overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-5 pb-5 md:flex-row">
           {/* Kolom kiri: yang sedang dibentuk, plus tindakan yang berlaku
               untuk seluruh avatar. */}
-          {/* Di layar mobile kolom ini "sticky" ke atas kolom yang sama-sama
-              menggulir dengan kategori, supaya pratinjau avatar tidak pernah
-              tergulir keluar layar saat pemain menelusuri pilihan. Di md ke
-              atas kolom ini sudah diam sendiri (hanya kategori yang
-              menggulir), jadi sticky-nya dilepas lagi supaya tidak
-              mengganggu tata letak dua kolom yang sudah benar. */}
+          {/* Kolom ini diam di tempat, sama seperti tablist dan info
+              kategori di kolom kanan -- hanya grid petak pilihan yang
+              menggulir (lihat overflow-y-auto di bawah). Ini berlaku di
+              semua ukuran layar, jadi pemain tidak perlu menggulir balik ke
+              atas untuk ganti tab atau lihat pratinjau. */}
           {/* Susunannya baris di mobile (preview kecil + warna + aksi
-              berdampingan) supaya sticky header ini seringkas mungkin --
+              berdampingan) supaya header yang diam ini seringkas mungkin --
               makin sedikit tingginya, makin banyak baris petak pilihan yang
               kelihatan tanpa digulir. Di md kembali ke susunan kolom lama:
               preview besar di tengah, label warna terlihat, tombol penuh
               teks. */}
-          <aside className="sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b border-[var(--line)] bg-[var(--card)] py-3 md:static md:flex-col md:items-stretch md:gap-3 md:border-b-0 md:border-r md:py-0 md:pr-6 md:w-[16.5rem]">
+          <aside className="flex shrink-0 items-center gap-3 border-b border-[var(--line)] py-3 md:flex-col md:items-stretch md:gap-3 md:border-b-0 md:border-r md:py-0 md:pr-6 md:w-[16.5rem]">
             <div className="flex shrink-0 justify-center md:py-3">
               <span className="rounded-full p-1 shadow-[0_0_0_2px_var(--color-flare),0_0_20px_-4px_var(--color-flare)]">
                 <img
@@ -406,7 +405,7 @@ export default function AvatarStudio({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 md:overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2 pb-1">
                 {active.kind === "optional" && (
                   <Tile
