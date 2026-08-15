@@ -346,6 +346,35 @@ function SignedIn() {
     }
   }, [displayName, draft, saving, username]);
 
+  // Avatar tersimpan begitu studio ditutup lewat "Simpan" -- pemain tidak
+  // perlu menekan "Simpan profil" lagi cuma untuk avatar. updateProfile()
+  // hanya menyentuh kolom yang dikirim, jadi ini tidak mengubah username
+  // atau nama tampilan yang belum ditekan simpan.
+  const saveAvatar = useCallback(async (next: AvatarDraft) => {
+    setDraft(next);
+    setStudioOpen(false);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          avatarSeed: next.seed,
+          avatarBg: next.bg,
+          avatarChoices: next.choices,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNotice({ tone: "error", text: data?.message ?? "Avatar gagal disimpan." });
+        return;
+      }
+      setNotice({ tone: "info", text: "Avatar tersimpan." });
+    } catch {
+      setNotice({ tone: "error", text: "Koneksi ke server terputus." });
+    }
+  }, []);
+
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
       <Header />
@@ -451,10 +480,7 @@ function SignedIn() {
         <AvatarStudio
           initial={draft}
           onClose={() => setStudioOpen(false)}
-          onSave={(next) => {
-            setDraft(next);
-            setStudioOpen(false);
-          }}
+          onSave={(next) => void saveAvatar(next)}
         />
       )}
 
