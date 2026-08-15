@@ -190,7 +190,12 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
             cukup tulisan saja -- dua tanda yang sama dalam satu layar justru
             saling melemahkan. */}
         <h1 className="text-[52px] font-bold leading-none tracking-[-0.04em] sm:text-[64px]">
-          word<span className="wordmark-heat">heat</span>
+          <span className="hero-mask">
+            <span className="hero-part">Word</span>
+          </span>
+          <span className="hero-mask">
+            <span className="hero-part wordmark-heat hero-heat-glow">heat</span>
+          </span>
         </h1>
         <p className="max-w-[34ch] text-[15px] leading-relaxed text-[var(--muted)]">
           Tebak kata rahasianya. Tiap tebakan dinilai dari seberapa dekat maknanya —
@@ -200,38 +205,6 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
           {vocabSize.toLocaleString("id-ID")} kata di kamus
         </p>
       </header>
-
-      {/* Identitas ditaruh sebelum kartu kode supaya susunan yang diminta --
-          input kode lalu kartu mode -- tidak terpotong apa pun di tengahnya. */}
-      <div
-        className="rise flex items-center justify-center gap-2 text-[13px] text-[var(--muted)]"
-        style={{ "--step": 2 } as React.CSSProperties}
-      >
-        {me ? (
-          <>
-            <Avatar
-              seed={me.account.avatarSeed}
-              bg={me.account.avatarBg}
-              choices={me.account.avatarChoices}
-              name={me.account.displayName}
-              size={22}
-            />
-            Main sebagai <strong className="text-[var(--fg)]">{me.account.displayName}</strong>
-          </>
-        ) : (
-          <label className="flex items-center gap-2">
-            <span className="shrink-0">Main sebagai</span>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={18}
-              placeholder="nama kamu"
-              aria-label="Nama kamu"
-              className="w-[12rem] rounded-pill border border-[var(--line)] bg-[var(--field)] px-3 py-1.5 text-center text-[13px] text-[var(--fg)] outline-none placeholder:text-[var(--muted)]"
-            />
-          </label>
-        )}
-      </div>
 
       {/* Elemen utama halaman: pemain yang sudah dikirimi kode datang ke sini
           lebih dulu, sebelum melihat apa pun yang lain. */}

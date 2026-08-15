@@ -59,7 +59,7 @@ export default function ModeCard({
 
       <span className="mt-auto flex items-baseline gap-1.5 pt-4 text-[14px] font-bold" style={{ color: accent }}>
         {action}
-        <span aria-hidden="true" className="transition-transform group-hover:translate-x-1">
+        <span aria-hidden="true" className="mode-card__arrow">
           →
         </span>
       </span>
@@ -73,18 +73,19 @@ export default function ModeCard({
   );
 
   const className =
-    "group flex h-full flex-col rounded-lg border border-[var(--line)] bg-[var(--card)] p-5 text-left transition-colors hover:border-[var(--fg)]/30 disabled:opacity-50";
+    "mode-card group flex h-full flex-col rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 text-left disabled:opacity-50";
+  const style = { "--accent": accent } as React.CSSProperties;
 
   if (href) {
     return (
-      <Link href={href} className={className}>
+      <Link href={href} className={className} style={style}>
         {body}
       </Link>
     );
   }
 
   return (
-    <button type="button" onClick={onClick} disabled={disabled} className={className}>
+    <button type="button" onClick={onClick} disabled={disabled} className={className} style={style}>
       {body}
     </button>
   );

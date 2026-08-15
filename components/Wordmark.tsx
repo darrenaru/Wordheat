@@ -25,7 +25,7 @@ export default function Wordmark({
         style={{ fontSize: size }}
         className="font-bold leading-none tracking-[-0.03em]"
       >
-        word<span className="wordmark-heat">heat</span>
+        Word<span className="wordmark-heat">heat</span>
       </span>
     </span>
   );
