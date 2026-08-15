@@ -140,6 +140,15 @@ export const SendIcon = (
   </>
 );
 
+/** Tanda tanya dalam lingkaran: membuka panduan cara bermain. */
+export const HelpIcon = (
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M9.3 9.3a2.7 2.7 0 1 1 3.9 2.4c-.9.5-1.2 1-1.2 2" />
+    <circle cx="12" cy="16.6" r="0.15" fill="currentColor" stroke="currentColor" strokeWidth="1.8" />
+  </>
+);
+
 /** Piala: papan peringkat, siapa paling sering menang. */
 export const TrophyIcon = (
   <>

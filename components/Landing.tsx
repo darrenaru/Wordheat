@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import Avatar from "@/components/Avatar";
+import HowToPlayModal from "@/components/HowToPlayModal";
 import ModeCard, { type ModeCardProps } from "@/components/ModeCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
-import { FriendsIcon, PartyIcon, SoloIcon, TrophyIcon } from "@/components/icons";
+import { FriendsIcon, HelpIcon, PartyIcon, SoloIcon, TrophyIcon } from "@/components/icons";
 import { rememberMembership, readPlayerName, storePlayerName } from "@/lib/session";
 
 type Mode = "idle" | "creating" | "joining";
@@ -17,6 +18,7 @@ type Mode = "idle" | "creating" | "joining";
 export default function Landing({ vocabSize }: { vocabSize: number }) {
   const router = useRouter();
   const { me } = useAccount();
+  const [showHelp, setShowHelp] = useState(false);
   // Satu lencana untuk semua yang butuh perhatian di halaman Teman --
   // permintaan pertemanan masuk dan pesan belum dibaca sama-sama menunggu di
   // sana, jadi ikon navbar cukup menunjukkan totalnya.
@@ -201,10 +203,28 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
           Tebak kata rahasianya. Tiap tebakan dinilai dari seberapa dekat maknanya —
           makin dekat, makin panas.
         </p>
-        <p className="rounded-pill border border-[var(--line)] px-4 py-1.5 font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
-          {vocabSize.toLocaleString("id-ID")} kata di kamus
-        </p>
+        <button
+          type="button"
+          onClick={() => setShowHelp(true)}
+          className="flex items-center gap-1.5 rounded-pill border border-[var(--line)] px-4 py-1.5 text-[13px] font-bold text-[var(--muted)] transition-colors hover:text-[var(--fg)]"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-4"
+          >
+            {HelpIcon}
+          </svg>
+          Cara Bermain
+        </button>
       </header>
+
+      {showHelp && <HowToPlayModal vocabSize={vocabSize} onClose={() => setShowHelp(false)} />}
 
       {/* Elemen utama halaman: pemain yang sudah dikirimi kode datang ke sini
           lebih dulu, sebelum melihat apa pun yang lain. */}
