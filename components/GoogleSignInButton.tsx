@@ -90,7 +90,13 @@ export default function GoogleSignInButton({
       // semua varian tombol tanpa perlu menimpa gaya resmi Google.
       theme: "outline",
       size: "large",
-      shape: "pill",
+      // "rectangular", bukan "pill": pada varian "Continue as [nama]", badge
+      // logo Google berupa kotak bersudut tegas yang tidak ikut melengkung
+      // mengikuti kontainer -- di dalam kontainer "pill" (melengkung penuh)
+      // sudut kotak itu terlihat menonjol keluar dari garis lengkungnya.
+      // Kontainer persegi menghindari benturan bentuk itu sepenuhnya, tanpa
+      // perlu menimpa gaya resmi Google.
+      shape: "rectangular",
       width: 320,
       text: "continue_with",
     });
