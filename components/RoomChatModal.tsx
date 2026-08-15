@@ -80,6 +80,34 @@ export default function RoomChatModal({
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [chat]);
 
+  // Di layar sempit modal ini penuh satu layar, tapi Safari iOS tidak
+  // menyusutkan elemen fixed saat papan ketik terbuka -- tingginya tetap
+  // memakai ukuran sebelum keyboard muncul, jadi kolom pesan bisa
+  // tersembunyi di baliknya. visualViewport melacak tinggi yang benar-benar
+  // terlihat, dan dipakai untuk menyesuaikan tinggi modal secara manual.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    const vv = window.visualViewport;
+    if (!dialog || !vv) return;
+
+    const applyHeight = () => {
+      if (window.innerWidth >= 640) {
+        dialog.style.height = "";
+        return;
+      }
+      dialog.style.height = `${vv.height}px`;
+    };
+
+    applyHeight();
+    vv.addEventListener("resize", applyHeight);
+    vv.addEventListener("scroll", applyHeight);
+    return () => {
+      vv.removeEventListener("resize", applyHeight);
+      vv.removeEventListener("scroll", applyHeight);
+      dialog.style.height = "";
+    };
+  }, []);
+
   const playerOf = useCallback((id: string) => players.find((p) => p.id === id), [players]);
 
   const send = useCallback(() => {
@@ -102,7 +130,7 @@ export default function RoomChatModal({
         aria-modal="true"
         aria-label="Chat room"
         tabIndex={-1}
-        className="flex w-full max-w-[28rem] flex-col overflow-hidden border-[var(--line)] bg-[var(--card)] outline-none sm:h-[85dvh] sm:rounded-lg sm:border"
+        className="flex w-full flex-col overflow-hidden border-[var(--line)] bg-[var(--card)] outline-none sm:h-[85dvh] sm:max-w-[28rem] sm:rounded-lg sm:border"
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] px-4 py-3">
           <span className="text-[15px] font-bold">Chat room</span>

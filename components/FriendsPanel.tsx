@@ -224,7 +224,7 @@ function FriendsView() {
                 <button
                   type="button"
                   onClick={() => setChatWith(friend)}
-                  aria-label={`Chat dengan ${friend.displayName}`}
+                  aria-label={`Buka chat dengan ${friend.displayName}`}
                   className="relative shrink-0 rounded-pill border border-[var(--line)] p-2 text-[var(--muted)] transition-colors hover:border-[var(--fg)]/35 hover:text-[var(--fg)]"
                 >
                   <svg
