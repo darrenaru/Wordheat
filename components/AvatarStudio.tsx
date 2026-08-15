@@ -281,11 +281,13 @@ export default function AvatarStudio({
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-5 pb-5 md:flex-row md:overflow-hidden">
           {/* Kolom kiri: yang sedang dibentuk, plus tindakan yang berlaku
               untuk seluruh avatar. */}
-          {/* Kolom ini sengaja tidak menggulir; pemisahnya garis, bukan batang
-              gulir. Konsekuensinya isinya wajib muat, jadi pratinjau
-              menyesuaikan tinggi layar alih-alih memakai ukuran tetap yang
-              mendorong "Kembalikan" keluar layar di laptop pendek. */}
-          <aside className="flex shrink-0 flex-col gap-3 border-b border-[var(--line)] pb-5 md:w-[16.5rem] md:border-b-0 md:border-r md:pb-0 md:pr-6">
+          {/* Di layar mobile kolom ini "sticky" ke atas kolom yang sama-sama
+              menggulir dengan kategori, supaya pratinjau avatar tidak pernah
+              tergulir keluar layar saat pemain menelusuri pilihan. Di md ke
+              atas kolom ini sudah diam sendiri (hanya kategori yang
+              menggulir), jadi sticky-nya dilepas lagi supaya tidak
+              mengganggu tata letak dua kolom yang sudah benar. */}
+          <aside className="sticky top-0 z-10 flex shrink-0 flex-col gap-3 border-b border-[var(--line)] bg-[var(--card)] pb-5 md:static md:w-[16.5rem] md:border-b-0 md:border-r md:pb-0 md:pr-6">
             {/* Pratinjau ditaruh di tengah dan diberi jarak vertikal supaya
                 pendar cincinnya punya ruang; ukurannya dibatasi tinggi layar
                 agar sisa isi kolom tetap muat tanpa perlu digulir. */}
