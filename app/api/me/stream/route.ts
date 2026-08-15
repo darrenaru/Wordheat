@@ -1,4 +1,4 @@
-import { currentAccount, friendState, toPublicProfile } from "@/lib/accounts";
+import { currentAccount, findAccountById, friendState, toPublicProfile } from "@/lib/accounts";
 import { unreadCounts } from "@/lib/messages";
 import { listInvites, subscribeToAccount } from "@/lib/presence";
 
@@ -28,8 +28,15 @@ export async function GET(request: Request) {
 
       const push = () => {
         if (closed) return;
+        // Dibaca ulang dari basis data tiap kali, bukan memakai `account`
+        // yang ditangkap sekali saat koneksi dibuka -- kalau tidak, setiap
+        // notifyAccount() (mis. setelah menyimpan profil) akan mengirim
+        // balik cuplikan lama dan seolah membatalkan perubahan yang baru
+        // saja tersimpan.
+        const fresh = findAccountById(accountId);
+        if (!fresh) return;
         const payload = {
-          account: toPublicProfile(account),
+          account: toPublicProfile(fresh),
           ...friendState(accountId),
           invites: listInvites(accountId),
           unreadMessages: unreadCounts(accountId),

@@ -90,13 +90,16 @@ export default function GoogleSignInButton({
       // semua varian tombol tanpa perlu menimpa gaya resmi Google.
       theme: "outline",
       size: "large",
-      // "rectangular", bukan "pill": pada varian "Continue as [nama]", badge
-      // logo Google berupa kotak bersudut tegas yang tidak ikut melengkung
-      // mengikuti kontainer -- di dalam kontainer "pill" (melengkung penuh)
-      // sudut kotak itu terlihat menonjol keluar dari garis lengkungnya.
-      // Kontainer persegi menghindari benturan bentuk itu sepenuhnya, tanpa
-      // perlu menimpa gaya resmi Google.
-      shape: "rectangular",
+      // "pill" dipilih supaya konsisten dengan tombol "Lanjutkan sebagai
+      // tamu" (rounded-pill) di sebelahnya. Catatan: pada varian "Continue
+      // as [nama]" (muncul kalau browser sudah mengenali sesi Google),
+      // badge logo Google berbentuk kotak bersudut tegas yang tidak ikut
+      // melengkung mengikuti kontainer pill, sehingga sudutnya menonjol
+      // keluar -- itu perilaku rendering bawaan tombol resmi Google sendiri,
+      // bukan sesuatu yang boleh kita timpa lewat CSS pada elemennya
+      // sendiri. Yang menonjol itu dipotong lewat overflow-hidden pada
+      // pembungkus kita di bawah, bukan dengan mengubah tombolnya.
+      shape: "pill",
       width: 320,
       text: "continue_with",
     });
@@ -111,7 +114,13 @@ export default function GoogleSignInButton({
         strategy="afterInteractive"
         onLoad={() => setScriptReady(true)}
       />
-      <div ref={containerRef} />
+      {/* rounded-full + overflow-hidden membatasi kontainernya saja --
+          bukan menyunting tombol Google itu sendiri -- supaya badge logo
+          yang sudutnya menonjol pada varian "Continue as [nama]" ikut
+          terpotong mengikuti lengkung pill di sini. */}
+      <div className="overflow-hidden rounded-full">
+        <div ref={containerRef} />
+      </div>
     </>
   );
 }
