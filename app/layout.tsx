@@ -4,6 +4,7 @@ import { DM_Mono, DM_Sans } from "next/font/google";
 import AccountProvider from "@/components/AccountProvider";
 import Ambient from "@/components/Ambient";
 import InviteBanner from "@/components/InviteBanner";
+import VersionFooter from "@/components/VersionFooter";
 import { DEFAULT_THEME, THEME_INIT_SCRIPT } from "@/lib/theme";
 
 import "./globals.css";
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
           <InviteBanner />
         </AccountProvider>
+        <VersionFooter />
       </body>
     </html>
   );
