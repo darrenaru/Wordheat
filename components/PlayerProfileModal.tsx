@@ -1,17 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
-import PlayerProfileCard from "@/components/PlayerProfileCard";
-import type { PlayerStats, RecentGame } from "@/lib/leaderboard";
-
-type Loaded = { stats: PlayerStats; games: RecentGame[] };
+import PlayerStats from "@/components/PlayerStats";
 
 /**
  * Profil satu pemain sebagai modal -- dibuka dari mana saja nama/avatar
  * pemain muncul (room, daftar teman, papan peringkat) tanpa meninggalkan
- * halaman yang sedang dilihat. Datanya diambil lewat GET /api/players/[username]
- * karena lib/leaderboard.ts server-only dan modal ini komponen klien.
+ * halaman yang sedang dilihat. PlayerStats yang menangani pengambilan data
+ * lewat GET /api/players/[username]; modal ini cuma bungkusnya.
  */
 export default function PlayerProfileModal({
   username,
@@ -20,8 +17,6 @@ export default function PlayerProfileModal({
   username: string;
   onClose: () => void;
 }) {
-  // undefined = masih memuat, null = tidak ditemukan.
-  const [data, setData] = useState<Loaded | null | undefined>(undefined);
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -38,27 +33,6 @@ export default function PlayerProfileModal({
       document.body.style.overflow = previous;
     };
   }, [onClose]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setData(undefined);
-    (async () => {
-      try {
-        const res = await fetch(`/api/players/${encodeURIComponent(username)}`);
-        if (cancelled) return;
-        if (!res.ok) {
-          setData(null);
-          return;
-        }
-        setData((await res.json()) as Loaded);
-      } catch {
-        if (!cancelled) setData(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [username]);
 
   return (
     <div
@@ -98,13 +72,7 @@ export default function PlayerProfileModal({
           </button>
         </div>
 
-        {data === undefined ? (
-          <p className="text-[14px] text-[var(--muted)]">Memuat…</p>
-        ) : data === null ? (
-          <p className="text-[14px] text-[var(--muted)]">Tidak ada pemain dengan username itu.</p>
-        ) : (
-          <PlayerProfileCard stats={data.stats} games={data.games} />
-        )}
+        <PlayerStats username={username} />
       </div>
     </div>
   );

@@ -22,38 +22,43 @@ function StatTile({ label, value }: { label: string; value: string }) {
 export default function PlayerProfileCard({
   stats,
   games,
+  showHeader = true,
 }: {
   stats: PlayerStats;
   games: RecentGame[];
+  /** Dimatikan saat pemakainya sudah menampilkan avatar+nama sendiri di atas. */
+  showHeader?: boolean;
 }) {
   return (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Avatar
-            seed={stats.profile.avatarSeed}
-            bg={stats.profile.avatarBg}
-            choices={stats.profile.avatarChoices}
-            name={stats.profile.displayName}
-            size={56}
-          />
-          <div className="min-w-0">
-            <p className="truncate text-[20px] font-bold">{stats.profile.displayName}</p>
-            <p className="truncate font-mono text-[13px] text-[var(--muted)]">
-              @{stats.profile.username}
-            </p>
-            <p className="text-[12px] text-[var(--muted)]">
-              Bergabung{" "}
-              {new Date(stats.memberSince).toLocaleDateString("id-ID", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
+      {showHeader && (
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Avatar
+              seed={stats.profile.avatarSeed}
+              bg={stats.profile.avatarBg}
+              choices={stats.profile.avatarChoices}
+              name={stats.profile.displayName}
+              size={56}
+            />
+            <div className="min-w-0">
+              <p className="truncate text-[20px] font-bold">{stats.profile.displayName}</p>
+              <p className="truncate font-mono text-[13px] text-[var(--muted)]">
+                @{stats.profile.username}
+              </p>
+              <p className="text-[12px] text-[var(--muted)]">
+                Bergabung{" "}
+                {new Date(stats.memberSince).toLocaleDateString("id-ID", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
           </div>
+          <PlayerProfileActions profile={stats.profile} />
         </div>
-        <PlayerProfileActions profile={stats.profile} />
-      </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Peringkat" value={stats.rank ? `#${stats.rank}` : "—"} />

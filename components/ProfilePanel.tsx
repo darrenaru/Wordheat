@@ -9,7 +9,7 @@ import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
 import AvatarStudio, { type AvatarDraft } from "@/components/AvatarStudio";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
-import PlayerProfileModal from "@/components/PlayerProfileModal";
+import PlayerStats from "@/components/PlayerStats";
 import { DEFAULT_AVATAR_BG, randomAvatarSeed } from "@/lib/avatar";
 import type { PublicProfile } from "@/lib/profile";
 
@@ -295,7 +295,6 @@ function SignedIn() {
 
   const [freshRecovery, setFreshRecovery] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [statsOpen, setStatsOpen] = useState(false);
 
   useEffect(() => {
     const code = sessionStorage.getItem("wordheat:new-recovery");
@@ -397,20 +396,6 @@ function SignedIn() {
           >
             {saving ? "Menyimpan…" : "Simpan profil"}
           </button>
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            className="rounded-pill border border-[var(--line)] px-4 py-2.5 text-[14px] text-[var(--muted)]"
-          >
-            Keluar
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatsOpen(true)}
-            className="rounded-pill border border-[var(--line)] px-4 py-2.5 text-[14px] text-[var(--muted)]"
-          >
-            Lihat statistik
-          </button>
           {notice && (
             <span
               role="status"
@@ -460,6 +445,11 @@ function SignedIn() {
         </section>
       )}
 
+      <section className="flex flex-col gap-5 rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
+        <p className="text-[15px] font-bold">Statistik</p>
+        <PlayerStats username={account.username} showHeader={false} />
+      </section>
+
       {studioOpen && (
         <AvatarStudio
           initial={draft}
@@ -471,9 +461,17 @@ function SignedIn() {
         />
       )}
 
-      {statsOpen && (
-        <PlayerProfileModal username={account.username} onClose={() => setStatsOpen(false)} />
-      )}
+      {/* Kartu terpisah, paling bawah -- tindakan yang mengakhiri sesi tidak
+          sepatutnya berdempetan dengan tombol simpan yang dipakai sehari-hari. */}
+      <section className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="w-full rounded-pill border border-[var(--line)] px-4 py-2.5 text-[14px] font-bold text-[var(--muted)]"
+        >
+          Logout
+        </button>
+      </section>
     </main>
   );
 }
