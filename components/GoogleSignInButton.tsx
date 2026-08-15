@@ -82,7 +82,13 @@ export default function GoogleSignInButton({
     });
 
     window.google.accounts.id.renderButton(containerRef.current, {
-      theme: "filled_black",
+      // "outline" (latar terang bawaan Google) dipakai alih-alih
+      // "filled_black": pada varian tombol "Continue as [nama]" yang muncul
+      // ketika sesi Google di browser sudah dikenali, badge logo Google
+      // selalu berlatar putih -- di atas tombol gelap itu terlihat seperti
+      // bentuk putih yang menabrak. Latar terang bawaan ini konsisten di
+      // semua varian tombol tanpa perlu menimpa gaya resmi Google.
+      theme: "outline",
       size: "large",
       shape: "pill",
       width: 320,

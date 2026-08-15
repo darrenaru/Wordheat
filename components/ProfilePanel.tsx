@@ -204,9 +204,6 @@ function CreateProfile() {
                 placeholder="huruf kecil, angka, garis bawah"
                 className="mt-1.5 w-full rounded-pill border border-[var(--line)] bg-[var(--field)] px-4 py-2.5 text-[15px] outline-none placeholder:text-[var(--muted)]"
               />
-              <span className="mt-1.5 block text-[12px] text-[var(--muted)]">
-                Ini yang dipakai teman untuk menemukanmu.
-              </span>
             </label>
 
             <label className="block">
