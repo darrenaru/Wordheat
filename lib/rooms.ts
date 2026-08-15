@@ -30,7 +30,10 @@ const ROOM_TTL_MS = 3 * 60 * 60 * 1000;
 /** Tenggang setelah koneksi putus, supaya muat ulang halaman tidak dianggap keluar. */
 const DISCONNECT_GRACE_MS = 12_000;
 
-export type RoomStatus = "lobby" | "playing" | "finished";
+/** Hitung mundur sebelum permainan benar-benar mulai, supaya semua pemain siap bersamaan. */
+const COUNTDOWN_MS = 3_000;
+
+export type RoomStatus = "lobby" | "countdown" | "playing" | "finished";
 
 export type FeedEntry = {
   word: string;
@@ -80,6 +83,7 @@ type Room = {
   createdAt: number;
   touchedAt: number;
   startedAt?: number;
+  countdownEndsAt?: number;
   winnerId?: string;
   listeners: Set<() => void>;
 };
@@ -96,6 +100,7 @@ export type RoomView = {
   puzzleId: number;
   vocabSize: number;
   startedAt?: number;
+  countdownEndsAt?: number;
   players: {
     id: string;
     accountId?: string;
@@ -183,6 +188,7 @@ export function viewOf(room: Room): RoomView {
     puzzleId: room.puzzle.id,
     vocabSize: 0, // diisi pemanggil; lihat withVocabSize
     startedAt: room.startedAt,
+    countdownEndsAt: room.countdownEndsAt,
     players,
     feed: room.feed,
     chat: room.chat,
@@ -293,10 +299,24 @@ export function startRoom(
   if (room.hostId !== playerId) return { ok: false, error: "not-host" };
   if (room.status !== "lobby") return { ok: false, error: "already-started" };
 
-  room.status = "playing";
-  room.startedAt = Date.now();
+  // Hitung mundur dulu sebelum benar-benar bermain, supaya semua pemain punya
+  // waktu yang sama untuk menutup obrolan dan hal lain lalu fokus ke papan.
+  room.status = "countdown";
+  room.countdownEndsAt = Date.now() + COUNTDOWN_MS;
   touch(room);
   broadcast(room);
+
+  const countdownTimer = setTimeout(() => {
+    const current = getRoom(code);
+    if (!current || current.status !== "countdown") return;
+    current.status = "playing";
+    current.startedAt = Date.now();
+    current.countdownEndsAt = undefined;
+    touch(current);
+    broadcast(current);
+  }, COUNTDOWN_MS);
+  countdownTimer.unref?.();
+
   return { ok: true, value: { room } };
 }
 
@@ -433,6 +453,14 @@ export function markDisconnected(code: string, playerId: string) {
   broadcast(room);
   player.removalTimer = setTimeout(() => {
     if (player.connections > 0) return;
+
+    // Begitu permainan sudah dimulai, kursinya dibiarkan (hanya tampil
+    // offline) alih-alih dihapus, supaya pemain yang koneksinya putus masih
+    // bisa kembali ke room yang sama kapan pun -- lewat playerId yang sudah
+    // tersimpan di localStorage -- tanpa kehilangan skor dan tebakannya.
+    // Room-nya sendiri tetap dibatasi oleh ROOM_TTL_MS seperti biasa.
+    if (room.status !== "lobby") return;
+
     room.players.delete(playerId);
 
     if (room.players.size === 0) {

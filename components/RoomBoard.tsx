@@ -22,10 +22,11 @@ type ChatEntry = { id: string; playerId: string; text: string; at: number };
 
 type RoomView = {
   code: string;
-  status: "lobby" | "playing" | "finished";
+  status: "lobby" | "countdown" | "playing" | "finished";
   hostId: string;
   puzzleId: number;
   vocabSize: number;
+  countdownEndsAt?: number;
   players: {
     id: string;
     accountId?: string;
@@ -63,6 +64,9 @@ export default function RoomBoard({ code }: { code: string }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [seenChatCount, setSeenChatCount] = useState(0);
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
+  const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
+  const [connectAttempt, setConnectAttempt] = useState(0);
+  const [reconnectNonce, setReconnectNonce] = useState(0);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const submitSeq = useRef(0);
@@ -78,29 +82,65 @@ export default function RoomBoard({ code }: { code: string }) {
   useEffect(() => {
     if (!playerId) return;
 
-    const source = new EventSource(
-      `/api/room/stream?code=${encodeURIComponent(code)}&playerId=${encodeURIComponent(playerId)}`,
-    );
+    let cancelled = false;
+    let source: EventSource | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let attempt = 0;
 
-    source.onopen = () => setConnection("live");
-    source.onmessage = (event) => {
-      try {
-        setRoom(JSON.parse(event.data) as RoomView);
+    const connect = () => {
+      if (cancelled) return;
+      setConnection((prev) => (prev === "live" ? prev : "connecting"));
+
+      source = new EventSource(
+        `/api/room/stream?code=${encodeURIComponent(code)}&playerId=${encodeURIComponent(playerId)}`,
+      );
+
+      source.onopen = () => {
+        attempt = 0;
+        setConnectAttempt(0);
         setConnection("live");
-      } catch {
-        // Potongan pesan rusak: abaikan dan tunggu kiriman berikutnya.
-      }
+      };
+      source.onmessage = (event) => {
+        try {
+          setRoom(JSON.parse(event.data) as RoomView);
+          setConnection("live");
+          attempt = 0;
+          setConnectAttempt(0);
+        } catch {
+          // Potongan pesan rusak: abaikan dan tunggu kiriman berikutnya.
+        }
+      };
+      source.addEventListener("gone", () => {
+        forgetMembership(code);
+        setPlayerId(null);
+        setNotice({ tone: "error", text: "Room ini sudah ditutup." });
+        source?.close();
+      });
+      // EventSource bawaan hanya mencoba ulang sendiri kalau koneksi sempat
+      // tersambung lalu putus di tengah jalan -- kegagalan pada percobaan
+      // pertama (sinyal goyah, proxy menutup koneksi sesaat) membuatnya
+      // berhenti total tanpa mencoba lagi, jadi layar "Menyambung ke
+      // room..." bisa macet selamanya. Penyambungan ulang jadi tanggung
+      // jawab kode ini sendiri, dengan jeda yang makin panjang tiap gagal.
+      source.onerror = () => {
+        source?.close();
+        setConnection("lost");
+        if (cancelled) return;
+        attempt += 1;
+        setConnectAttempt(attempt);
+        const delay = Math.min(1000 * 2 ** (attempt - 1), 10_000);
+        retryTimer = setTimeout(connect, delay);
+      };
     };
-    source.addEventListener("gone", () => {
-      forgetMembership(code);
-      setPlayerId(null);
-      setNotice({ tone: "error", text: "Room ini sudah ditutup." });
-      source.close();
-    });
-    source.onerror = () => setConnection("lost");
 
-    return () => source.close();
-  }, [code, playerId]);
+    connect();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      source?.close();
+    };
+  }, [code, playerId, reconnectNonce]);
 
   // Kursi pemain ini di dalam room, berbeda dari `me` yang berisi akunnya:
   // seseorang bisa ikut room tanpa punya profil sama sekali.
@@ -125,6 +165,29 @@ export default function RoomBoard({ code }: { code: string }) {
     flaredFor.current = room.code;
     if (freshWord) flarePage();
   }, [room, freshWord]);
+
+  // Begitu host memulai hitung mundur, semua pemain difokuskan ke papan:
+  // obrolan dan profil yang sedang terbuka ditutup paksa.
+  useEffect(() => {
+    if (room?.status !== "countdown") return;
+    setChatOpen(false);
+    setProfileUsername(null);
+  }, [room?.status]);
+
+  // Angka hitung mundur dihitung di klien dari waktu akhir yang dikirim
+  // server, supaya semua pemain melihatnya turun bersamaan tanpa perlu
+  // menunggu tiap detak dari server.
+  useEffect(() => {
+    if (room?.status !== "countdown" || !room.countdownEndsAt) {
+      setCountdownLeft(null);
+      return;
+    }
+    const endsAt = room.countdownEndsAt;
+    const tick = () => setCountdownLeft(Math.max(0, Math.ceil((endsAt - Date.now()) / 1000)));
+    tick();
+    const interval = setInterval(tick, 200);
+    return () => clearInterval(interval);
+  }, [room?.status, room?.countdownEndsAt]);
 
   const join = useCallback(async () => {
     if (joining) return;
@@ -263,11 +326,11 @@ export default function RoomBoard({ code }: { code: string }) {
       >
         <Wordmark />
         <div className="flex items-center gap-2">
-          {playerId && (
+          {playerId && room?.status !== "countdown" && (
             <button
               type="button"
               onClick={() => setChatOpen(true)}
-              aria-label="Chat room"
+              aria-label="Buka chat room"
               className="relative p-1 text-[var(--muted)] transition-colors hover:text-[var(--fg)]"
             >
               <svg
@@ -361,11 +424,32 @@ export default function RoomBoard({ code }: { code: string }) {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
         {header}
-        <p className="text-[15px] text-[var(--muted)]">Menyambung ke room…</p>
+        <p className="text-[15px] text-[var(--muted)]">
+          {connectAttempt > 0 ? "Koneksi bermasalah, menyambung lagi…" : "Menyambung ke room…"}
+        </p>
+        {connectAttempt >= 4 && (
+          <div className="flex flex-col items-start gap-2">
+            <p className="text-[13px] text-[var(--muted)]">
+              Sudah dicoba beberapa kali tapi belum berhasil. Periksa koneksi
+              internetmu, lalu coba lagi.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setConnectAttempt(0);
+                setReconnectNonce((n) => n + 1);
+              }}
+              className="rounded-pill border border-[var(--line)] px-4 py-2 text-[13px] font-bold"
+            >
+              Coba lagi
+            </button>
+          </div>
+        )}
       </main>
     );
   }
 
+  const countingDown = room.status === "countdown";
   const playing = room.status === "playing";
   const finished = room.status === "finished";
 
@@ -416,6 +500,24 @@ export default function RoomBoard({ code }: { code: string }) {
           ) : (
             <p className="mt-5 text-[15px]">Menunggu host memulai permainan…</p>
           )}
+        </section>
+      )}
+
+      {countingDown && (
+        <section
+          className="rise flex flex-col items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--card)] p-8 text-center"
+          style={{ "--step": 1 } as React.CSSProperties}
+        >
+          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+            Bersiap-siap
+          </p>
+          <p className="font-mono text-[64px] font-bold leading-none tabular-nums">
+            {countdownLeft ?? "…"}
+          </p>
+          <p className="text-[13px] text-[var(--muted)]">
+            Permainan segera dimulai. Obrolan dan aktivitas lain ditutup sementara
+            supaya semua orang fokus bermain.
+          </p>
         </section>
       )}
 
