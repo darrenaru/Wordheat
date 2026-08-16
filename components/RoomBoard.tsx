@@ -7,6 +7,8 @@ import Avatar from "@/components/Avatar";
 import GuessRow from "@/components/GuessRow";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
 import RoomChatModal from "@/components/RoomChatModal";
+import SurrenderResultModal from "@/components/SurrenderResultModal";
+import SurrenderVoteModal from "@/components/SurrenderVoteModal";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
@@ -45,6 +47,12 @@ type RoomView = {
   chat: ChatEntry[];
   winner?: { id: string; name: string; guessCount: number };
   answer?: string;
+  surrenderThreshold: number;
+  surrenderRequest?: {
+    startedBy: string;
+    deadline: number;
+    responses: Record<string, "accept" | "reject">;
+  };
 };
 
 type Notice = { tone: "error" | "info"; text: string } | null;
@@ -67,10 +75,14 @@ export default function RoomBoard({ code }: { code: string }) {
   const [countdownLeft, setCountdownLeft] = useState<number | null>(null);
   const [connectAttempt, setConnectAttempt] = useState(0);
   const [reconnectNonce, setReconnectNonce] = useState(0);
+  const [startingSurrender, setStartingSurrender] = useState(false);
+  const [respondingSurrender, setRespondingSurrender] = useState(false);
+  const [surrenderModalOpen, setSurrenderModalOpen] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const submitSeq = useRef(0);
   const flaredFor = useRef<string | null>(null);
+  const surrenderNoticeFor = useRef<string | null>(null);
 
   useEffect(() => {
     setPlayerId(readMembership(code));
@@ -151,6 +163,7 @@ export default function RoomBoard({ code }: { code: string }) {
     [room],
   );
   const best = feed.length ? feed[0].rank : null;
+  const myResponse = playerId ? room?.surrenderRequest?.responses[playerId] : undefined;
 
   useEffect(() => {
     if (!room) return;
@@ -165,6 +178,16 @@ export default function RoomBoard({ code }: { code: string }) {
     flaredFor.current = room.code;
     if (freshWord) flarePage();
   }, [room, freshWord]);
+
+  // Permainan yang berakhir lewat suara menyerah (bukan kemenangan) memicu
+  // modal hasil sekali per room, persis seperti kilatan kemenangan di atas --
+  // tidak boleh muncul lagi tiap pemain lain menyegarkan halaman.
+  useEffect(() => {
+    if (room?.status !== "finished" || room.winner) return;
+    if (surrenderNoticeFor.current === room.code) return;
+    surrenderNoticeFor.current = room.code;
+    setSurrenderModalOpen(true);
+  }, [room]);
 
   // Begitu host memulai hitung mundur, semua pemain difokuskan ke papan:
   // obrolan dan profil yang sedang terbuka ditutup paksa.
@@ -269,6 +292,43 @@ export default function RoomBoard({ code }: { code: string }) {
       }
     },
     [code, playerId],
+  );
+
+  const startSurrender = useCallback(async () => {
+    if (!playerId || startingSurrender) return;
+    setStartingSurrender(true);
+    try {
+      await fetch("/api/room/surrender", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, playerId }),
+      });
+      // Papan lengkap (termasuk ajakan yang baru dibuka) sampai lewat aliran
+      // SSE; tidak perlu membaca balasan ini.
+    } catch {
+      setNotice({ tone: "error", text: "Ajakan menyerah gagal terkirim. Coba lagi." });
+    } finally {
+      setStartingSurrender(false);
+    }
+  }, [code, playerId, startingSurrender]);
+
+  const respondSurrender = useCallback(
+    async (response: "accept" | "reject") => {
+      if (!playerId || respondingSurrender) return;
+      setRespondingSurrender(true);
+      try {
+        await fetch("/api/room/surrender/respond", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, playerId, response }),
+        });
+      } catch {
+        setNotice({ tone: "error", text: "Jawaban gagal terkirim. Coba lagi." });
+      } finally {
+        setRespondingSurrender(false);
+      }
+    },
+    [code, playerId, respondingSurrender],
   );
 
   const inviteFriend = useCallback(
@@ -706,6 +766,23 @@ export default function RoomBoard({ code }: { code: string }) {
         </form>
       )}
 
+      {playing && !room.surrenderRequest && (
+        <div className="-mt-3 flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] px-4 py-3">
+          <p className="text-[13px] text-[var(--muted)]">
+            Butuh {room.surrenderThreshold} dari {room.players.length} pemain setuju untuk
+            mengakhiri permainan.
+          </p>
+          <button
+            type="button"
+            onClick={() => void startSurrender()}
+            disabled={startingSurrender}
+            className="shrink-0 rounded-pill border border-[var(--line)] px-4 py-2 text-[13px] font-bold text-[var(--muted)] disabled:opacity-50"
+          >
+            Menyerah
+          </button>
+        </div>
+      )}
+
       {notice && (
         <p
           role="status"
@@ -756,6 +833,33 @@ export default function RoomBoard({ code }: { code: string }) {
 
       {profileUsername && (
         <PlayerProfileModal username={profileUsername} onClose={() => setProfileUsername(null)} />
+      )}
+
+      {playing && room.surrenderRequest && playerId && (
+        <SurrenderVoteModal
+          players={room.players}
+          startedBy={room.surrenderRequest.startedBy}
+          deadline={room.surrenderRequest.deadline}
+          responses={room.surrenderRequest.responses}
+          myPlayerId={playerId}
+          myResponse={myResponse}
+          responding={respondingSurrender}
+          onRespond={(response) => void respondSurrender(response)}
+        />
+      )}
+
+      {surrenderModalOpen && room.answer && (
+        <SurrenderResultModal
+          players={room.players}
+          answer={room.answer}
+          voteCount={
+            room.surrenderRequest
+              ? Object.values(room.surrenderRequest.responses).filter((r) => r === "accept").length
+              : 0
+          }
+          totalPlayers={room.players.length}
+          onClose={() => setSurrenderModalOpen(false)}
+        />
       )}
     </main>
   );

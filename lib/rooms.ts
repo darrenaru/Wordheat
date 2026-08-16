@@ -33,6 +33,9 @@ const DISCONNECT_GRACE_MS = 12_000;
 /** Hitung mundur sebelum permainan benar-benar mulai, supaya semua pemain siap bersamaan. */
 const COUNTDOWN_MS = 3_000;
 
+/** Batas waktu semua pemain merespons sebuah ajakan menyerah. */
+const SURRENDER_VOTE_MS = 20_000;
+
 export type RoomStatus = "lobby" | "countdown" | "playing" | "finished";
 
 export type FeedEntry = {
@@ -85,7 +88,29 @@ type Room = {
   startedAt?: number;
   countdownEndsAt?: number;
   winnerId?: string;
+  surrenderRequest?: SurrenderRequest;
   listeners: Set<() => void>;
+};
+
+/**
+ * Ajakan menyerah yang sedang berjalan. Pemain yang mengajak otomatis
+ * tercatat "terima" -- mengajukan menyerah jelas berarti dia setuju.
+ *
+ * Ada tiga jalan keluar: ambang suara "terima" tercapai (`resolved` jadi
+ * true, permainan berakhir -- objeknya sengaja DIBIARKAN di room, jadi
+ * modal hasil masih bisa membaca siapa yang setuju), semua pemain sudah
+ * menjawab tapi ambangnya tidak tercapai (jelas ditolak, `surrenderRequest`
+ * langsung dihapus), atau waktu habis lebih dulu tanpa keputusan (juga
+ * dihapus). Penanda `resolved` mencegah timer yang sudah basi -- tertunda
+ * gara-gara antrean event -- menimpa hasil "terima" yang sudah terjadi
+ * lebih dulu.
+ */
+type SurrenderRequest = {
+  startedBy: string;
+  deadline: number;
+  responses: Map<string, "accept" | "reject">;
+  resolved: boolean;
+  timer?: NodeJS.Timeout;
 };
 
 /** Modul dimuat ulang tiap kali kode berubah saat pengembangan; room tidak boleh ikut hilang. */
@@ -160,6 +185,14 @@ export type RoomView = {
   winner?: { id: string; name: string; guessCount: number };
   /** Hanya terisi setelah permainan usai. */
   answer?: string;
+  /** Suara "terima" yang dibutuhkan untuk mengakhiri permainan lewat menyerah. */
+  surrenderThreshold: number;
+  /** Ada isinya hanya selama sebuah ajakan menyerah sedang berjalan. */
+  surrenderRequest?: {
+    startedBy: string;
+    deadline: number;
+    responses: Record<string, "accept" | "reject">;
+  };
 };
 
 function newId(): string {
@@ -201,6 +234,14 @@ function bestRankOf(player: Player): number | null {
   return Math.min(...player.guesses.map((g) => g.rank));
 }
 
+/**
+ * Lebih dari separuh pemain, bukan sekadar separuh -- di room 2 orang,
+ * kedua-duanya harus setuju; di room 3 orang, 2 dari 3 sudah cukup.
+ */
+function surrenderThresholdOf(room: Room): number {
+  return Math.floor(room.players.size / 2) + 1;
+}
+
 export function viewOf(room: Room): RoomView {
   const players = [...room.players.values()]
     .sort((a, b) => a.joinedAt - b.joinedAt)
@@ -237,6 +278,14 @@ export function viewOf(room: Room): RoomView {
       : undefined,
     // Jawaban baru boleh menyeberang ke klien setelah permainan benar-benar usai.
     answer: room.status === "finished" ? room.puzzle.word : undefined,
+    surrenderThreshold: surrenderThresholdOf(room),
+    surrenderRequest: room.surrenderRequest
+      ? {
+          startedBy: room.surrenderRequest.startedBy,
+          deadline: room.surrenderRequest.deadline,
+          responses: Object.fromEntries(room.surrenderRequest.responses),
+        }
+      : undefined,
   };
 }
 
@@ -439,6 +488,102 @@ export async function submitRoomGuess(
   broadcast(room);
   if (room.status === "finished") notifyMatchStatus(room, "finished");
   return { ok: true, value: { room, result, duplicate: false } };
+}
+
+export type SurrenderError = "not-found" | "not-playing" | "not-member" | "already-active";
+export type SurrenderRespondError =
+  | "not-found"
+  | "not-playing"
+  | "not-member"
+  | "no-active-vote"
+  | "already-responded";
+
+/**
+ * Menutup sebuah ajakan menyerah kalau sudah punya keputusan: cukup suara
+ * "terima" (permainan berakhir tanpa pemenang -- jawabannya tetap dibuka
+ * lewat `viewOf` seperti kemenangan biasa, tapi sengaja tidak dicatat ke
+ * papan peringkat karena menyerah bukan kekalahan yang harus menodai rekam
+ * jejak siapa pun), atau semua pemain sudah menjawab tanpa mencapai ambang
+ * (jelas ditolak, tidak perlu menunggu waktu habis). Kalau belum ada
+ * keputusan, request dibiarkan berjalan sampai timer-nya sendiri habis.
+ */
+function resolveSurrenderIfDecided(room: Room): void {
+  const request = room.surrenderRequest;
+  if (!request || request.resolved) return;
+
+  const acceptCount = [...request.responses.values()].filter((r) => r === "accept").length;
+  if (acceptCount >= surrenderThresholdOf(room)) {
+    if (request.timer) clearTimeout(request.timer);
+    request.timer = undefined;
+    request.resolved = true;
+    room.status = "finished";
+    notifyMatchStatus(room, "finished");
+    return;
+  }
+
+  if (request.responses.size >= room.players.size) {
+    if (request.timer) clearTimeout(request.timer);
+    room.surrenderRequest = undefined;
+  }
+}
+
+export function startSurrenderVote(
+  code: string,
+  playerId: string,
+): Result<{ room: Room }, SurrenderError> {
+  const room = getRoom(code);
+  if (!room) return { ok: false, error: "not-found" };
+  if (room.status !== "playing") return { ok: false, error: "not-playing" };
+  if (!room.players.has(playerId)) return { ok: false, error: "not-member" };
+  if (room.surrenderRequest) return { ok: false, error: "already-active" };
+
+  const request: SurrenderRequest = {
+    startedBy: playerId,
+    deadline: Date.now() + SURRENDER_VOTE_MS,
+    responses: new Map([[playerId, "accept"]]),
+    resolved: false,
+  };
+  room.surrenderRequest = request;
+  resolveSurrenderIfDecided(room);
+
+  // Masih berjalan setelah respons otomatis si pengajak -- pasang batas
+  // waktu supaya request yang tidak pernah selesai tidak menggantung selamanya.
+  if (!request.resolved) {
+    request.timer = setTimeout(() => {
+      const current = getRoom(code);
+      if (!current || current.surrenderRequest !== request || request.resolved) return;
+      current.surrenderRequest = undefined;
+      touch(current);
+      broadcast(current);
+    }, SURRENDER_VOTE_MS);
+    request.timer.unref?.();
+  }
+
+  touch(room);
+  broadcast(room);
+  return { ok: true, value: { room } };
+}
+
+export function respondToSurrenderVote(
+  code: string,
+  playerId: string,
+  response: "accept" | "reject",
+): Result<{ room: Room }, SurrenderRespondError> {
+  const room = getRoom(code);
+  if (!room) return { ok: false, error: "not-found" };
+  if (room.status !== "playing") return { ok: false, error: "not-playing" };
+  if (!room.players.has(playerId)) return { ok: false, error: "not-member" };
+
+  const request = room.surrenderRequest;
+  if (!request) return { ok: false, error: "no-active-vote" };
+  if (request.responses.has(playerId)) return { ok: false, error: "already-responded" };
+
+  request.responses.set(playerId, response);
+  resolveSurrenderIfDecided(room);
+
+  touch(room);
+  broadcast(room);
+  return { ok: true, value: { room } };
 }
 
 const CHAT_MAX_LEN = 300;
