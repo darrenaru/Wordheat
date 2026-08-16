@@ -84,19 +84,26 @@ export default function SurrenderVoteModal({
           </p>
         </div>
 
-        <ul className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
+        <ul className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1 pt-1">
           {players.map((player) => {
             const response = responses[player.id];
             return (
               <li key={player.id} className="flex w-[76px] shrink-0 flex-col items-center gap-1 text-center">
-                <Avatar
-                  seed={player.avatarSeed}
-                  bg={player.avatarBg}
-                  choices={player.avatarChoices}
-                  name={player.name}
-                  size={44}
-                  className={player.id === myPlayerId ? "ring-2 ring-flare ring-offset-2 ring-offset-[var(--card)]" : ""}
-                />
+                <span
+                  className={`inline-block rounded-full ${
+                    player.id === myPlayerId
+                      ? "ring-2 ring-flare ring-offset-2 ring-offset-[var(--card)]"
+                      : ""
+                  }`}
+                >
+                  <Avatar
+                    seed={player.avatarSeed}
+                    bg={player.avatarBg}
+                    choices={player.avatarChoices}
+                    name={player.name}
+                    size={44}
+                  />
+                </span>
                 <span className="w-full truncate text-[13px]">
                   {player.id === myPlayerId ? "Kamu" : player.name}
                 </span>

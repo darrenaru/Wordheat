@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Avatar from "@/components/Avatar";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 import GuessRow from "@/components/GuessRow";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
+import PresenceDot from "@/components/PresenceDot";
 import RoomChatModal from "@/components/RoomChatModal";
 import SurrenderResultModal from "@/components/SurrenderResultModal";
 import SurrenderVoteModal from "@/components/SurrenderVoteModal";
@@ -15,6 +17,7 @@ import { useAccount } from "@/components/AccountProvider";
 import { ChatIcon } from "@/components/icons";
 import type { AvatarChoices } from "@/lib/avatar";
 import { applyAmbientHeat, flarePage } from "@/lib/ambient";
+import type { AccountStatus } from "@/lib/profile";
 import { forgetMembership, readMembership, readPlayerName, rememberMembership, storePlayerName } from "@/lib/session";
 import { normalizeWord } from "@/lib/word";
 
@@ -42,6 +45,7 @@ type RoomView = {
     guessCount: number;
     bestRank: number | null;
     solvedAt?: number;
+    status?: AccountStatus;
   }[];
   feed: FeedEntry[];
   chat: ChatEntry[];
@@ -58,8 +62,10 @@ type RoomView = {
 type Notice = { tone: "error" | "info"; text: string } | null;
 
 export default function RoomBoard({ code }: { code: string }) {
-  const { me } = useAccount();
+  const { me, loaded } = useAccount();
   const [playerId, setPlayerId] = useState<string | null>(null);
+  const [guestChosen, setGuestChosen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [invited, setInvited] = useState<Record<string, boolean>>({});
   const [room, setRoom] = useState<RoomView | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
@@ -83,6 +89,7 @@ export default function RoomBoard({ code }: { code: string }) {
   const submitSeq = useRef(0);
   const flaredFor = useRef<string | null>(null);
   const surrenderNoticeFor = useRef<string | null>(null);
+  const autoJoinAttempted = useRef(false);
 
   useEffect(() => {
     setPlayerId(readMembership(code));
@@ -238,6 +245,17 @@ export default function RoomBoard({ code }: { code: string }) {
     }
   }, [code, joinName, joining]);
 
+  // Tautan undangan (/room/[code]) sudah membawa kode room-nya sendiri di
+  // URL -- pemain yang sudah punya akun tidak perlu mengetik apa pun lagi,
+  // jadi langsung digabungkan begitu identitas akunnya diketahui. Guard
+  // lewat ref (bukan sekadar mengandalkan `joining`/`playerId`) supaya
+  // percobaan gagal (mis. room penuh) tidak diulang otomatis tanpa henti.
+  useEffect(() => {
+    if (!loaded || playerId || autoJoinAttempted.current || !me) return;
+    autoJoinAttempted.current = true;
+    void join();
+  }, [loaded, me, playerId, join]);
+
   const start = useCallback(async () => {
     if (!playerId) return;
     await fetch("/api/room/start", {
@@ -357,6 +375,28 @@ export default function RoomBoard({ code }: { code: string }) {
     }
   }, [code]);
 
+  // Tautan (bukan cuma kode telanjang) supaya siapa pun yang membukanya --
+  // di WhatsApp, Telegram, atau ke mana pun dibagikan -- langsung mendarat
+  // di room ini, bukan perlu mengetik ulang kodenya di halaman depan.
+  const shareRoom = useCallback(async () => {
+    const url = `${window.location.origin}/room/${code}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Wordheat", text: `Gabung ke room ${code} di Wordheat!`, url });
+      } catch {
+        // Dibatalkan pengguna atau gagal diam-diam -- tidak perlu ditindaklanjuti.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      setNotice({ tone: "error", text: "Tautan gagal disalin." });
+    }
+  }, [code]);
+
   const sendChat = useCallback(
     async (text: string) => {
       if (!playerId) return;
@@ -385,38 +425,7 @@ export default function RoomBoard({ code }: { code: string }) {
         style={{ "--step": 0 } as React.CSSProperties}
       >
         <Wordmark />
-        <div className="flex items-center gap-2">
-          {playerId && room?.status !== "countdown" && (
-            <button
-              type="button"
-              onClick={() => setChatOpen(true)}
-              aria-label="Buka chat room"
-              className="relative p-1 text-[var(--muted)] transition-colors hover:text-[var(--fg)]"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.7"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="size-[18px]"
-              >
-                {ChatIcon}
-              </svg>
-              {unreadChat > 0 && (
-                <span
-                  aria-hidden="true"
-                  className="absolute -right-1 -top-1 grid size-[16px] place-items-center rounded-full bg-flare text-[10px] font-bold text-[#150710]"
-                >
-                  {unreadChat}
-                </span>
-              )}
-            </button>
-          )}
-          <ThemeToggle />
-        </div>
+        <ThemeToggle />
       </header>
       <div className="flex flex-col gap-1.5">
         <Link href="/" className="text-[13px] font-bold text-[var(--muted)]">
@@ -427,8 +436,87 @@ export default function RoomBoard({ code }: { code: string }) {
     </>
   );
 
-  // Belum jadi anggota: minta nama, lalu masuk lewat tautan yang dibagikan host.
+  // Belum jadi anggota. Tautan undangan sudah membawa kode room-nya sendiri
+  // di URL, jadi jalannya dibedakan: sudah login -> otomatis bergabung
+  // tanpa klik apa pun (lihat efek auto-join di atas); belum login ->
+  // tawarkan pilihan Login atau Lanjutkan sebagai tamu dulu, baru masuk
+  // ruang tunggu.
   if (!playerId) {
+    if (!loaded) {
+      return (
+        <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
+          {header}
+          <p className="text-[15px] text-[var(--muted)]">Memuat…</p>
+        </main>
+      );
+    }
+
+    if (me) {
+      return (
+        <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
+          {header}
+          <section className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
+            <p className="flex items-center gap-2 text-[15px]">
+              <Avatar
+                seed={me.account.avatarSeed}
+                bg={me.account.avatarBg}
+                choices={me.account.avatarChoices}
+                name={me.account.displayName}
+                size={24}
+              />
+              Bergabung ke room {code} sebagai{" "}
+              <strong className="text-[var(--fg)]">{me.account.displayName}</strong>…
+            </p>
+            {joinError && (
+              <>
+                <p role="status" className="mt-3 text-[14px] text-flare">
+                  {joinError}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void join()}
+                  disabled={joining}
+                  className="mt-3 w-full rounded-pill border border-[var(--line)] px-5 py-3 text-[15px] font-bold disabled:opacity-50"
+                >
+                  {joining ? "Mencoba lagi…" : "Coba lagi"}
+                </button>
+              </>
+            )}
+          </section>
+        </main>
+      );
+    }
+
+    if (!guestChosen) {
+      return (
+        <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
+          {header}
+          <section className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
+            <p className="text-[17px] font-bold">Gabung ke room {code}</p>
+            <p className="mt-1 text-[13px] text-[var(--muted)]">
+              Masuk dengan Google supaya progres dan daftar temanmu tersimpan,
+              atau langsung main sebagai tamu.
+            </p>
+            <div className="mt-4 flex justify-center">
+              <GoogleSignInButton onError={(message) => setJoinError(message)} />
+            </div>
+            <button
+              type="button"
+              onClick={() => setGuestChosen(true)}
+              className="mt-3 w-full rounded-pill border border-[var(--line)] px-5 py-3 text-[15px] font-bold"
+            >
+              Lanjutkan sebagai tamu
+            </button>
+            {joinError && (
+              <p role="status" className="mt-3 text-[14px] text-flare">
+                {joinError}
+              </p>
+            )}
+          </section>
+        </main>
+      );
+    }
+
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
         {header}
@@ -437,31 +525,18 @@ export default function RoomBoard({ code }: { code: string }) {
           <p className="mt-1 text-[13px] text-[var(--muted)]">
             Kamu akan menunggu di ruang tunggu sampai host memulai permainan.
           </p>
-          {me ? (
-            <p className="mt-4 flex items-center gap-2 text-[13px] text-[var(--muted)]">
-              <Avatar
-                seed={me.account.avatarSeed}
-                bg={me.account.avatarBg}
-                choices={me.account.avatarChoices}
-                name={me.account.displayName}
-                size={24}
-              />
-              Masuk sebagai <strong className="text-[var(--fg)]">{me.account.displayName}</strong>
-            </p>
-          ) : (
-            <label className="mt-4 block">
-              <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
-                Nama kamu
-              </span>
-              <input
-                value={joinName}
-                onChange={(e) => setJoinName(e.target.value)}
-                maxLength={18}
-                placeholder="Opsional"
-                className="mt-1.5 w-full rounded-pill border border-[var(--line)] bg-[var(--field)] px-4 py-2.5 text-[15px] outline-none placeholder:text-[var(--muted)]"
-              />
-            </label>
-          )}
+          <label className="mt-4 block">
+            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+              Nama kamu
+            </span>
+            <input
+              value={joinName}
+              onChange={(e) => setJoinName(e.target.value)}
+              maxLength={18}
+              placeholder="Opsional"
+              className="mt-1.5 w-full rounded-pill border border-[var(--line)] bg-[var(--field)] px-4 py-2.5 text-[15px] outline-none placeholder:text-[var(--muted)]"
+            />
+          </label>
           <button
             type="button"
             onClick={() => void join()}
@@ -517,6 +592,48 @@ export default function RoomBoard({ code }: { code: string }) {
     <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
       {header}
 
+      {room.status !== "countdown" && (
+        <div className="-mt-3 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => setChatOpen(true)}
+            aria-label="Buka chat room"
+            className="relative shrink-0 rounded-pill border border-[var(--line)] p-2.5 text-[var(--muted)] transition-colors hover:border-[var(--fg)]/35 hover:text-[var(--fg)]"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-[18px]"
+            >
+              {ChatIcon}
+            </svg>
+            {unreadChat > 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute -right-1 -top-1 grid size-[16px] place-items-center rounded-full bg-flare text-[10px] font-bold text-[#150710]"
+              >
+                {unreadChat}
+              </span>
+            )}
+          </button>
+          {playing && !room.surrenderRequest && (
+            <button
+              type="button"
+              onClick={() => void startSurrender()}
+              disabled={startingSurrender}
+              className="shrink-0 rounded-pill border border-red-500/30 bg-red-500/15 px-4 py-2 text-[13px] font-bold text-red-400 transition-colors hover:bg-red-500/25 disabled:opacity-50"
+            >
+              Menyerah
+            </button>
+          )}
+        </div>
+      )}
+
       {connection === "lost" && (
         <p role="status" className="text-[14px] text-flare">
           Sambungan ke room terputus. Menyambung ulang…
@@ -543,9 +660,16 @@ export default function RoomBoard({ code }: { code: string }) {
               {copied ? "Tersalin" : "Salin"}
             </button>
           </div>
+          <button
+            type="button"
+            onClick={() => void shareRoom()}
+            className="mt-3 w-full rounded-pill bg-[var(--btn-bg)] px-5 py-3 text-[15px] font-bold text-[var(--btn-fg)]"
+          >
+            {linkCopied ? "Tautan tersalin" : "Bagikan tautan room"}
+          </button>
           <p className="mt-3 text-[13px] text-[var(--muted)]">
-            Bagikan kode ini. Pemain lain memasukkannya di halaman depan untuk
-            bergabung.
+            Siapa pun yang membuka tautannya langsung masuk ke room ini --
+            tidak perlu mengetik kode secara manual.
           </p>
 
           {isHost ? (
@@ -660,11 +784,9 @@ export default function RoomBoard({ code }: { code: string }) {
                         name={player.name}
                         size={32}
                       />
-                      <span
-                        aria-hidden="true"
-                        className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-[var(--bg)] ${
-                          player.online ? "bg-flare" : "bg-[var(--muted)]"
-                        }`}
+                      <PresenceDot
+                        status={player.status ?? (player.online ? "online" : "offline")}
+                        className="absolute -bottom-0.5 -right-0.5"
                       />
                     </span>
                     <span className="truncate">{player.name}</span>
@@ -679,11 +801,9 @@ export default function RoomBoard({ code }: { code: string }) {
                         name={player.name}
                         size={32}
                       />
-                      <span
-                        aria-hidden="true"
-                        className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-[var(--bg)] ${
-                          player.online ? "bg-flare" : "bg-[var(--muted)]"
-                        }`}
+                      <PresenceDot
+                        status={player.status ?? (player.online ? "online" : "offline")}
+                        className="absolute -bottom-0.5 -right-0.5"
                       />
                     </span>
                     <span className="truncate">{player.name}</span>
@@ -764,23 +884,6 @@ export default function RoomBoard({ code }: { code: string }) {
             Tebak
           </button>
         </form>
-      )}
-
-      {playing && !room.surrenderRequest && (
-        <div className="-mt-3 flex items-center justify-between gap-3 rounded-lg border border-[var(--line)] px-4 py-3">
-          <p className="text-[13px] text-[var(--muted)]">
-            Butuh {room.surrenderThreshold} dari {room.players.length} pemain setuju untuk
-            mengakhiri permainan.
-          </p>
-          <button
-            type="button"
-            onClick={() => void startSurrender()}
-            disabled={startingSurrender}
-            className="shrink-0 rounded-pill border border-[var(--line)] px-4 py-2 text-[13px] font-bold text-[var(--muted)] disabled:opacity-50"
-          >
-            Menyerah
-          </button>
-        </div>
       )}
 
       {notice && (
