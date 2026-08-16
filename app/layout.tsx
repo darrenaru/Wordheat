@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Mono, DM_Sans } from "next/font/google";
 
+import AccountGate from "@/components/AccountGate";
 import AccountProvider from "@/components/AccountProvider";
 import Ambient from "@/components/Ambient";
 import InviteBanner from "@/components/InviteBanner";
 import VersionFooter from "@/components/VersionFooter";
+import { currentAccount } from "@/lib/accounts";
 import { DEFAULT_THEME, THEME_INIT_SCRIPT } from "@/lib/theme";
 
 import "./globals.css";
@@ -38,7 +40,9 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const initialHasAccount = Boolean(await currentAccount());
+
   return (
     <html
       lang="id"
@@ -52,9 +56,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Ambient />
         <div className="heat-field" aria-hidden="true" />
-        <AccountProvider>
-          {children}
-          <InviteBanner />
+        <AccountProvider initialHasAccount={initialHasAccount}>
+          <AccountGate>
+            {children}
+            <InviteBanner />
+          </AccountGate>
         </AccountProvider>
         <VersionFooter />
       </body>

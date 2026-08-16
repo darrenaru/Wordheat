@@ -11,6 +11,7 @@ import {
   type AvatarChoices,
 } from "@/lib/avatar";
 import { db } from "@/lib/db";
+import { randomFantasyDisplayName } from "@/lib/fantasy-name";
 
 /**
  * Akun, profil, dan pertemanan.
@@ -263,17 +264,24 @@ function slugifyUsername(raw: string): string {
   return raw.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 16);
 }
 
-function generateUsernameFromGoogle(name: string, email: string): string {
-  const emailLocal = email.split("@")[0] ?? "";
-  let base = slugifyUsername(emailLocal) || slugifyUsername(name);
-  if (base.length < 3) base = (base + "pemain").slice(0, 3);
-  base = base.slice(0, 12); // sisakan ruang untuk akhiran angka sampai 16 karakter
+/** Kandidat unik dari basis apa pun -- dipakai baik untuk username asal
+ *  Google maupun untuk akun tamu. */
+function uniqueUsernameFrom(base: string): string {
+  let trimmed = slugifyUsername(base);
+  if (trimmed.length < 3) trimmed = (trimmed + "pemain").slice(0, 3);
+  trimmed = trimmed.slice(0, 12); // sisakan ruang untuk akhiran angka sampai 16 karakter
 
   for (let attempt = 0; attempt < 25; attempt++) {
-    const candidate = attempt === 0 ? base : `${base}${randomInt(10, 9999)}`;
+    const candidate = attempt === 0 ? trimmed : `${trimmed}${randomInt(10, 9999)}`;
     if (!findAccountByUsername(candidate)) return candidate;
   }
-  return `${base}${randomInt(100000, 999999)}`.slice(0, 16);
+  return `${trimmed}${randomInt(100000, 999999)}`.slice(0, 16);
+}
+
+function generateUsernameFromGoogle(name: string, email: string): string {
+  const emailLocal = email.split("@")[0] ?? "";
+  const base = slugifyUsername(emailLocal) || slugifyUsername(name);
+  return uniqueUsernameFrom(base);
 }
 
 /**
@@ -306,6 +314,27 @@ export function findOrCreateGoogleAccount(claims: {
 
   linkGoogleCredential(result.account.id, claims.sub);
   return { ok: true, account: result.account, recoveryCode: result.recoveryCode };
+}
+
+/**
+ * Akun tamu: dibuat otomatis tanpa pemain mengetik apa pun, memakai jalur
+ * createAccount() yang sama seperti pendaftaran manual -- hanya beda sumber
+ * username/displayName-nya (nama fantasy acak, bukan input pemain). Kode
+ * pemulihannya tetap muncul lewat mekanisme yang sudah ada, jadi akun ini
+ * tetap bisa dipulihkan dari perangkat lain persis seperti akun manual.
+ */
+export function createGuestAccount():
+  | { ok: true; account: Account; recoveryCode: string }
+  | { ok: false; error: "bad-request" } {
+  const displayName = randomFantasyDisplayName();
+  const result = createAccount({ username: uniqueUsernameFrom(displayName), displayName });
+  if (result.ok) return result;
+
+  // Tabrakan username sisa dari race kondisi jarang -- coba sekali lagi
+  // dengan nama fantasy baru.
+  const retryName = randomFantasyDisplayName();
+  const retry = createAccount({ username: uniqueUsernameFrom(retryName), displayName: retryName });
+  return retry.ok ? retry : { ok: false, error: "bad-request" };
 }
 
 export function findAccountById(id: string): Account | null {

@@ -10,53 +10,34 @@ import ModeCard, { type ModeCardProps } from "@/components/ModeCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
-import WelcomeGate, { hasSeenWelcome } from "@/components/WelcomeGate";
 import { FriendsIcon, HelpIcon, PartyIcon, SoloIcon, TrophyIcon } from "@/components/icons";
-import { rememberMembership, readPlayerName, storePlayerName } from "@/lib/session";
+import { rememberMembership } from "@/lib/session";
 
 type Mode = "idle" | "creating" | "joining";
 
 export default function Landing({ vocabSize }: { vocabSize: number }) {
   const router = useRouter();
-  const { me, loaded, hasAccount } = useAccount();
+  const { me } = useAccount();
   const [showHelp, setShowHelp] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(false);
-
-  // Ditampilkan sekali per browser, hanya untuk pengunjung yang belum punya
-  // profil -- bukan gerbang global di layout, supaya tautan undangan room
-  // (/room/[code]) tetap bisa dibuka langsung tanpa gangguan. Dites lewat
-  // hasAccount, bukan `me`: pemilik akun sudah pasti "punya akun" begitu
-  // `loaded` true, tapi `me` (MeState lengkap) baru terisi belakangan lewat
-  // SSE -- memakai `!me` di sini akan mengedipkan gerbang ini ke pemain yang
-  // sebenarnya sudah masuk.
-  useEffect(() => {
-    if (loaded && hasAccount === false && !hasSeenWelcome()) setShowWelcome(true);
-  }, [loaded, hasAccount]);
   // Satu lencana untuk semua yang butuh perhatian di halaman Teman --
   // permintaan pertemanan masuk dan pesan belum dibaca sama-sama menunggu di
   // sana, jadi ikon navbar cukup menunjukkan totalnya.
   const friendsBadge = me
     ? me.incoming.length + Object.values(me.unreadMessages).reduce((a, b) => a + b, 0)
     : 0;
-  const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [mode, setMode] = useState<Mode>("idle");
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setName(readPlayerName() ?? "");
-  }, []);
 
   const createRoom = useCallback(async () => {
     if (mode !== "idle") return;
     setMode("creating");
     setError(null);
     try {
-      storePlayerName(name);
       const res = await fetch("/api/room/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         setError("Room gagal dibuat. Coba lagi.");
@@ -70,7 +51,7 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
     } finally {
       setMode("idle");
     }
-  }, [mode, name, router]);
+  }, [mode, router]);
 
   const joinRoom = useCallback(async () => {
     const trimmed = code.trim().toUpperCase();
@@ -82,11 +63,10 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
     setMode("joining");
     setError(null);
     try {
-      storePlayerName(name);
       const res = await fetch("/api/room/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: trimmed, name }),
+        body: JSON.stringify({ code: trimmed }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -100,7 +80,7 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
     } finally {
       setMode("idle");
     }
-  }, [code, mode, name, router]);
+  }, [code, mode, router]);
 
   /**
    * Daftar mode permainan. Menambah fitur baru -- papan peringkat, toko,
@@ -238,7 +218,6 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
       </header>
 
       {showHelp && <HowToPlayModal vocabSize={vocabSize} onClose={() => setShowHelp(false)} />}
-      {showWelcome && <WelcomeGate onDismiss={() => setShowWelcome(false)} />}
 
       {/* Elemen utama halaman: pemain yang sudah dikirimi kode datang ke sini
           lebih dulu, sebelum melihat apa pun yang lain. */}

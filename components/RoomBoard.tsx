@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Avatar from "@/components/Avatar";
-import GoogleSignInButton from "@/components/GoogleSignInButton";
 import GuessRow from "@/components/GuessRow";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
 import PresenceDot from "@/components/PresenceDot";
@@ -18,7 +17,7 @@ import { ChatIcon } from "@/components/icons";
 import type { AvatarChoices } from "@/lib/avatar";
 import { applyAmbientHeat, flarePage } from "@/lib/ambient";
 import type { AccountStatus } from "@/lib/profile";
-import { forgetMembership, readMembership, readPlayerName, rememberMembership, storePlayerName } from "@/lib/session";
+import { forgetMembership, readMembership, rememberMembership } from "@/lib/session";
 import { normalizeWord } from "@/lib/word";
 
 type FeedEntry = { word: string; rank: number; by: string; byId: string; at: number };
@@ -64,13 +63,11 @@ type Notice = { tone: "error" | "info"; text: string } | null;
 export default function RoomBoard({ code }: { code: string }) {
   const { me, loaded } = useAccount();
   const [playerId, setPlayerId] = useState<string | null>(null);
-  const [guestChosen, setGuestChosen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [invited, setInvited] = useState<Record<string, boolean>>({});
   const [room, setRoom] = useState<RoomView | null>(null);
   const [notice, setNotice] = useState<Notice>(null);
   const [connection, setConnection] = useState<"connecting" | "live" | "lost">("connecting");
-  const [joinName, setJoinName] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
   const [freshWord, setFreshWord] = useState<string | null>(null);
@@ -93,7 +90,6 @@ export default function RoomBoard({ code }: { code: string }) {
 
   useEffect(() => {
     setPlayerId(readMembership(code));
-    setJoinName(readPlayerName() ?? "");
   }, [code]);
 
   // Satu koneksi SSE sekaligus jadi penanda kehadiran: selama alirannya
@@ -224,11 +220,10 @@ export default function RoomBoard({ code }: { code: string }) {
     setJoining(true);
     setJoinError(null);
     try {
-      storePlayerName(joinName);
       const res = await fetch("/api/room/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, name: joinName }),
+        body: JSON.stringify({ code }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -243,18 +238,27 @@ export default function RoomBoard({ code }: { code: string }) {
     } finally {
       setJoining(false);
     }
-  }, [code, joinName, joining]);
+  }, [code, joining]);
 
   // Tautan undangan (/room/[code]) sudah membawa kode room-nya sendiri di
   // URL -- pemain yang sudah punya akun tidak perlu mengetik apa pun lagi,
   // jadi langsung digabungkan begitu identitas akunnya diketahui. Guard
   // lewat ref (bukan sekadar mengandalkan `joining`/`playerId`) supaya
   // percobaan gagal (mis. room penuh) tidak diulang otomatis tanpa henti.
+  //
+  // Sengaja mengecek localStorage langsung di sini (bukan cuma bergantung
+  // pada state `playerId`) -- sejak akun selalu ada begitu halaman ini
+  // mount (gerbang akun global), efek pembaca localStorage di atas dan efek
+  // ini sama-sama melihat `playerId` yang masih null pada render pertama
+  // (state barunya belum sempat mengalir sebelum render berikutnya), yang
+  // tanpa pengecekan ulang ini bisa memicu bergabung dua kali ke room yang
+  // sama sebelum efek satunya sempat mengisi playerId dari penyimpanan.
   useEffect(() => {
     if (!loaded || playerId || autoJoinAttempted.current || !me) return;
+    if (readMembership(code)) return;
     autoJoinAttempted.current = true;
     void join();
-  }, [loaded, me, playerId, join]);
+  }, [loaded, me, playerId, join, code]);
 
   const start = useCallback(async () => {
     if (!playerId) return;
@@ -436,13 +440,12 @@ export default function RoomBoard({ code }: { code: string }) {
     </>
   );
 
-  // Belum jadi anggota. Tautan undangan sudah membawa kode room-nya sendiri
-  // di URL, jadi jalannya dibedakan: sudah login -> otomatis bergabung
-  // tanpa klik apa pun (lihat efek auto-join di atas); belum login ->
-  // tawarkan pilihan Login atau Lanjutkan sebagai tamu dulu, baru masuk
-  // ruang tunggu.
+  // Belum jadi anggota. Gerbang akun global (AccountGate, di layout)
+  // menjamin `me` selalu ada sebelum komponen ini sempat mount, jadi
+  // bergabung selalu otomatis lewat efek auto-join di atas -- tidak perlu
+  // pilihan Login/tamu di sini lagi.
   if (!playerId) {
-    if (!loaded) {
+    if (!loaded || !me) {
       return (
         <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
           {header}
@@ -451,104 +454,35 @@ export default function RoomBoard({ code }: { code: string }) {
       );
     }
 
-    if (me) {
-      return (
-        <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
-          {header}
-          <section className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
-            <p className="flex items-center gap-2 text-[15px]">
-              <Avatar
-                seed={me.account.avatarSeed}
-                bg={me.account.avatarBg}
-                choices={me.account.avatarChoices}
-                name={me.account.displayName}
-                size={24}
-              />
-              Bergabung ke room {code} sebagai{" "}
-              <strong className="text-[var(--fg)]">{me.account.displayName}</strong>…
-            </p>
-            {joinError && (
-              <>
-                <p role="status" className="mt-3 text-[14px] text-flare">
-                  {joinError}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void join()}
-                  disabled={joining}
-                  className="mt-3 w-full rounded-pill border border-[var(--line)] px-5 py-3 text-[15px] font-bold disabled:opacity-50"
-                >
-                  {joining ? "Mencoba lagi…" : "Coba lagi"}
-                </button>
-              </>
-            )}
-          </section>
-        </main>
-      );
-    }
-
-    if (!guestChosen) {
-      return (
-        <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
-          {header}
-          <section className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
-            <p className="text-[17px] font-bold">Gabung ke room {code}</p>
-            <p className="mt-1 text-[13px] text-[var(--muted)]">
-              Masuk dengan Google supaya progres dan daftar temanmu tersimpan,
-              atau langsung main sebagai tamu.
-            </p>
-            <div className="mt-4 flex justify-center">
-              <GoogleSignInButton onError={(message) => setJoinError(message)} />
-            </div>
-            <button
-              type="button"
-              onClick={() => setGuestChosen(true)}
-              className="mt-3 w-full rounded-pill border border-[var(--line)] px-5 py-3 text-[15px] font-bold"
-            >
-              Lanjutkan sebagai tamu
-            </button>
-            {joinError && (
-              <p role="status" className="mt-3 text-[14px] text-flare">
-                {joinError}
-              </p>
-            )}
-          </section>
-        </main>
-      );
-    }
-
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
         {header}
         <section className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
-          <p className="text-[17px] font-bold">Gabung ke room {code}</p>
-          <p className="mt-1 text-[13px] text-[var(--muted)]">
-            Kamu akan menunggu di ruang tunggu sampai host memulai permainan.
-          </p>
-          <label className="mt-4 block">
-            <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
-              Nama kamu
-            </span>
-            <input
-              value={joinName}
-              onChange={(e) => setJoinName(e.target.value)}
-              maxLength={18}
-              placeholder="Opsional"
-              className="mt-1.5 w-full rounded-pill border border-[var(--line)] bg-[var(--field)] px-4 py-2.5 text-[15px] outline-none placeholder:text-[var(--muted)]"
+          <p className="flex items-center gap-2 text-[15px]">
+            <Avatar
+              seed={me.account.avatarSeed}
+              bg={me.account.avatarBg}
+              choices={me.account.avatarChoices}
+              name={me.account.displayName}
+              size={24}
             />
-          </label>
-          <button
-            type="button"
-            onClick={() => void join()}
-            disabled={joining}
-            className="mt-3 w-full rounded-pill bg-[var(--btn-bg)] px-5 py-3 text-[15px] font-bold text-[var(--btn-fg)] disabled:opacity-50"
-          >
-            {joining ? "Bergabung…" : "Gabung"}
-          </button>
-          {(joinError || notice) && (
-            <p role="status" className="mt-3 text-[14px] text-flare">
-              {joinError ?? notice?.text}
-            </p>
+            Bergabung ke room {code} sebagai{" "}
+            <strong className="text-[var(--fg)]">{me.account.displayName}</strong>…
+          </p>
+          {joinError && (
+            <>
+              <p role="status" className="mt-3 text-[14px] text-flare">
+                {joinError}
+              </p>
+              <button
+                type="button"
+                onClick={() => void join()}
+                disabled={joining}
+                className="mt-3 w-full rounded-pill border border-[var(--line)] px-5 py-3 text-[15px] font-bold disabled:opacity-50"
+              >
+                {joining ? "Mencoba lagi…" : "Coba lagi"}
+              </button>
+            </>
           )}
         </section>
       </main>

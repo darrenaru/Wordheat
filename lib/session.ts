@@ -1,31 +1,13 @@
 /**
- * Identitas pemain di sisi perangkat.
+ * Keanggotaan room di sisi perangkat.
  *
- * Permainan ini tidak punya akun. Keanggotaan room dibuktikan dengan id acak
- * yang diberikan server saat membuat atau bergabung, lalu disimpan di
- * localStorage agar menyegarkan halaman tidak mengeluarkan pemain dari room.
+ * Keanggotaan room dibuktikan dengan id acak yang diberikan server saat
+ * membuat atau bergabung, lalu disimpan di localStorage agar menyegarkan
+ * halaman tidak mengeluarkan pemain dari room.
  */
-
-const NAME_KEY = "wordheat:name";
 
 function membershipKey(code: string) {
   return `wordheat:room:${code.toUpperCase()}`;
-}
-
-export function readPlayerName(): string | null {
-  try {
-    return localStorage.getItem(NAME_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function storePlayerName(name: string) {
-  try {
-    if (name.trim()) localStorage.setItem(NAME_KEY, name.trim());
-  } catch {
-    // Penyimpanan diblokir: nama cukup berlaku untuk sesi ini.
-  }
 }
 
 export function rememberMembership(code: string, playerId: string) {

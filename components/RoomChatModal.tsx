@@ -58,6 +58,7 @@ export default function RoomChatModal({
   const [text, setText] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
 
+  const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -80,31 +81,51 @@ export default function RoomChatModal({
     bottomRef.current?.scrollIntoView({ block: "end" });
   }, [chat]);
 
-  // Di layar sempit modal ini penuh satu layar, tapi Safari iOS tidak
-  // menyusutkan elemen fixed saat papan ketik terbuka -- tingginya tetap
-  // memakai ukuran sebelum keyboard muncul, jadi kolom pesan bisa
-  // tersembunyi di baliknya. visualViewport melacak tinggi yang benar-benar
-  // terlihat, dan dipakai untuk menyesuaikan tinggi modal secara manual.
+  // Di layar sempit modal ini penuh satu layar, tapi Safari iOS punya dua bug
+  // sekaligus saat papan ketik terbuka: elemen `fixed` tidak ikut menyusut ke
+  // tinggi yang benar-benar terlihat (masih memakai ukuran sebelum keyboard
+  // muncul), DAN halamannya sendiri ikut digeser (scroll) supaya kolom yang
+  // difokus tetap terlihat di atas keyboard -- padahal elemen `fixed` tetap
+  // menempel ke titik asal viewport tata letak (bukan viewport yang benar-
+  // benar terlihat), sehingga ia ikut "terbang" ke luar layar mengikuti
+  // pergeseran itu. Memperbaiki tinggi saja (versi sebelumnya) tidak cukup
+  // untuk bug kedua ini -- overlay-nya sendiri perlu disamakan persis dengan
+  // posisi & ukuran visualViewport (offsetTop/offsetLeft ikut diperhitungkan,
+  // bukan cuma height), baru dialognya (lewat items-stretch) ikut pas.
   useEffect(() => {
-    const dialog = dialogRef.current;
+    const overlay = overlayRef.current;
     const vv = window.visualViewport;
-    if (!dialog || !vv) return;
+    if (!overlay || !vv) return;
 
-    const applyHeight = () => {
-      if (window.innerWidth >= 640) {
-        dialog.style.height = "";
-        return;
-      }
-      dialog.style.height = `${vv.height}px`;
+    const reset = () => {
+      overlay.style.top = "";
+      overlay.style.left = "";
+      overlay.style.right = "";
+      overlay.style.bottom = "";
+      overlay.style.width = "";
+      overlay.style.height = "";
     };
 
-    applyHeight();
-    vv.addEventListener("resize", applyHeight);
-    vv.addEventListener("scroll", applyHeight);
+    const applyViewport = () => {
+      if (window.innerWidth >= 640) {
+        reset();
+        return;
+      }
+      overlay.style.top = `${vv.offsetTop}px`;
+      overlay.style.left = `${vv.offsetLeft}px`;
+      overlay.style.right = "auto";
+      overlay.style.bottom = "auto";
+      overlay.style.width = `${vv.width}px`;
+      overlay.style.height = `${vv.height}px`;
+    };
+
+    applyViewport();
+    vv.addEventListener("resize", applyViewport);
+    vv.addEventListener("scroll", applyViewport);
     return () => {
-      vv.removeEventListener("resize", applyHeight);
-      vv.removeEventListener("scroll", applyHeight);
-      dialog.style.height = "";
+      vv.removeEventListener("resize", applyViewport);
+      vv.removeEventListener("scroll", applyViewport);
+      reset();
     };
   }, []);
 
@@ -119,6 +140,7 @@ export default function RoomChatModal({
 
   return (
     <div
+      ref={overlayRef}
       className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();

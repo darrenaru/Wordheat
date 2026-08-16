@@ -36,11 +36,18 @@ const AccountContext = createContext<AccountContextValue | null>(null);
  * serentak per origin. Membuka satu aliran per komponen akan menabrak batas
  * itu berbarengan dengan aliran room.
  */
-export default function AccountProvider({ children }: { children: React.ReactNode }) {
+export default function AccountProvider({
+  children,
+  initialHasAccount,
+}: {
+  children: React.ReactNode;
+  /** Sudah diketahui dari cookie sesi di server -- menghindari flash gate/"Memuat…" pada tiap hard-load. */
+  initialHasAccount: boolean;
+}) {
   const [me, setMe] = useState<MeState | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(true);
   const [sessionKey, setSessionKey] = useState(0);
-  const [hasAccount, setHasAccount] = useState<boolean | null>(null);
+  const [hasAccount, setHasAccount] = useState<boolean | null>(initialHasAccount);
 
   useEffect(() => {
     let cancelled = false;
