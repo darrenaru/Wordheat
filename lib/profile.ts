@@ -36,6 +36,8 @@ export type FriendRequestView = {
 
 export type MeState = {
   account: PublicProfile;
+  /** Punya credential Google terhubung atau tidak -- detail privat milik pemiliknya sendiri, tidak dimasukkan ke PublicProfile. */
+  hasGoogle: boolean;
   status: AccountStatus;
   friends: FriendPresence[];
   incoming: FriendRequestView[];

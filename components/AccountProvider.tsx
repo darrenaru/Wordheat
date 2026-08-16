@@ -132,6 +132,7 @@ export default function AccountProvider({
   const adopt = useCallback((account: PublicProfile) => {
     setMe({
       account,
+      hasGoogle: false,
       status: "online",
       friends: [],
       incoming: [],

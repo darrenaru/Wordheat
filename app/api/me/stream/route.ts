@@ -1,4 +1,10 @@
-import { currentAccount, findAccountById, friendState, toPublicProfile } from "@/lib/accounts";
+import {
+  accountHasGoogle,
+  currentAccount,
+  findAccountById,
+  friendState,
+  toPublicProfile,
+} from "@/lib/accounts";
 import { unreadCounts } from "@/lib/messages";
 import {
   getAccountStatus,
@@ -55,6 +61,7 @@ export async function GET(request: Request) {
         });
         const payload = {
           account: toPublicProfile(fresh),
+          hasGoogle: accountHasGoogle(accountId),
           status: getAccountStatus(accountId),
           friends: friends.map(withStatus),
           incoming: incoming.map((r) => ({ ...r, profile: withStatus(r.profile) })),

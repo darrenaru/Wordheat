@@ -35,10 +35,20 @@ declare global {
 export default function GoogleSignInButton({
   onError,
   onSuccess,
+  endpoint = "/api/auth/google",
+  mode = "login",
 }: {
   onError: (message: string) => void;
   /** Dipanggil setelah sesi berhasil dibuat -- mis. supaya modal pemanggil menutup diri. */
   onSuccess?: () => void;
+  /** Endpoint tujuan token ID Google. Beda dari mode "link" (lihat di bawah), yang menempel ke endpoint lain. */
+  endpoint?: string;
+  /**
+   * "login": tukar token jadi sesi baru dan adopt() akun hasilnya (perilaku
+   * bawaan). "link": tempelkan credential Google ke akun yang SEDANG login --
+   * sesi/akun tidak berganti, jadi adopt() sengaja dilewati.
+   */
+  mode?: "login" | "link";
 }) {
   const { adopt } = useAccount();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,7 +58,7 @@ export default function GoogleSignInButton({
   const handleCredential = useCallback(
     async (response: { credential: string }) => {
       try {
-        const res = await fetch("/api/auth/google", {
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ credential: response.credential }),
@@ -58,20 +68,32 @@ export default function GoogleSignInButton({
           onError(data?.message ?? "Masuk dengan Google gagal.");
           return;
         }
-        if (data.recoveryCode) {
-          // Pola yang sama dengan pendaftaran manual di ProfilePanel: disimpan
-          // di sessionStorage supaya tetap terbaca setelah provider memuat
-          // ulang keadaan akun dan mengganti tampilan halaman.
-          sessionStorage.setItem("wordheat:new-recovery", data.recoveryCode);
+        if (mode === "login") {
+          if (data.recoveryCode) {
+            // Pola yang sama dengan pendaftaran manual di ProfilePanel: disimpan
+            // di sessionStorage supaya tetap terbaca setelah provider memuat
+            // ulang keadaan akun dan mengganti tampilan halaman.
+            sessionStorage.setItem("wordheat:new-recovery", data.recoveryCode);
+          }
+          adopt(data.account as PublicProfile);
         }
-        adopt(data.account as PublicProfile);
         onSuccess?.();
       } catch {
         onError("Koneksi ke server terputus.");
       }
     },
-    [adopt, onError, onSuccess],
+    [adopt, endpoint, mode, onError, onSuccess],
   );
+
+  // <Script onLoad> cuma terpicu untuk mount yang benar-benar menyisipkan
+  // tag-nya -- karena komponen ini bisa mount lebih dari sekali dalam satu
+  // sesi (gerbang login, lalu "Hubungkan ke Google" di profil), mount kedua
+  // setelah skripnya sudah termuat tidak akan pernah menerima callback itu
+  // dan tombolnya tetap kosong selamanya. Dicek langsung begitu mount,
+  // tidak cuma mengandalkan event-nya.
+  useEffect(() => {
+    if (window.google?.accounts?.id) setScriptReady(true);
+  }, []);
 
   useEffect(() => {
     if (!scriptReady || !clientId || !window.google || !containerRef.current) return;

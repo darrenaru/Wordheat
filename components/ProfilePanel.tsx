@@ -292,6 +292,7 @@ function SignedIn() {
 
   const [freshRecovery, setFreshRecovery] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [linkNotice, setLinkNotice] = useState<Notice>(null);
 
   useEffect(() => {
     const code = sessionStorage.getItem("wordheat:new-recovery");
@@ -468,6 +469,37 @@ function SignedIn() {
               Sudah disimpan
             </button>
           </div>
+        </section>
+      )}
+
+      {!me!.hasGoogle && process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && (
+        <section className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
+          <p className="text-[15px] font-bold">Hubungkan ke Google</p>
+          <p className="mt-1 text-[13px] text-[var(--muted)]">
+            Supaya profil ini tetap bisa dibuka dari perangkat lain kapan
+            pun, tanpa bergantung pada kode pemulihan yang cuma tampil
+            sekali.
+          </p>
+          <div className="mt-3 flex justify-center">
+            <GoogleSignInButton
+              mode="link"
+              endpoint="/api/auth/google/link"
+              onError={(text) => setLinkNotice({ tone: "error", text })}
+              onSuccess={() =>
+                setLinkNotice({ tone: "info", text: "Berhasil terhubung ke Google." })
+              }
+            />
+          </div>
+          {linkNotice && (
+            <p
+              role="status"
+              className={`mt-3 text-[13px] ${
+                linkNotice.tone === "error" ? "text-flare" : "text-[var(--muted)]"
+              }`}
+            >
+              {linkNotice.text}
+            </p>
+          )}
         </section>
       )}
 

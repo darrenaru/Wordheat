@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { OAuth2Client } from "google-auth-library";
 
 import {
   createSession,
@@ -8,10 +7,9 @@ import {
   sessionCookieOptions,
   toPublicProfile,
 } from "@/lib/accounts";
+import { verifyGoogleCredential } from "@/lib/google";
 
 export const runtime = "nodejs";
-
-const client = new OAuth2Client();
 
 const MESSAGES: Record<string, string> = {
   "bad-token": "Masuk dengan Google gagal. Coba lagi.",
@@ -30,16 +28,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad-request" }, { status: 400 });
   }
 
-  let claims: { sub: string; email?: string; name?: string };
-  try {
-    const ticket = await client.verifyIdToken({
-      idToken: body.credential,
-      audience: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-    if (!payload?.sub) throw new Error("no-sub");
-    claims = { sub: payload.sub, email: payload.email, name: payload.name };
-  } catch {
+  const claims = await verifyGoogleCredential(body.credential);
+  if (!claims) {
     return NextResponse.json(
       { error: "bad-token", message: MESSAGES["bad-token"] },
       { status: 401 },

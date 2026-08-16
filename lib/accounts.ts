@@ -250,7 +250,14 @@ export function findAccountByGoogleSub(sub: string): Account | null {
   return row ? toAccount(row) : null;
 }
 
-function linkGoogleCredential(accountId: string, sub: string): void {
+export function accountHasGoogle(accountId: string): boolean {
+  const row = db()
+    .prepare("SELECT 1 FROM credentials WHERE account_id = ? AND kind = 'google'")
+    .get(accountId);
+  return Boolean(row);
+}
+
+export function linkGoogleCredential(accountId: string, sub: string): void {
   db()
     .prepare(
       `INSERT INTO credentials (account_id, kind, identifier, created_at)
