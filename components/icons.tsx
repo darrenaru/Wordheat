@@ -149,6 +149,33 @@ export const HelpIcon = (
   </>
 );
 
+/** Satu orang plus tanda tambah: mengirim permintaan pertemanan. */
+export const AddFriendIcon = (
+  <>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3 19.5c0-3.2 2.7-5 6-5s6 1.8 6 5" />
+    <path d="M18 8v6" />
+    <path d="M15 11h6" />
+  </>
+);
+
+/** Satu orang plus tanda kurang: memutus pertemanan atau membatalkan permintaan. */
+export const RemoveFriendIcon = (
+  <>
+    <circle cx="9" cy="8" r="3.2" />
+    <path d="M3 19.5c0-3.2 2.7-5 6-5s6 1.8 6 5" />
+    <path d="M15 11h6" />
+  </>
+);
+
+/** Jam: permintaan pertemanan yang masih menunggu jawaban. */
+export const PendingIcon = (
+  <>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 2" />
+  </>
+);
+
 /** Piala: papan peringkat, siapa paling sering menang. */
 export const TrophyIcon = (
   <>
