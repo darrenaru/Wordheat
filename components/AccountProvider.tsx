@@ -76,8 +76,62 @@ export default function AccountProvider({ children }: { children: React.ReactNod
     return () => source.close();
   }, [hasAccount, sessionKey]);
 
+  // Pembeda "online" dari "idle": server cuma tahu koneksi SSE-nya masih
+  // terbuka, bukan apakah pemainnya benar-benar menggerakkan mouse/keyboard.
+  // Detak dikirim berjeda supaya tidak membanjiri server walau aktivitasnya
+  // terus-menerus, dan hanya saat tab benar-benar terlihat -- tab yang
+  // di-background dibiarkan hanyut ke idle seiring waktu.
+  useEffect(() => {
+    if (!hasAccount) return;
+
+    const HEARTBEAT_INTERVAL_MS = 30_000;
+    let lastSentAt = 0;
+
+    const send = () => {
+      const now = Date.now();
+      if (now - lastSentAt < HEARTBEAT_INTERVAL_MS) return;
+      lastSentAt = now;
+      void fetch("/api/me/heartbeat", { method: "POST" }).catch(() => {
+        // Detak yang gagal terkirim tidak masalah -- yang berikutnya akan mencoba lagi.
+      });
+    };
+
+    const onActivity = () => {
+      if (document.visibilityState === "visible") send();
+    };
+    const onVisibilityChange = () => {
+      // Kembali dari tab lain langsung mengirim detak, tidak menunggu jeda,
+      // supaya status "kembali online" tidak terasa lambat.
+      if (document.visibilityState === "visible") {
+        lastSentAt = 0;
+        send();
+      }
+    };
+
+    window.addEventListener("mousemove", onActivity);
+    window.addEventListener("keydown", onActivity);
+    window.addEventListener("pointerdown", onActivity);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    send();
+
+    return () => {
+      window.removeEventListener("mousemove", onActivity);
+      window.removeEventListener("keydown", onActivity);
+      window.removeEventListener("pointerdown", onActivity);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [hasAccount, sessionKey]);
+
   const adopt = useCallback((account: PublicProfile) => {
-    setMe({ account, friends: [], incoming: [], outgoing: [], invites: [], unreadMessages: {} });
+    setMe({
+      account,
+      status: "online",
+      friends: [],
+      incoming: [],
+      outgoing: [],
+      invites: [],
+      unreadMessages: {},
+    });
     setHasAccount(true);
     setSessionKey((k) => k + 1);
   }, []);

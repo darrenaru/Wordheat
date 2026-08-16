@@ -93,6 +93,46 @@ const store: Map<string, Room> =
   ((globalThis as Record<string, unknown>).__wordheatRooms as Map<string, Room>) ??
   ((globalThis as Record<string, unknown>).__wordheatRooms = new Map());
 
+/**
+ * Indeks balik akun -> kursi room, dipakai fitur status pemain untuk
+ * menjawab "akun ini sedang di room mana" tanpa harus memindai seluruh
+ * `store`. Validasinya malas (lihat `isAccountInMatch`): entri basi cukup
+ * dibuang saat benar-benar ditanya, tidak perlu dibersihkan eksplisit di
+ * setiap jalur penghapusan room/pemain.
+ */
+const accountRoomIndex: Map<string, { code: string; playerId: string }> =
+  ((globalThis as Record<string, unknown>).__wordheatAccountRooms as Map<
+    string,
+    { code: string; playerId: string }
+  >) ??
+  ((globalThis as Record<string, unknown>).__wordheatAccountRooms = new Map());
+
+/**
+ * Slot notifikasi status pertandingan, diisi oleh lib/presence.ts.
+ *
+ * rooms.ts sengaja tidak meng-import presence.ts (menghindari dependensi dua
+ * arah antar modul) -- presence.ts yang mendaftarkan dirinya ke sini lewat
+ * `setMatchStatusListener`. Ditaruh di globalThis, bukan `let` modul biasa,
+ * supaya pendaftarannya tidak hilang kalau Fast Refresh cuma memuat ulang
+ * berkas ini saja saat pengembangan.
+ */
+type MatchStatusListener = (accountIds: string[], status: "playing" | "finished") => void;
+const listenerBox: { current: MatchStatusListener | null } =
+  ((globalThis as Record<string, unknown>).__wordheatRoomMatchListener as {
+    current: MatchStatusListener | null;
+  }) ?? ((globalThis as Record<string, unknown>).__wordheatRoomMatchListener = { current: null });
+
+export function setMatchStatusListener(fn: MatchStatusListener) {
+  listenerBox.current = fn;
+}
+
+function notifyMatchStatus(room: Room, status: "playing" | "finished") {
+  const accountIds = [...room.players.values()]
+    .map((p) => p.accountId)
+    .filter((id): id is string => Boolean(id));
+  if (accountIds.length) listenerBox.current?.(accountIds, status);
+}
+
 export type RoomView = {
   code: string;
   status: RoomStatus;
@@ -210,6 +250,24 @@ export function getRoom(code: string): Room | undefined {
   return store.get(normalizeCode(code));
 }
 
+/** Dipakai fitur status pemain: apakah akun ini sedang di tengah pertandingan aktif. */
+export function isAccountInMatch(accountId: string): boolean {
+  const ref = accountRoomIndex.get(accountId);
+  if (!ref) return false;
+
+  const room = getRoom(ref.code);
+  if (!room) {
+    accountRoomIndex.delete(accountId);
+    return false;
+  }
+  const player = room.players.get(ref.playerId);
+  if (!player || player.accountId !== accountId) {
+    accountRoomIndex.delete(accountId);
+    return false;
+  }
+  return room.status === "playing";
+}
+
 function sanitizeName(raw: string | undefined, fallback: string): string {
   const name = (raw ?? "").trim().replace(/\s+/g, " ").slice(0, 18);
   return name || fallback;
@@ -260,6 +318,7 @@ export async function createRoom(identity: Identity) {
     listeners: new Set(),
   };
   store.set(room.code, room);
+  if (host.accountId) accountRoomIndex.set(host.accountId, { code: room.code, playerId: host.id });
   return { room, playerId: host.id };
 }
 
@@ -283,6 +342,7 @@ export async function joinRoom(
 
   const player = seatPlayer(identity, `Pemain ${room.players.size + 1}`);
   room.players.set(player.id, player);
+  if (player.accountId) accountRoomIndex.set(player.accountId, { code: room.code, playerId: player.id });
   touch(room);
   broadcast(room);
   return { ok: true, value: { room, playerId: player.id } };
@@ -314,6 +374,7 @@ export function startRoom(
     current.countdownEndsAt = undefined;
     touch(current);
     broadcast(current);
+    notifyMatchStatus(current, "playing");
   }, COUNTDOWN_MS);
   countdownTimer.unref?.();
 
@@ -376,6 +437,7 @@ export async function submitRoomGuess(
 
   touch(room);
   broadcast(room);
+  if (room.status === "finished") notifyMatchStatus(room, "finished");
   return { ok: true, value: { room, result, duplicate: false } };
 }
 

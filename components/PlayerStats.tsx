@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 
 import PlayerProfileCard from "@/components/PlayerProfileCard";
 import type { PlayerStats as PlayerStatsData, RecentGame } from "@/lib/leaderboard";
+import type { AccountStatus } from "@/lib/profile";
 
-type Loaded = { stats: PlayerStatsData; games: RecentGame[] };
+type Loaded = { stats: PlayerStatsData; games: RecentGame[]; status: AccountStatus };
 
 /**
  * Ambil statistik satu pemain lewat GET /api/players/[username] dan
@@ -50,5 +51,12 @@ export default function PlayerStats({
   if (data === null) {
     return <p className="text-[14px] text-[var(--muted)]">Tidak ada pemain dengan username itu.</p>;
   }
-  return <PlayerProfileCard stats={data.stats} games={data.games} showHeader={showHeader} />;
+  return (
+    <PlayerProfileCard
+      stats={data.stats}
+      games={data.games}
+      status={data.status}
+      showHeader={showHeader}
+    />
+  );
 }

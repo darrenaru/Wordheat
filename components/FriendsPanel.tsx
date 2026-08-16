@@ -11,8 +11,9 @@ import ChatModal from "@/components/ChatModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import FriendSearch from "@/components/FriendSearch";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
+import PresenceDot from "@/components/PresenceDot";
 import { ChatIcon } from "@/components/icons";
-import type { PublicProfile } from "@/lib/profile";
+import type { FriendPresence, PublicProfile } from "@/lib/profile";
 
 type Notice = { tone: "error" | "info"; text: string } | null;
 
@@ -34,8 +35,9 @@ function Header() {
 }
 
 /** Avatar+nama yang bisa diklik untuk membuka profil publik pemain itu. */
-function ProfileButton({ profile }: { profile: PublicProfile }) {
+function ProfileButton({ profile }: { profile: FriendPresence | PublicProfile }) {
   const [open, setOpen] = useState(false);
+  const status = "status" in profile ? profile.status : undefined;
   return (
     <>
       <button
@@ -55,6 +57,7 @@ function ProfileButton({ profile }: { profile: PublicProfile }) {
           <span className="block truncate font-mono text-[12px] text-[var(--muted)]">
             @{profile.username}
           </span>
+          {status && <PresenceDot status={status} withLabel className="mt-0.5" />}
         </span>
       </button>
       {open && <PlayerProfileModal username={profile.username} onClose={() => setOpen(false)} />}

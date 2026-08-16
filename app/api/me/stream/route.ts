@@ -1,12 +1,25 @@
 import { currentAccount, findAccountById, friendState, toPublicProfile } from "@/lib/accounts";
 import { unreadCounts } from "@/lib/messages";
-import { listInvites, subscribeToAccount } from "@/lib/presence";
+import {
+  getAccountStatus,
+  listInvites,
+  markAccountConnected,
+  markAccountDisconnected,
+  subscribeToAccount,
+} from "@/lib/presence";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /** Perantara suka memutus koneksi yang diam; komentar berkala menahannya tetap hidup. */
 const KEEPALIVE_MS = 25_000;
+/**
+ * Penyegaran penuh berkala, terpisah dari komentar `: ping` di atas --
+ * itu murni penahan proxy dan tidak membawa data baru. Ini yang membuat
+ * status idle teman mengoreksi diri sendiri seiring waktu tanpa perlu
+ * penjadwal/fan-out proaktif untuk arah "jadi idle".
+ */
+const PRESENCE_REFRESH_MS = 60_000;
 
 /**
  * Saluran pribadi pemain.
@@ -35,27 +48,41 @@ export async function GET(request: Request) {
         // saja tersimpan.
         const fresh = findAccountById(accountId);
         if (!fresh) return;
+        const { friends, incoming, outgoing } = friendState(accountId);
+        const withStatus = <T extends { id: string }>(profile: T) => ({
+          ...profile,
+          status: getAccountStatus(profile.id),
+        });
         const payload = {
           account: toPublicProfile(fresh),
-          ...friendState(accountId),
+          status: getAccountStatus(accountId),
+          friends: friends.map(withStatus),
+          incoming: incoming.map((r) => ({ ...r, profile: withStatus(r.profile) })),
+          outgoing: outgoing.map((r) => ({ ...r, profile: withStatus(r.profile) })),
           invites: listInvites(accountId),
           unreadMessages: unreadCounts(accountId),
         };
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
       };
 
+      markAccountConnected(accountId);
       push();
 
       const unsubscribe = subscribeToAccount(accountId, push);
       const keepalive = setInterval(() => {
         if (!closed) controller.enqueue(encoder.encode(": ping\n\n"));
       }, KEEPALIVE_MS);
+      const presenceRefresh = setInterval(() => {
+        if (!closed) push();
+      }, PRESENCE_REFRESH_MS);
 
       const cleanup = () => {
         if (closed) return;
         closed = true;
         clearInterval(keepalive);
+        clearInterval(presenceRefresh);
         unsubscribe();
+        markAccountDisconnected(accountId);
         try {
           controller.close();
         } catch {

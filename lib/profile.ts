@@ -12,12 +12,6 @@ export type PublicProfile = {
   avatarChoices: AvatarChoices;
 };
 
-export type FriendRequestView = {
-  id: string;
-  createdAt: number;
-  profile: PublicProfile;
-};
-
 export type Invite = {
   id: string;
   code: string;
@@ -25,9 +19,25 @@ export type Invite = {
   at: number;
 };
 
+/**
+ * Status keaktifan seorang akun. "in-game" hanya berlaku saat pemain benar-
+ * benar di tengah pertandingan aktif (bukan sekadar duduk di ruang tunggu),
+ * dan menang atas status koneksi -- lihat lib/presence.ts `getAccountStatus`.
+ */
+export type AccountStatus = "online" | "idle" | "in-game" | "offline";
+
+export type FriendPresence = PublicProfile & { status: AccountStatus };
+
+export type FriendRequestView = {
+  id: string;
+  createdAt: number;
+  profile: FriendPresence;
+};
+
 export type MeState = {
   account: PublicProfile;
-  friends: PublicProfile[];
+  status: AccountStatus;
+  friends: FriendPresence[];
   incoming: FriendRequestView[];
   outgoing: FriendRequestView[];
   invites: Invite[];

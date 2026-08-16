@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { playerStats, recentGames } from "@/lib/leaderboard";
+import { getAccountStatus } from "@/lib/presence";
 
 export const runtime = "nodejs";
 
@@ -15,5 +16,8 @@ export async function GET(
   }
 
   const games = stats.gamesPlayed > 0 ? recentGames(stats.profile.id) : [];
-  return NextResponse.json({ stats, games });
+  // Cuplikan awal untuk tampilan pertama; status yang benar-benar hidup
+  // menyusul lewat GET /api/players/[username]/stream.
+  const status = getAccountStatus(stats.profile.id);
+  return NextResponse.json({ stats, games, status });
 }

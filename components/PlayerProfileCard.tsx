@@ -1,6 +1,8 @@
 import Avatar from "@/components/Avatar";
+import LivePresenceDot from "@/components/LivePresenceDot";
 import PlayerProfileActions from "@/components/PlayerProfileActions";
 import type { PlayerStats, RecentGame } from "@/lib/leaderboard";
+import type { AccountStatus } from "@/lib/profile";
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -22,10 +24,12 @@ function StatTile({ label, value }: { label: string; value: string }) {
 export default function PlayerProfileCard({
   stats,
   games,
+  status,
   showHeader = true,
 }: {
   stats: PlayerStats;
   games: RecentGame[];
+  status?: AccountStatus;
   /** Dimatikan saat pemakainya sudah menampilkan avatar+nama sendiri di atas. */
   showHeader?: boolean;
 }) {
@@ -46,6 +50,14 @@ export default function PlayerProfileCard({
               <p className="truncate font-mono text-[13px] text-[var(--muted)]">
                 @{stats.profile.username}
               </p>
+              {status && (
+                <LivePresenceDot
+                  username={stats.profile.username}
+                  initialStatus={status}
+                  withLabel
+                  className="mt-1"
+                />
+              )}
               <p className="text-[12px] text-[var(--muted)]">
                 Bergabung{" "}
                 {new Date(stats.memberSince).toLocaleDateString("id-ID", {

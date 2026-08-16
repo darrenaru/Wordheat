@@ -4,6 +4,7 @@ import PlayerProfileCard from "@/components/PlayerProfileCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { playerStats, recentGames } from "@/lib/leaderboard";
+import { getAccountStatus } from "@/lib/presence";
 
 export const dynamic = "force-dynamic";
 
@@ -44,11 +45,12 @@ export default async function Page({
   }
 
   const games = stats.gamesPlayed > 0 ? recentGames(stats.profile.id) : [];
+  const status = getAccountStatus(stats.profile.id);
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[38rem] flex-col gap-6 px-4 py-6 sm:px-6">
       <Header />
-      <PlayerProfileCard stats={stats} games={games} />
+      <PlayerProfileCard stats={stats} games={games} status={status} />
     </main>
   );
 }
