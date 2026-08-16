@@ -10,9 +10,15 @@ import path from "node:path";
  * Room bersifat sementara dan cukup disimpan di memori, tetapi profil dan
  * daftar teman harus bertahan melewati restart server. SQLite bawaan Node
  * dipakai supaya tidak ada dependensi baru maupun kompilasi native.
+ *
+ * Filesystem container di Railway bersifat sementara -- tanpa Volume yang
+ * di-mount, semua yang ditulis ke disk (termasuk berkas ini) hilang setiap
+ * kali layanannya di-deploy ulang. Kalau sebuah Volume sudah dipasang,
+ * Railway otomatis menyediakan RAILWAY_VOLUME_MOUNT_PATH; berkasnya ditulis
+ * ke situ supaya akun, profil, dan daftar teman selamat lintas deploy.
  */
 
-const DB_DIR = path.join(process.cwd(), "data");
+const DB_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH ?? path.join(process.cwd(), "data");
 const DB_PATH = path.join(DB_DIR, "wordheat.db");
 
 function migrate(db: DatabaseSync) {
