@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { withPlayerPresence } from "@/lib/presence";
 import { publicView, startRoom } from "@/lib/rooms";
 
 export const runtime = "nodejs";
@@ -24,5 +25,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ room: await publicView(result.value.room) });
+  return NextResponse.json({ room: withPlayerPresence(await publicView(result.value.room)) });
 }

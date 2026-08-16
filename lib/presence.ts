@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import type { PublicProfile } from "@/lib/accounts";
 import { listFriends } from "@/lib/accounts";
 import type { AccountStatus } from "@/lib/profile";
-import { isAccountInMatch, setMatchStatusListener } from "@/lib/rooms";
+import { isAccountInMatch, setMatchStatusListener, type RoomView } from "@/lib/rooms";
 
 /**
  * Saluran pribadi tiap akun.
@@ -189,3 +189,18 @@ export function getAccountStatus(accountId: string): AccountStatus {
 setMatchStatusListener((accountIds) => {
   for (const id of accountIds) notifyPresenceWatchers(id);
 });
+
+/**
+ * Menempelkan status keaktifan global (fitur Player Status) ke tiap pemain
+ * berakun dalam sebuah RoomView, dipanggil dari lapisan API (bukan dari
+ * dalam lib/rooms.ts, supaya modul itu tidak perlu mengimpor presence.ts).
+ * Tamu tanpa akun dilewati -- tidak ada identitas global untuk diperiksa.
+ */
+export function withPlayerPresence(view: RoomView): RoomView {
+  return {
+    ...view,
+    players: view.players.map((p) =>
+      p.accountId ? { ...p, status: getAccountStatus(p.accountId) } : p,
+    ),
+  };
+}

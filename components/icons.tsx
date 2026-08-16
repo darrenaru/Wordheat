@@ -176,6 +176,17 @@ export const PendingIcon = (
   </>
 );
 
+/** Gamepad: status pemain sedang bermain. */
+export const GamepadIcon = (
+  <>
+    <rect x="2.5" y="8" width="19" height="9" rx="4" />
+    <path d="M7 10.5v4" />
+    <path d="M5 12.5h4" />
+    <circle cx="16" cy="10.5" r="0.9" fill="currentColor" stroke="none" />
+    <circle cx="18.5" cy="13" r="0.9" fill="currentColor" stroke="none" />
+  </>
+);
+
 /** Piala: papan peringkat, siapa paling sering menang. */
 export const TrophyIcon = (
   <>

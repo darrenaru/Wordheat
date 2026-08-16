@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { currentAccount, toPublicProfile } from "@/lib/accounts";
+import { withPlayerPresence } from "@/lib/presence";
 import { createRoom, publicView } from "@/lib/rooms";
 
 export const runtime = "nodejs";
@@ -18,5 +19,5 @@ export async function POST(request: Request) {
     name: body.name,
     account: account ? toPublicProfile(account) : undefined,
   });
-  return NextResponse.json({ playerId, room: await publicView(room) });
+  return NextResponse.json({ playerId, room: withPlayerPresence(await publicView(room)) });
 }

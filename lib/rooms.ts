@@ -5,6 +5,7 @@ import { randomBytes, randomInt } from "node:crypto";
 import type { PublicProfile } from "@/lib/accounts";
 import type { AvatarChoices } from "@/lib/avatar";
 import { recordRoomResult } from "@/lib/leaderboard";
+import type { AccountStatus } from "@/lib/profile";
 import { getPuzzleById, loadManifest, rankGuess, type PuzzleMeta } from "@/lib/puzzles";
 
 /**
@@ -179,6 +180,12 @@ export type RoomView = {
     guessCount: number;
     bestRank: number | null;
     solvedAt?: number;
+    /** Status keaktifan global (fitur Player Status) -- kosong untuk tamu
+     *  tanpa akun. Diisi belakangan di lapisan API lewat
+     *  lib/presence.ts `withPlayerPresence`, bukan di sini, supaya rooms.ts
+     *  tidak perlu mengimpor presence.ts (lihat catatan di
+     *  `setMatchStatusListener`). */
+    status?: AccountStatus;
   }[];
   feed: FeedEntry[];
   chat: ChatEntry[];

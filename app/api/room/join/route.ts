@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { currentAccount, toPublicProfile } from "@/lib/accounts";
+import { withPlayerPresence } from "@/lib/presence";
 import { joinRoom, publicView } from "@/lib/rooms";
 
 export const runtime = "nodejs";
@@ -37,6 +38,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     playerId: result.value.playerId,
-    room: await publicView(result.value.room),
+    room: withPlayerPresence(await publicView(result.value.room)),
   });
 }

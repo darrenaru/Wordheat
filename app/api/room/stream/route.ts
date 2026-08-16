@@ -1,3 +1,4 @@
+import { withPlayerPresence } from "@/lib/presence";
 import {
   getRoom,
   markConnected,
@@ -11,6 +12,14 @@ export const dynamic = "force-dynamic";
 
 /** Perantara suka memutus koneksi yang diam; komentar berkala menahannya tetap hidup. */
 const KEEPALIVE_MS = 25_000;
+/**
+ * Status Player Status (idle, khususnya) bisa berubah tanpa ada aktivitas
+ * room sama sekali, jadi tidak selalu memicu broadcast dari lib/rooms.ts
+ * sendiri. Penyegaran berkala ini yang membuatnya tetap akurat lambat laun,
+ * pola yang sama seperti app/api/me/stream/route.ts dan
+ * app/api/players/[username]/stream/route.ts.
+ */
+const PRESENCE_REFRESH_MS = 60_000;
 
 /**
  * Aliran keadaan room.
@@ -44,7 +53,7 @@ export async function GET(request: Request) {
           controller.enqueue(encoder.encode("event: gone\ndata: {}\n\n"));
           return;
         }
-        const view = await publicView(current);
+        const view = withPlayerPresence(await publicView(current));
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(view)}\n\n`));
       };
 
@@ -55,11 +64,15 @@ export async function GET(request: Request) {
       const keepalive = setInterval(() => {
         if (!closed) controller.enqueue(encoder.encode(": ping\n\n"));
       }, KEEPALIVE_MS);
+      const presenceRefresh = setInterval(() => {
+        if (!closed) void push();
+      }, PRESENCE_REFRESH_MS);
 
       const cleanup = () => {
         if (closed) return;
         closed = true;
         clearInterval(keepalive);
+        clearInterval(presenceRefresh);
         unsubscribe?.();
         markDisconnected(code, playerId);
         try {
