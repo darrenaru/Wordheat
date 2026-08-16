@@ -134,21 +134,29 @@ export default function ChatModal({
       overlay.style.height = `${vv.height}px`;
     };
 
-    // Menutup papan ketik di iOS kadang memicu dua animasi berurutan --
-    // papan ketiknya sendiri, lalu bilah alamat Safari yang muncul balik --
-    // dan event resize/scroll terakhir bisa membawa angka visualViewport
-    // yang belum final. Susulan singkat ini menyamakan lagi begitu semuanya
-    // benar-benar berhenti, supaya overlay tidak tertinggal di ukuran
-    // antara yang menyisakan celah menampilkan konten di baliknya.
-    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    // Menutup papan ketik di iOS memicu beberapa animasi berurutan yang
+    // tidak sinkron satu sama lain -- papan ketiknya sendiri, lalu bilah
+    // alamat Safari yang muncul balik -- dan `visualViewport` bisa telat
+    // melapor sampai beberapa detik sebelum benar-benar menetap di ukuran
+    // akhirnya (satu susulan tunggal terbukti tidak cukup). Sederet susulan
+    // di rentang waktu yang melebar ini menyamakan lagi berkali-kali sampai
+    // ~1.6 detik setelah event terakhir, supaya overlay pada akhirnya pasti
+    // menyusul ke ukuran yang benar-benar final berapa pun lama WebKit
+    // butuh untuk menetap, bukan cuma menebak satu titik waktu.
+    const SETTLE_DELAYS_MS = [50, 150, 300, 600, 1000, 1600];
+    let settleTimers: ReturnType<typeof setTimeout>[] = [];
+    const clearSettleTimers = () => {
+      settleTimers.forEach(clearTimeout);
+      settleTimers = [];
+    };
     const applyViewport = () => {
       if (window.innerWidth >= 640) {
         reset();
         return;
       }
       setToCurrentViewport();
-      if (settleTimer) clearTimeout(settleTimer);
-      settleTimer = setTimeout(setToCurrentViewport, 250);
+      clearSettleTimers();
+      settleTimers = SETTLE_DELAYS_MS.map((delay) => setTimeout(setToCurrentViewport, delay));
     };
 
     applyViewport();
@@ -156,7 +164,7 @@ export default function ChatModal({
     vv.addEventListener("scroll", applyViewport);
     window.addEventListener("resize", applyViewport);
     return () => {
-      if (settleTimer) clearTimeout(settleTimer);
+      clearSettleTimers();
       vv.removeEventListener("resize", applyViewport);
       vv.removeEventListener("scroll", applyViewport);
       window.removeEventListener("resize", applyViewport);

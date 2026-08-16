@@ -38,6 +38,16 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: dark)", color: "#0b0b0d" },
     { media: "(prefers-color-scheme: light)", color: "#0b0b0d" },
   ],
+  // Di browser yang mendukung (iOS Safari 17.4+, Chrome terbaru), ini
+  // membuat papan ketik di HP benar-benar menyusutkan area konten (layout
+  // viewport-nya sendiri, bukan cuma visual viewport) -- resize-nya
+  // ditangani langsung oleh compositor browser, jadi selalu mulus dan
+  // seketika, tidak lagi bergantung pada perkiraan lewat JS
+  // (visualViewport) yang di iOS kadang telat menyusul beberapa detik
+  // setelah papan ketik ditutup. Efek JS di ChatModal/RoomChatModal tetap
+  // dipertahankan sebagai jaring pengaman untuk browser yang belum
+  // mendukung ini.
+  interactiveWidget: "resizes-content",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
