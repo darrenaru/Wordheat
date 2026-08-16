@@ -57,19 +57,26 @@ export default function ChatModal({
   const dialogRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Fokus awal & penguncian scroll body cuma boleh terjadi sekali saat
+  // modal benar-benar mount -- bukan tiap `onClose` berganti identitas
+  // (kalau pemanggilnya mengirim fungsi anonim baru di tiap render, efek
+  // yang bergantung padanya akan memanggil ulang dialogRef.current?.focus()
+  // dan merebut fokus dari kolom pesan yang sedang diketik).
+  useEffect(() => {
+    dialogRef.current?.focus();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKey);
-    dialogRef.current?.focus();
-
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   useEffect(() => {
@@ -118,11 +125,7 @@ export default function ChatModal({
       overlay.style.height = "";
     };
 
-    const applyViewport = () => {
-      if (window.innerWidth >= 640) {
-        reset();
-        return;
-      }
+    const setToCurrentViewport = () => {
       overlay.style.top = `${vv.offsetTop}px`;
       overlay.style.left = `${vv.offsetLeft}px`;
       overlay.style.right = "auto";
@@ -131,12 +134,32 @@ export default function ChatModal({
       overlay.style.height = `${vv.height}px`;
     };
 
+    // Menutup papan ketik di iOS kadang memicu dua animasi berurutan --
+    // papan ketiknya sendiri, lalu bilah alamat Safari yang muncul balik --
+    // dan event resize/scroll terakhir bisa membawa angka visualViewport
+    // yang belum final. Susulan singkat ini menyamakan lagi begitu semuanya
+    // benar-benar berhenti, supaya overlay tidak tertinggal di ukuran
+    // antara yang menyisakan celah menampilkan konten di baliknya.
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
+    const applyViewport = () => {
+      if (window.innerWidth >= 640) {
+        reset();
+        return;
+      }
+      setToCurrentViewport();
+      if (settleTimer) clearTimeout(settleTimer);
+      settleTimer = setTimeout(setToCurrentViewport, 250);
+    };
+
     applyViewport();
     vv.addEventListener("resize", applyViewport);
     vv.addEventListener("scroll", applyViewport);
+    window.addEventListener("resize", applyViewport);
     return () => {
+      if (settleTimer) clearTimeout(settleTimer);
       vv.removeEventListener("resize", applyViewport);
       vv.removeEventListener("scroll", applyViewport);
+      window.removeEventListener("resize", applyViewport);
       reset();
     };
   }, []);
@@ -177,7 +200,7 @@ export default function ChatModal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 backdrop-blur-sm sm:items-center sm:p-4"
+      className="fixed inset-0 z-50 flex items-stretch justify-center bg-black/60 backdrop-blur-sm transition-all duration-200 ease-out sm:items-center sm:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
