@@ -117,6 +117,14 @@ export const KeyIcon = (
   </>
 );
 
+/** Dua lembar bertumpuk: menandai teks yang bisa disalin. */
+export const CopyIcon = (
+  <>
+    <rect x="8.5" y="8.5" width="12" height="12" rx="2.4" />
+    <path d="M15.5 8.5V6.4a2.4 2.4 0 0 0-2.4-2.4H6.4A2.4 2.4 0 0 0 4 6.4v6.7a2.4 2.4 0 0 0 2.4 2.4h2.1" />
+  </>
+);
+
 /** Dua orang berdampingan, satu garis satu isi: daftar teman. */
 export const FriendsIcon = (
   <>

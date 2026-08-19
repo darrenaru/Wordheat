@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import Avatar from "@/components/Avatar";
+import GuessFxLayer from "@/components/GuessFxLayer";
 import GuessRow from "@/components/GuessRow";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
 import PresenceDot from "@/components/PresenceDot";
@@ -11,11 +12,13 @@ import RoomChatModal from "@/components/RoomChatModal";
 import SurrenderResultModal from "@/components/SurrenderResultModal";
 import SurrenderVoteModal from "@/components/SurrenderVoteModal";
 import ThemeToggle from "@/components/ThemeToggle";
+import WinResultModal from "@/components/WinResultModal";
 import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
-import { ChatIcon } from "@/components/icons";
+import { ChatIcon, CopyIcon } from "@/components/icons";
 import type { AvatarChoices } from "@/lib/avatar";
 import { applyAmbientHeat, flarePage } from "@/lib/ambient";
+import { buildGuessFx, useReorderAnimation, type GuessFx } from "@/lib/motion";
 import type { AccountStatus } from "@/lib/profile";
 import { forgetMembership, readMembership, rememberMembership } from "@/lib/session";
 import { normalizeWord } from "@/lib/word";
@@ -81,12 +84,16 @@ export default function RoomBoard({ code }: { code: string }) {
   const [startingSurrender, setStartingSurrender] = useState(false);
   const [respondingSurrender, setRespondingSurrender] = useState(false);
   const [surrenderModalOpen, setSurrenderModalOpen] = useState(false);
+  const [winModalOpen, setWinModalOpen] = useState(false);
+  const [fx, setFx] = useState<GuessFx | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const submitSeq = useRef(0);
   const flaredFor = useRef<string | null>(null);
   const surrenderNoticeFor = useRef<string | null>(null);
+  const wonNoticeFor = useRef<string | null>(null);
   const autoJoinAttempted = useRef(false);
+  const fxCounter = useRef(0);
 
   useEffect(() => {
     setPlayerId(readMembership(code));
@@ -165,6 +172,7 @@ export default function RoomBoard({ code }: { code: string }) {
     () => (room ? [...room.feed].sort((a, b) => a.rank - b.rank) : []),
     [room],
   );
+  const registerFeedRow = useReorderAnimation(feed);
   const best = feed.length ? feed[0].rank : null;
   const myResponse = playerId ? room?.surrenderRequest?.responses[playerId] : undefined;
 
@@ -190,6 +198,18 @@ export default function RoomBoard({ code }: { code: string }) {
     if (surrenderNoticeFor.current === room.code) return;
     surrenderNoticeFor.current = room.code;
     setSurrenderModalOpen(true);
+  }, [room]);
+
+  // Permainan yang berakhir karena ada yang menemukan kata rahasianya
+  // memicu modal hasil sekali per room -- pola yang sama seperti modal
+  // menyerah di atas, supaya pemain yang sedang tidak melihat papan (mis.
+  // sedang mengetik atau membuka chat) langsung tahu siapa yang menang dan
+  // bagaimana performa semua orang, bukan cuma baris teks kecil di papan.
+  useEffect(() => {
+    if (room?.status !== "finished" || !room.winner) return;
+    if (wonNoticeFor.current === room.code) return;
+    wonNoticeFor.current = room.code;
+    setWinModalOpen(true);
   }, [room]);
 
   // Begitu host memulai hitung mundur, semua pemain difokuskan ke papan:
@@ -275,6 +295,7 @@ export default function RoomBoard({ code }: { code: string }) {
       if (!word || !playerId) return;
       setNotice(null);
 
+      const previousBest = best;
       const seq = ++submitSeq.current;
       try {
         const res = await fetch("/api/room/guess", {
@@ -308,12 +329,16 @@ export default function RoomBoard({ code }: { code: string }) {
           });
           return;
         }
-        if (seq === submitSeq.current) setFreshWord(result.word);
+        if (seq === submitSeq.current) {
+          setFreshWord(result.word);
+          fxCounter.current += 1;
+          setFx(buildGuessFx(fxCounter.current, result.word, result.rank, previousBest));
+        }
       } catch {
         setNotice({ tone: "error", text: "Koneksi terputus. Tebakan belum terkirim." });
       }
     },
-    [code, playerId],
+    [code, playerId, best],
   );
 
   const startSurrender = useCallback(async () => {
@@ -524,6 +549,8 @@ export default function RoomBoard({ code }: { code: string }) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
+      <GuessFxLayer fx={fx} vocabSize={room.vocabSize} />
+
       {header}
 
       {room.status !== "countdown" && (
@@ -579,21 +606,31 @@ export default function RoomBoard({ code }: { code: string }) {
           className="rise rounded-lg border border-[var(--line)] bg-[var(--card)] p-5"
           style={{ "--step": 1 } as React.CSSProperties}
         >
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
+          <p className="text-center font-mono text-[11px] uppercase tracking-[0.16em] text-[var(--muted)]">
             Kode room
           </p>
-          <div className="mt-2 flex items-center gap-3">
-            <p className="font-mono text-[40px] font-medium leading-none tracking-[0.22em]">
+          <button
+            type="button"
+            onClick={() => void copyCode()}
+            aria-label="Salin kode room"
+            className="mt-2 flex w-full items-center justify-center gap-2.5 rounded-lg py-1 text-[var(--fg)] transition-opacity hover:opacity-70 active:opacity-55"
+          >
+            <span className="font-mono text-[40px] font-medium leading-none tracking-[0.22em]">
               {room.code}
-            </p>
-            <button
-              type="button"
-              onClick={() => void copyCode()}
-              className="rounded-pill border border-[var(--line)] px-4 py-2 text-[13px] font-bold"
+            </span>
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-5 shrink-0 text-[var(--muted)]"
             >
-              {copied ? "Tersalin" : "Salin"}
-            </button>
-          </div>
+              {CopyIcon}
+            </svg>
+          </button>
           <button
             type="button"
             onClick={() => void shareRoom()}
@@ -842,7 +879,7 @@ export default function RoomBoard({ code }: { code: string }) {
           ) : (
             <ol className="flex flex-col gap-1.5">
               {feed.map((entry) => (
-                <li key={entry.word}>
+                <li key={entry.word} ref={registerFeedRow(entry.word)}>
                   <GuessRow
                     word={entry.word}
                     rank={entry.rank}
@@ -897,6 +934,23 @@ export default function RoomBoard({ code }: { code: string }) {
           totalPlayers={room.players.length}
           onClose={() => setSurrenderModalOpen(false)}
         />
+      )}
+
+      {winModalOpen && room.answer && room.winner && (
+        <WinResultModal
+          players={room.players}
+          winnerId={room.winner.id}
+          winnerName={room.winner.name}
+          winnerGuessCount={room.winner.guessCount}
+          answer={room.answer}
+          onClose={() => setWinModalOpen(false)}
+        />
+      )}
+
+      {copied && (
+        <p role="status" className="room-toast">
+          Kode room berhasil disalin
+        </p>
       )}
     </main>
   );

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import GuessFxLayer from "@/components/GuessFxLayer";
 import GuessRow from "@/components/GuessRow";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { applyAmbientHeat, flarePage } from "@/lib/ambient";
+import { buildGuessFx, useReorderAnimation, type GuessFx } from "@/lib/motion";
 import { normalizeWord } from "@/lib/word";
 
 type Guess = { word: string; rank: number };
@@ -34,12 +36,14 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
   const [surrendered, setSurrendered] = useState(false);
   const [restored, setRestored] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [fx, setFx] = useState<GuessFx | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   // Tebakan boleh dikirim bersamaan, jadi jawaban bisa datang tidak berurutan.
   // Penanda ini memastikan baris "terakhir" menampilkan tebakan yang paling
   // baru dikirim, bukan yang kebetulan dijawab server paling akhir.
   const submitSeq = useRef(0);
+  const fxCounter = useRef(0);
 
   // Menyerah juga menaruh jawaban di daftar dengan peringkat 1, jadi keberadaan
   // peringkat 1 saja tidak cukup untuk menyatakan pemain menang.
@@ -51,6 +55,7 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
     () => [...guesses].sort((a, b) => a.rank - b.rank),
     [guesses],
   );
+  const registerRow = useReorderAnimation(sorted);
 
   // Jawaban yang dibuka karena menyerah ikut masuk daftar agar pemain melihat
   // posisinya, tetapi tidak dihitung sebagai tebakan.
@@ -112,6 +117,7 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
         return;
       }
 
+      const previousBest = guesses.length ? Math.min(...guesses.map((g) => g.rank)) : null;
       const seq = ++submitSeq.current;
       try {
         const res = await fetch("/api/guess", {
@@ -139,6 +145,8 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
         if (seq === submitSeq.current) {
           setLatest(result);
           setFreshWord(result.word);
+          fxCounter.current += 1;
+          setFx(buildGuessFx(fxCounter.current, result.word, result.rank, previousBest));
         }
         if (result.rank === 1) {
           setRevealed(result.word);
@@ -220,6 +228,8 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
+      <GuessFxLayer fx={fx} vocabSize={vocabSize} />
+
       <header
         className="rise flex items-center justify-between gap-4"
         style={{ "--step": 0 } as React.CSSProperties}
@@ -358,7 +368,7 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
       ) : (
         <ol className="flex flex-col gap-1.5">
           {sorted.map((guess) => (
-            <li key={guess.word}>
+            <li key={guess.word} ref={registerRow(guess.word)}>
               <GuessRow
                 {...guess}
                 vocabSize={vocabSize}
