@@ -21,6 +21,22 @@ import path from "node:path";
 const DB_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH ?? path.join(process.cwd(), "data");
 const DB_PATH = path.join(DB_DIR, "wordheat.db");
 
+/**
+ * Peringatan sekali-tampil di log deploy kalau aplikasi berjalan di Railway
+ * (dikenali dari variabel RAILWAY_ENVIRONMENT_NAME yang otomatis disuntikkan
+ * Railway) tapi Volume-nya belum terpasang. Tanpa peringatan ini, kesalahan
+ * konfigurasi seperti ini diam-diam menghapus semua akun di deploy
+ * berikutnya, dan baru ketahuan setelah pemain melapor.
+ */
+if (!process.env.RAILWAY_VOLUME_MOUNT_PATH && process.env.RAILWAY_ENVIRONMENT_NAME) {
+  console.warn(
+    "[wordheat] RAILWAY_VOLUME_MOUNT_PATH tidak diset -- basis data (akun, profil, " +
+      "daftar teman) ditulis ke filesystem sementara container dan akan HILANG di " +
+      "deploy berikutnya. Pasang Volume untuk layanan ini di dashboard Railway " +
+      "(Settings -> Volumes -> New Volume, atur mount path-nya) supaya persisten.",
+  );
+}
+
 function migrate(db: DatabaseSync) {
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA foreign_keys = ON");
