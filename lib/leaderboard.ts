@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
+import { xpBalance } from "@/lib/coins";
 import { db } from "@/lib/db";
 import {
   findAccountByUsername,
@@ -122,6 +123,9 @@ export type PlayerStats = LeaderboardEntry & {
   rank: number | null;
   /** Kapan akun dibuat, untuk baris "Bergabung sejak" di halaman profil. */
   memberSince: number;
+  /** Total XP -- publik seperti statistik lainnya, beda dari Coin yang privat.
+   *  Levelnya sendiri diturunkan di sisi tampilan lewat lib/xp.ts. */
+  xp: number;
 };
 
 /**
@@ -164,6 +168,7 @@ export function playerStats(username: string): PlayerStats | null {
     avgWinningGuesses: row.avg_winning_guesses,
     rank,
     memberSince: account.createdAt,
+    xp: xpBalance(account.id),
   };
 }
 

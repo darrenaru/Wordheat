@@ -1,8 +1,10 @@
 import Avatar from "@/components/Avatar";
 import LivePresenceDot from "@/components/LivePresenceDot";
 import PlayerProfileActions from "@/components/PlayerProfileActions";
+import XpBar from "@/components/XpBar";
 import type { PlayerStats, RecentGame } from "@/lib/leaderboard";
 import type { AccountStatus } from "@/lib/profile";
+import { levelForXp } from "@/lib/xp";
 
 function StatTile({ label, value }: { label: string; value: string }) {
   return (
@@ -38,13 +40,21 @@ export default function PlayerProfileCard({
       {showHeader && (
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Avatar
-              seed={stats.profile.avatarSeed}
-              bg={stats.profile.avatarBg}
-              choices={stats.profile.avatarChoices}
-              name={stats.profile.displayName}
-              size={56}
-            />
+            <span className="relative inline-block shrink-0">
+              <Avatar
+                seed={stats.profile.avatarSeed}
+                bg={stats.profile.avatarBg}
+                choices={stats.profile.avatarChoices}
+                name={stats.profile.displayName}
+                size={56}
+              />
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-1 -right-1 rounded-pill border border-[var(--line)] bg-[var(--card)] px-1.5 py-0.5 font-mono text-[10px] font-bold leading-none"
+              >
+                Lv.{levelForXp(stats.xp)}
+              </span>
+            </span>
             <div className="min-w-0">
               <p className="truncate text-[20px] font-bold">{stats.profile.displayName}</p>
               <p className="truncate font-mono text-[13px] text-[var(--muted)]">
@@ -71,6 +81,10 @@ export default function PlayerProfileCard({
           <PlayerProfileActions profile={stats.profile} />
         </div>
       )}
+
+      <div className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-4">
+        <XpBar xp={stats.xp} />
+      </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatTile label="Peringkat" value={stats.rank ? `#${stats.rank}` : "—"} />

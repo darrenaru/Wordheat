@@ -58,6 +58,19 @@ export function earnCoins(
   return { balance: coinBalance(accountId) };
 }
 
+export function xpBalance(accountId: string): number {
+  const row = db().prepare("SELECT xp FROM accounts WHERE id = ?").get(accountId) as
+    | { xp: number }
+    | undefined;
+  return row?.xp ?? 0;
+}
+
+/** XP tidak punya riwayat/ledger seperti coin -- levelnya sendiri sudah cukup sebagai gambaran progres. */
+export function earnXp(accountId: string, amount: number): number {
+  db().prepare("UPDATE accounts SET xp = xp + ? WHERE id = ?").run(amount, accountId);
+  return xpBalance(accountId);
+}
+
 export type SpendResult = { ok: true; balance: number } | { ok: false; error: "insufficient-funds" };
 
 export function spendCoins(
@@ -117,5 +130,7 @@ export function awardSoloWin(
 
   const amount = Math.max(5, 20 - clamped);
   const { balance } = earnCoins(accountId, amount, "solo_win", { puzzleId, guessCount: clamped });
+  // XP selalu 2x coin yang didapat, persis seperti project Wordheat sebelumnya.
+  earnXp(accountId, amount * 2);
   return { awarded: true, amount, balance };
 }

@@ -4,7 +4,7 @@ import { randomBytes, randomInt } from "node:crypto";
 
 import type { PublicProfile } from "@/lib/accounts";
 import type { AvatarChoices } from "@/lib/avatar";
-import { earnCoins } from "@/lib/coins";
+import { earnCoins, earnXp } from "@/lib/coins";
 import { recordRoomResult } from "@/lib/leaderboard";
 import type { AccountStatus } from "@/lib/profile";
 import type { PowerUpKind, RevealPayload } from "@/lib/powerup-catalog";
@@ -523,9 +523,10 @@ function applyRoomGuess(
     });
 
     if (player.accountId) {
-      earnCoins(player.accountId, roomWinReward(player.guesses.length), "room_win", {
-        roomCode: room.code,
-      });
+      const reward = roomWinReward(player.guesses.length);
+      earnCoins(player.accountId, reward, "room_win", { roomCode: room.code });
+      // XP selalu 2x coin yang didapat, persis seperti project Wordheat sebelumnya.
+      earnXp(player.accountId, reward * 2);
     }
   }
 

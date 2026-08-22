@@ -187,6 +187,10 @@ function migrate(db: DatabaseSync) {
   );
   // Saldo mata uang dalam game ("Coin"), dipakai untuk membeli Power-Up.
   addColumn(db, "accounts", "coins", "INTEGER NOT NULL DEFAULT 0");
+  // Poin pengalaman ("XP"), dipakai untuk menurunkan Level pemain (lib/xp.ts).
+  // Levelnya sendiri sengaja tidak disimpan -- selalu dihitung ulang dari xp,
+  // supaya tidak ada dua sumber kebenaran yang bisa tidak sinkron.
+  addColumn(db, "accounts", "xp", "INTEGER NOT NULL DEFAULT 0");
 }
 
 /**
