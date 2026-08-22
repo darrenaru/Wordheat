@@ -114,6 +114,32 @@ export function topPlayers(limit = LEADERBOARD_LIMIT): LeaderboardEntry[] {
   return allRanked().slice(0, limit).map(toEntry);
 }
 
+export type CoinLeaderboardEntry = { profile: PublicProfile; coins: number };
+
+/**
+ * Pemain dengan Coin terbanyak. Beda dari topPlayers(): tidak butuh riwayat
+ * game_results sama sekali -- coins ada di accounts, jadi akun yang hanya
+ * pernah main sendiri (tanpa room) tetap bisa masuk papan ini. Akun yang
+ * belum pernah punya Coin (masih 0) dilewati, sama seperti akun yang belum
+ * pernah main dilewati di papan kemenangan.
+ */
+export function topPlayersByCoins(limit = LEADERBOARD_LIMIT): CoinLeaderboardEntry[] {
+  const rows = db()
+    .prepare(`SELECT * FROM accounts WHERE coins > 0 ORDER BY coins DESC LIMIT ?`)
+    .all(limit) as (AccountRow & { coins: number })[];
+  return rows.map((row) => ({ profile: toPublicProfile(toAccount(row)), coins: row.coins }));
+}
+
+export type LevelLeaderboardEntry = { profile: PublicProfile; xp: number };
+
+/** Pemain dengan Level tertinggi, diurutkan dari total XP (lihat lib/xp.ts). */
+export function topPlayersByXp(limit = LEADERBOARD_LIMIT): LevelLeaderboardEntry[] {
+  const rows = db()
+    .prepare(`SELECT * FROM accounts WHERE xp > 0 ORDER BY xp DESC LIMIT ?`)
+    .all(limit) as (AccountRow & { xp: number })[];
+  return rows.map((row) => ({ profile: toPublicProfile(toAccount(row)), xp: row.xp }));
+}
+
 export type PlayerStats = LeaderboardEntry & {
   losses: number;
   /** Persentase 0-1; null kalau belum pernah main. */

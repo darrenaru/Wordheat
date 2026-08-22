@@ -4,69 +4,88 @@ import { useState } from "react";
 
 import Avatar from "@/components/Avatar";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
-import type { LeaderboardEntry } from "@/lib/leaderboard";
+import type { PublicProfile } from "@/lib/accounts";
+
+export type LeaderboardRow = {
+  profile: PublicProfile;
+  /** Angka di kanan, mis. "12 menang", "340 koin", "Level 5". */
+  primary: string;
+  /** Baris kecil di bawah nama, opsional -- mis. jumlah game atau total XP. */
+  secondary?: string;
+};
 
 /**
  * Daftar papan peringkat sebagai komponen klien -- klik satu baris membuka
  * profil pemain itu sebagai modal, tanpa meninggalkan halaman leaderboard.
+ *
+ * Tata warna baris meniru persis project Wordheat sebelumnya: hanya
+ * peringkat 1 yang dapat warna (aksen emas), peringkat 2-3 sekadar diangkat
+ * dari latar polos tanpa warna baru, dan angka di kanan tetap teks biasa --
+ * bukan medali emas/perak/perunggu atau angka tebal berwarna seperti versi
+ * sebelumnya di sini.
+ *
+ * Sengaja hanya menerima baris yang sudah diformat (bukan entry mentah per
+ * kategori) supaya komponen ini tidak perlu tahu bedanya kemenangan, Coin,
+ * dan Level -- pemanggil (LeaderboardTabs) yang memutuskan apa yang tampil
+ * sebagai angka utama dan sub-teksnya.
  */
 export default function LeaderboardList({
-  entries,
+  rows,
   myId,
 }: {
-  entries: LeaderboardEntry[];
+  rows: LeaderboardRow[];
   myId: string | null;
 }) {
   const [profileUsername, setProfileUsername] = useState<string | null>(null);
 
   return (
     <>
-      <ol className="flex flex-col gap-2">
-        {entries.map((entry, i) => {
-          const mine = entry.profile.id === myId;
-          // Tiga besar dapat warna medali; sisanya nomor polos.
-          const medal = i === 0 ? "gold" : i === 1 ? "silver" : i === 2 ? "bronze" : null;
+      <ol className="flex flex-col gap-2 rounded-lg border border-[var(--line)] bg-[var(--card)] p-4">
+        {rows.map((row, i) => {
+          const mine = row.profile.id === myId;
+          const podium = i === 0 ? "first" : i === 1 || i === 2 ? "raised" : "plain";
+          const surface =
+            podium === "first"
+              ? "bg-[var(--accent-gold)]/[0.16]"
+              : podium === "raised"
+                ? "bg-[var(--field)]"
+                : "bg-[var(--field)]/60";
+          const border = mine
+            ? "border-flare/45"
+            : podium === "first"
+              ? "border-[var(--accent-gold)]/40"
+              : podium === "raised"
+                ? "border-[var(--line)]"
+                : "border-transparent";
           return (
-            <li key={entry.profile.id}>
+            <li key={row.profile.id}>
               <button
                 type="button"
-                onClick={() => setProfileUsername(entry.profile.username)}
-                className={`flex w-full items-center gap-3 rounded-lg border bg-[var(--card)] p-3 text-left transition-colors hover:border-[var(--fg)]/35 ${
-                  mine ? "border-flare/45" : "border-[var(--line)]"
-                }`}
-                style={
-                  !mine && medal
-                    ? { borderColor: `color-mix(in oklab, var(--accent-${medal}) 50%, transparent)` }
-                    : undefined
-                }
+                onClick={() => setProfileUsername(row.profile.username)}
+                className={`flex w-full items-center gap-3 rounded-md border p-3 text-left transition-colors hover:border-[var(--fg)]/35 ${surface} ${border}`}
               >
                 <span
-                  className="grid size-6 shrink-0 place-items-center rounded-full font-mono text-[12px] font-bold"
-                  style={
-                    medal
-                      ? { background: `var(--accent-${medal})`, color: "var(--bg)" }
-                      : { color: "var(--muted)" }
-                  }
+                  className={`w-5 shrink-0 text-center text-[14px] font-bold ${
+                    podium === "first" ? "text-[var(--accent-gold)]" : "text-[var(--muted)]"
+                  }`}
                 >
                   {i + 1}
                 </span>
                 <Avatar
-                  seed={entry.profile.avatarSeed}
-                  bg={entry.profile.avatarBg}
-                  choices={entry.profile.avatarChoices}
-                  name={entry.profile.displayName}
-                  size={36}
+                  seed={row.profile.avatarSeed}
+                  bg={row.profile.avatarBg}
+                  choices={row.profile.avatarChoices}
+                  name={row.profile.displayName}
+                  size={28}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[14px] font-bold">{entry.profile.displayName}</p>
-                  <p className="text-[12px] text-[var(--muted)]">
-                    {entry.gamesPlayed} game
-                    {entry.avgWinningGuesses !== null &&
-                      ` · rata-rata ${entry.avgWinningGuesses.toFixed(1)} tebakan saat menang`}
-                  </p>
+                  <p className="truncate text-[14px] font-semibold">{row.profile.displayName}</p>
+                  {row.secondary && (
+                    <p className="truncate text-[12px] text-[var(--muted)]">{row.secondary}</p>
+                  )}
                 </div>
-                <span className="shrink-0 text-[15px] font-bold text-[var(--accent-gold)]">
-                  {entry.wins} menang
+                <span className="shrink-0 tabular-nums text-[14px] text-[var(--fg)]">
+                  {row.primary}
                 </span>
               </button>
             </li>

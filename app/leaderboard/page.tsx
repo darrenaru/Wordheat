@@ -1,15 +1,20 @@
 import Link from "next/link";
 
-import LeaderboardList from "@/components/LeaderboardList";
+import LeaderboardTabs from "@/components/LeaderboardTabs";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { currentAccount } from "@/lib/accounts";
-import { topPlayers } from "@/lib/leaderboard";
+import { topPlayers, topPlayersByCoins, topPlayersByXp } from "@/lib/leaderboard";
 
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  const [account, entries] = [await currentAccount(), topPlayers()];
+  const [account, wins, coins, level] = [
+    await currentAccount(),
+    topPlayers(),
+    topPlayersByCoins(),
+    topPlayersByXp(),
+  ];
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[38rem] flex-col gap-6 px-4 py-6 sm:px-6">
@@ -18,25 +23,14 @@ export default async function Page() {
         <ThemeToggle />
       </header>
 
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         <Link href="/" className="text-[13px] font-bold text-[var(--muted)]">
           Kembali
         </Link>
-        <p className="text-center text-[22px] font-bold tracking-[-0.01em]">Papan peringkat</p>
+        <h1 className="text-[34px] font-bold tracking-[-0.02em]">Papan peringkat</h1>
       </div>
 
-      <p className="text-[13px] leading-relaxed text-[var(--muted)]">
-        Dihitung dari kemenangan di room multiplayer. Main sendiri tidak ikut dinilai.
-      </p>
-
-      {entries.length === 0 ? (
-        <p className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5 text-[14px] text-[var(--muted)]">
-          Belum ada game yang selesai. Ajak teman main bareng dan jadilah yang pertama
-          masuk papan ini.
-        </p>
-      ) : (
-        <LeaderboardList entries={entries} myId={account?.id ?? null} />
-      )}
+      <LeaderboardTabs wins={wins} coins={coins} level={level} myId={account?.id ?? null} />
     </main>
   );
 }
