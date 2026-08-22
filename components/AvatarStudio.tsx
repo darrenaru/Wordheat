@@ -405,7 +405,12 @@ export default function AvatarStudio({
               ))}
             </div>
 
-            <div className="flex shrink-0 items-start justify-between gap-4 py-3">
+            {/* Bagian ini duduk tetap di atas grid yang menggulir di
+                bawahnya (grid-nya sendiri di dalam overflow-y-auto
+                terpisah) -- tanpa batas ini, baris petak paling atas
+                langsung menempel ke label begitu grid digulir, seolah
+                keduanya satu lapisan yang sama. */}
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-[var(--line)] py-3">
               <div className="min-w-0">
                 <p className="text-[15px] font-bold">{active.label}</p>
                 <p className="truncate text-[13px] text-[var(--muted)]">{currentLabel}</p>
@@ -428,7 +433,7 @@ export default function AvatarStudio({
                 petaknya jadi terukur 1px lebih sempit daripada kategori yang
                 tidak menggulir -- konsisten tapi cukup terlihat. */}
             <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2 pb-1">
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2 pb-1 pt-3">
                 {active.kind === "optional" && (
                   <Tile
                     selected={draft.choices[active.id] === null}
