@@ -185,34 +185,6 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
     [guesses, puzzleId],
   );
 
-  const askHint = useCallback(async () => {
-    if (best === null || pending) return;
-    setPending(true);
-    setNotice(null);
-    try {
-      const res = await fetch("/api/hint", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          puzzleId,
-          bestRank: best,
-          guessed: guesses.map((g) => g.word),
-        }),
-      });
-      if (!res.ok) {
-        setNotice({ tone: "info", text: "Tidak ada petunjuk lagi — kamu sudah sangat dekat." });
-        return;
-      }
-      const hint = (await res.json()) as Guess;
-      setGuesses((prev) => (prev.some((g) => g.word === hint.word) ? prev : [...prev, hint]));
-      setLatest(hint);
-      setFreshWord(hint.word);
-      setNotice({ tone: "info", text: "Petunjuk terpakai." });
-    } finally {
-      setPending(false);
-    }
-  }, [best, guesses, pending, puzzleId]);
-
   const usePowerUp = useCallback(
     async (kind: PowerUpKind) => {
       if (powerUpBusy || finished) return;
@@ -452,14 +424,6 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
         </p>
         {!finished && (
           <div className="flex gap-4">
-            <button
-              type="button"
-              onClick={() => void askHint()}
-              disabled={best === null || pending}
-              className="font-bold underline underline-offset-4 disabled:opacity-35"
-            >
-              Petunjuk
-            </button>
             <button
               type="button"
               onClick={() => void giveUp()}

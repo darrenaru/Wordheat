@@ -113,48 +113,6 @@ export async function rankGuess(
   return { word, rank: ranks[vocabIndex] + 1 };
 }
 
-/**
- * Kosakata diurutkan menurut frekuensi, sehingga membatasi pencarian pada
- * bagian awalnya berarti petunjuk selalu berupa kata yang lazim dipakai.
- * Tanpa batas ini petunjuk bisa memunculkan lema kamus seperti
- * "menuanrumahi" -- benar peringkatnya, tetapi tidak menolong siapa pun.
- */
-const HINT_VOCAB_LIMIT = 12_000;
-
-/**
- * Petunjuk: kata yang peringkatnya kira-kira separuh jalan dari tebakan
- * terbaik pemain menuju jawaban. Membelah jarak seperti ini membuat petunjuk
- * tetap berguna di awal permainan tanpa langsung membocorkan jawabannya.
- */
-export async function findHint(
-  puzzleId: number,
-  bestRank: number,
-  alreadyGuessed: string[],
-): Promise<GuessResult | null> {
-  if (bestRank <= 2) return null;
-
-  const { words } = await loadVocab();
-  const ranks = await loadRanks(puzzleId);
-  const taken = new Set(alreadyGuessed.map(normalizeWord));
-  const target = Math.max(2, Math.floor(bestRank / 2));
-
-  let best: GuessResult | null = null;
-  let bestGap = Infinity;
-
-  const searchLimit = Math.min(words.length, HINT_VOCAB_LIMIT);
-  for (let i = 0; i < searchLimit; i++) {
-    const rank = ranks[i] + 1;
-    if (rank === 1 || rank >= bestRank || taken.has(words[i])) continue;
-    const gap = Math.abs(rank - target);
-    if (gap < bestGap) {
-      bestGap = gap;
-      best = { word: words[i], rank };
-      if (gap === 0) break;
-    }
-  }
-  return best;
-}
-
 /** Power-Up "Buka Huruf Awal": huruf pertama kata rahasia, plus panjangnya. */
 export async function revealInitial(
   puzzleId: number,
