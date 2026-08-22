@@ -1,6 +1,6 @@
 {
   "name": "wordheat",
-  "version": "0.9.7-beta",
+  "version": "0.9.9-beta",
   "private": true,
   "description": "Game tebak kata berbasis kedekatan makna dalam Bahasa Indonesia",
   "scripts": {

@@ -186,7 +186,7 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
             saling melemahkan. */}
         <h1 className="text-[52px] font-bold leading-none tracking-[-0.04em] sm:text-[64px]">
           <span className="hero-mask">
-            <span className="hero-part">Word</span>
+            <span className="hero-part hero-word-glow">Word</span>
           </span>
           <span className="hero-mask">
             <span className="hero-part wordmark-heat hero-heat-glow">heat</span>

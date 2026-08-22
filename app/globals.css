@@ -745,18 +745,29 @@ body {
 
 .hero-mask {
   display: inline-block;
-  overflow: hidden;
   /* Leading rapat memotong huruf kalau maskernya pas-pasan; padding ini
      memberi ruang naik-turun, lalu ditarik balik agar tata letak tidak
      bergeser. */
   padding: 0.1em 0.02em;
   margin: -0.1em -0.02em;
   vertical-align: bottom;
+  /* `overflow: hidden` cuma dibutuhkan selagi "heat" meluncur naik dari
+     baliknya (efek tirai) -- begitu animasi selesai, memotongnya terus-
+     menerus cuma memangkas pendar hero-heat-glow di bawah (text-shadow-nya
+     sampai 32px, jauh lebih besar dari padding 0.1em di atas), membuat
+     pendarnya terlihat terpotong rata alih-alih memudar lembut. Durasi &
+     delay-nya disamakan persis dengan animasi .hero-part supaya lepasnya
+     pas begitu suku katanya benar-benar mendarat, bukan lebih awal. */
+  animation: hero-mask-uncrop 820ms steps(1) both;
 }
 
 .hero-part {
   display: inline-block;
   animation: hero-part-unmask 820ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-mask:nth-child(2) {
+  animation-delay: 110ms;
 }
 
 .hero-mask:nth-child(2) .hero-part {
@@ -769,12 +780,42 @@ body {
   }
 }
 
+@keyframes hero-mask-uncrop {
+  0%,
+  99% {
+    overflow: hidden;
+  }
+  100% {
+    overflow: visible;
+  }
+}
+
 /* Kedap-kedip api: bukan denyut halus satu siklus, tapi jarak antar-titik
    yang sengaja tidak rata -- itulah yang membuatnya terasa acak seperti
    nyala sungguhan alih-alih berdenyut rapi. `linear` dipertahankan supaya
    ketidakrataan jarak antar-titik itu sendiri yang membentuk iramanya. */
 .hero-heat-glow {
   animation: hero-heat-flicker 2.6s linear 0.9s infinite;
+}
+
+/* "Word" sengaja TIDAK ikut memakai gradien wordmark-heat -- lihat catatan
+   di .wordmark-heat, cuma "heat" yang boleh menyentuh skala suhu. Sisi
+   netral ini dapat pendar sendiri sebagai padanannya: satu tarikan napas
+   lembut dalam krem, bukan kedap-kedip api. Siklusnya lebih panjang dan
+   halus (ease-in-out, bukan linear/tidak rata) supaya terbaca sebagai
+   ketenangan yang berlawanan dengan sisi "heat", bukan versi lemahnya. */
+.hero-word-glow {
+  animation: hero-word-breathe 4.6s ease-in-out 820ms infinite;
+}
+
+@keyframes hero-word-breathe {
+  0%,
+  100% {
+    text-shadow: 0 0 0 transparent;
+  }
+  50% {
+    text-shadow: 0 0 20px color-mix(in oklab, var(--color-cream) 45%, transparent);
+  }
 }
 
 @keyframes hero-heat-flicker {
@@ -826,8 +867,18 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .hero-mask {
+    animation: none;
+    /* Tanpa animasinya, propertinya kembali ke aturan statis di atas
+       (overflow: hidden dari sebelum perubahan ini tidak lagi ada, jadi
+       ini menegaskan eksplisit) -- kalau tidak, pendar hero-heat-glow yang
+       tetap menyala di mode ini akan terpotong permanen. */
+    overflow: visible;
+  }
+
   .hero-part,
-  .hero-heat-glow {
+  .hero-heat-glow,
+  .hero-word-glow {
     animation: none;
   }
 }
