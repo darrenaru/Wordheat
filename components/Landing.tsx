@@ -4,28 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import Avatar from "@/components/Avatar";
-import CoinBalance from "@/components/CoinBalance";
+import AppHeader from "@/components/AppHeader";
 import HowToPlayModal from "@/components/HowToPlayModal";
 import ModeCard, { type ModeCardProps } from "@/components/ModeCard";
-import ThemeToggle from "@/components/ThemeToggle";
-import Wordmark from "@/components/Wordmark";
-import { useAccount } from "@/components/AccountProvider";
-import { FriendsIcon, HelpIcon, PartyIcon, ShopIcon, SoloIcon, TrophyIcon } from "@/components/icons";
+import { HelpIcon, PartyIcon, ShopIcon, SoloIcon, TrophyIcon } from "@/components/icons";
 import { rememberMembership } from "@/lib/session";
 
 type Mode = "idle" | "creating" | "joining";
 
 export default function Landing({ vocabSize }: { vocabSize: number }) {
   const router = useRouter();
-  const { me } = useAccount();
   const [showHelp, setShowHelp] = useState(false);
-  // Satu lencana untuk semua yang butuh perhatian di halaman Teman --
-  // permintaan pertemanan masuk dan pesan belum dibaca sama-sama menunggu di
-  // sana, jadi ikon navbar cukup menunjukkan totalnya.
-  const friendsBadge = me
-    ? me.incoming.length + Object.values(me.unreadMessages).reduce((a, b) => a + b, 0)
-    : 0;
   const [code, setCode] = useState("");
   const [mode, setMode] = useState<Mode>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -130,66 +119,7 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[55rem] flex-col gap-7 px-4 py-6 sm:px-6">
-      <div
-        className="rise flex items-center justify-between gap-3 border-b border-[var(--line)] pb-4"
-        style={{ "--step": 0 } as React.CSSProperties}
-      >
-        <Wordmark href={null} />
-        <div className="flex items-center gap-2">
-        <Link
-          href="/friends"
-          aria-label="Teman"
-          className="relative p-1 text-[var(--muted)] transition-colors hover:text-[var(--fg)]"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="size-[18px]"
-          >
-            {FriendsIcon}
-          </svg>
-          {friendsBadge > 0 && (
-            <span
-              aria-hidden="true"
-              className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-flare text-[11px] font-bold text-[#150710]"
-            >
-              {friendsBadge}
-            </span>
-          )}
-        </Link>
-        {me ? (
-          <Link
-            href="/profile"
-            className="flex items-center gap-2 rounded-pill border border-[var(--line)] py-1 pl-1 pr-3"
-          >
-            <Avatar
-              seed={me.account.avatarSeed}
-              bg={me.account.avatarBg}
-              choices={me.account.avatarChoices}
-              name={me.account.displayName}
-              size={28}
-            />
-            <span className="max-w-[10ch] truncate text-[13px] font-bold">
-              {me.account.displayName}
-            </span>
-          </Link>
-        ) : (
-          <Link
-            href="/profile"
-            className="rounded-pill border border-[var(--line)] px-4 py-2 text-[13px] font-bold"
-          >
-            Buat profil
-          </Link>
-        )}
-        <CoinBalance />
-        <ThemeToggle />
-        </div>
-      </div>
+      <AppHeader className="rise" style={{ "--step": 0 } as React.CSSProperties} />
 
       <header
         className="rise flex flex-col items-center gap-3 text-center"

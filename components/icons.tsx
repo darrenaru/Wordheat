@@ -241,6 +241,13 @@ export const CheckIcon = (
   </>
 );
 
+/** Panah kiri: tombol "Beranda" di navbar saat bukan di halaman depan. */
+export const BackIcon = (
+  <>
+    <path d="M19 12H5M12 19l-7-7 7-7" />
+  </>
+);
+
 /** Etalase toko: pintu masuk ke Toko Power-Up. */
 export const ShopIcon = (
   <>
