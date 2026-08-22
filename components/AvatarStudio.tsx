@@ -16,6 +16,7 @@ import {
 import {
   AVATAR_BACKGROUNDS,
   AVATAR_OPTIONS,
+  DEFAULT_AVATAR_BG,
   avatarSrc,
   randomAvatarSeed,
   type AvatarChoices,
@@ -88,21 +89,35 @@ function Icon({ children, className }: { children: React.ReactNode; className?: 
 const THUMB = 56;
 
 /**
- * Satu petak pilihan.
+ * Basis tetap untuk petak pilihan -- seed dan warna yang sama persis tiap
+ * kali, tidak pernah ikut warna latar/kulit/rambut yang sedang dipilih
+ * pemain. Petaknya jadi kartu referensi generik ("begini rupa gaya rambut
+ * short01"), bukan pratinjau wajah pemain sendiri -- sebagai gantinya,
+ * gambar tiap opsi jadi benar-benar tetap: sekali dimuat, tidak pernah perlu
+ * diminta ulang ke /api/avatar untuk alasan apa pun (ganti warna, acak
+ * ulang, dll), karena parameternya tidak lagi bergantung pada draft pemain.
  *
- * Isinya avatar pemain sendiri dengan satu bagian ditukar, bukan contoh
- * generik: yang perlu dilihat adalah bagaimana pilihan itu tampak pada
- * wajahnya, bukan pada wajah orang lain.
+ * skinColor/hairColor dikunci ke nada netral secara eksplisit -- dibiarkan
+ * ikut benihnya sendiri sempat menghasilkan kombinasi warna rambut mencolok
+ * (hijau/ungu) yang terasa mengganggu mata saat menatap puluhan petak
+ * sekaligus. Nada netral ini sengaja diam di latar, supaya perhatian pemain
+ * tetap ke bentuk yang sedang dibandingkan, bukan ke warnanya.
  */
+const TILE_TEMPLATE = {
+  seed: "petak-pilihan",
+  bg: DEFAULT_AVATAR_BG,
+  skinColor: "ecad80",
+  hairColor: "6a4e35",
+};
+
+/** Satu petak pilihan: kartu referensi tetap dengan satu bagian diisi override-nya. */
 function Tile({
-  draft,
   override,
   selected,
   label,
   text,
   onPick,
 }: {
-  draft: AvatarDraft;
   override?: AvatarChoices;
   selected: boolean;
   label: string;
@@ -126,7 +141,7 @@ function Tile({
         <span className="text-[13px] font-bold">{text}</span>
       ) : (
         <img
-          src={avatarSrc({ seed: draft.seed, bg: draft.bg, ...draft.choices, ...override }, THUMB * 2)}
+          src={avatarSrc({ ...TILE_TEMPLATE, ...override }, THUMB * 2)}
           alt=""
           width={THUMB}
           height={THUMB}
@@ -405,11 +420,17 @@ export default function AvatarStudio({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            {/* `scrollbar-gutter: stable` mereservasi lebar scrollbar
+                terus-menerus, bahkan saat kategorinya (mis. "Alis", cuma
+                3 baris) tidak sampai perlu digulir. Tanpa ini, grid di
+                kategori yang MEMANG menggulir (Rambut/Mata/Mulut) kehilangan
+                ~10-16px lebar ke scrollbar, dan karena kolomnya `1fr`,
+                petaknya jadi terukur 1px lebih sempit daripada kategori yang
+                tidak menggulir -- konsisten tapi cukup terlihat. */}
+            <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
               <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-2 pb-1">
                 {active.kind === "optional" && (
                   <Tile
-                    draft={draft}
                     selected={draft.choices[active.id] === null}
                     label={`Tanpa ${active.label.toLowerCase()}`}
                     text="Tanpa"
@@ -421,7 +442,6 @@ export default function AvatarStudio({
                   AVATAR_OPTIONS[active.id].map((value) => (
                     <Tile
                       key={value}
-                      draft={draft}
                       override={{ [active.id]: value }}
                       selected={draft.choices[active.id] === value}
                       label={`${active.label} ${humanize(value)}`}
@@ -432,7 +452,6 @@ export default function AvatarStudio({
                 {active.kind === "features" && (
                   <>
                     <Tile
-                      draft={draft}
                       selected={draft.choices.features?.length === 0}
                       label="Tanpa detail wajah"
                       text="Tanpa"
@@ -444,7 +463,6 @@ export default function AvatarStudio({
                       return (
                         <Tile
                           key={feature}
-                          draft={draft}
                           override={{ features: on ? [] : [feature] }}
                           selected={on}
                           label={FEATURE_LABELS[feature] ?? feature}
