@@ -47,7 +47,7 @@ export default function PlayerProfileModal({
         aria-modal="true"
         aria-label="Profil pemain"
         tabIndex={-1}
-        className="flex w-full max-w-[28rem] flex-col gap-5 overflow-y-auto border-[var(--line)] bg-[var(--card)] p-5 outline-none sm:max-h-[85dvh] sm:rounded-lg sm:border"
+        className="modal-in flex w-full max-w-[35rem] flex-col gap-5 overflow-y-auto border-[var(--line)] bg-[var(--card)] p-5 shadow-2xl outline-none sm:max-h-[86dvh] sm:rounded-lg sm:border"
       >
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] pb-3">
           <span className="text-[15px] font-bold">Profil</span>

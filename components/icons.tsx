@@ -234,6 +234,13 @@ export const RevealDigitsIcon = (
   </>
 );
 
+/** Centang: statistik "Menang" di kartu profil pemain. */
+export const CheckIcon = (
+  <>
+    <path d="M5 13l4 4L19 7" />
+  </>
+);
+
 /** Etalase toko: pintu masuk ke Toko Power-Up. */
 export const ShopIcon = (
   <>
