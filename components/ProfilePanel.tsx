@@ -12,23 +12,9 @@ import AvatarStudio, { type AvatarDraft } from "@/components/AvatarStudio";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import PlayerStats from "@/components/PlayerStats";
 import { DEFAULT_AVATAR_BG, randomAvatarSeed } from "@/lib/avatar";
-import type { CoinLedgerEntry } from "@/lib/coins";
 import type { PublicProfile } from "@/lib/profile";
 
 type Notice = { tone: "error" | "info"; text: string } | null;
-
-function coinReasonLabel(reason: CoinLedgerEntry["reason"]): string {
-  switch (reason) {
-    case "solo_win":
-      return "Menang main sendiri";
-    case "room_win":
-      return "Menang di room";
-    case "shop_buy":
-      return "Beli Power-Up";
-    default:
-      return reason;
-  }
-}
 
 function Header() {
   return (
@@ -311,19 +297,11 @@ function SignedIn() {
   const [freshRecovery, setFreshRecovery] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [linkNotice, setLinkNotice] = useState<Notice>(null);
-  const [coinHistory, setCoinHistory] = useState<CoinLedgerEntry[]>([]);
 
   useEffect(() => {
     const code = sessionStorage.getItem("wordheat:new-recovery");
     if (code) setFreshRecovery(code);
   }, []);
-
-  useEffect(() => {
-    fetch("/api/coins/history")
-      .then((res) => (res.ok ? res.json() : { history: [] }))
-      .then((data) => setCoinHistory(data.history ?? []))
-      .catch(() => {});
-  }, [me?.coins]);
 
   // Perubahan dari perangkat lain sampai lewat saluran pribadi; formulir ikut
   // menyesuaikan selama pemain tidak sedang menyunting nilai itu.
@@ -532,31 +510,6 @@ function SignedIn() {
       <section className="flex flex-col gap-5 rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
         <p className="text-[15px] font-bold">Statistik</p>
         <PlayerStats username={account.username} showHeader={false} />
-      </section>
-
-      <section className="flex flex-col gap-3 rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-[15px] font-bold">Riwayat Koin</p>
-          <span className="flex items-center gap-1.5 font-mono text-[14px] font-bold">
-            <img src="/coin.svg" alt="" width={16} height={16} aria-hidden="true" />
-            {(me?.coins ?? 0).toLocaleString("id-ID")}
-          </span>
-        </div>
-        {coinHistory.length === 0 ? (
-          <p className="text-[13px] text-[var(--muted)]">Belum ada riwayat Coin.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {coinHistory.map((entry) => (
-              <li key={entry.id} className="flex items-center justify-between gap-3 text-[13px]">
-                <span className="text-[var(--muted)]">{coinReasonLabel(entry.reason)}</span>
-                <span className={`font-mono font-bold ${entry.delta >= 0 ? "text-[var(--fg)]" : "text-[var(--muted)]"}`}>
-                  {entry.delta >= 0 ? "+" : ""}
-                  {entry.delta.toLocaleString("id-ID")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       {studioOpen && (

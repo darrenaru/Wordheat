@@ -5,7 +5,11 @@ import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
 
 /**
- * Saldo Coin dan riwayatnya.
+ * Saldo Coin.
+ *
+ * Setiap perubahan tetap dicatat ke coin_ledger (recordLedger di bawah) buat
+ * jejak audit internal, tapi tidak ada lagi API/tampilan "Riwayat Koin" yang
+ * membacanya -- fitur itu sengaja dihapus dari sisi pemain.
  *
  * Sengaja tidak mengimpor lib/presence.ts (untuk notifyAccount()) dari sini
  * -- lib/rooms.ts memanggil fungsi-fungsi di modul ini untuk hadiah
@@ -18,14 +22,6 @@ import { db } from "@/lib/db";
  */
 
 export type CoinReason = "solo_win" | "room_win" | "shop_buy";
-
-export type CoinLedgerEntry = {
-  id: string;
-  delta: number;
-  reason: CoinReason;
-  meta: Record<string, unknown> | null;
-  createdAt: number;
-};
 
 function newId(): string {
   return randomBytes(12).toString("base64url");
@@ -85,28 +81,6 @@ export function spendCoins(
   if (info.changes === 0) return { ok: false, error: "insufficient-funds" };
   recordLedger(accountId, -amount, reason, meta);
   return { ok: true, balance: coinBalance(accountId) };
-}
-
-export function coinHistory(accountId: string, limit = 50): CoinLedgerEntry[] {
-  const rows = db()
-    .prepare(
-      `SELECT id, delta, reason, meta, created_at FROM coin_ledger
-       WHERE account_id = ? ORDER BY created_at DESC LIMIT ?`,
-    )
-    .all(accountId, limit) as {
-    id: string;
-    delta: number;
-    reason: CoinReason;
-    meta: string | null;
-    created_at: number;
-  }[];
-  return rows.map((r) => ({
-    id: r.id,
-    delta: r.delta,
-    reason: r.reason,
-    meta: r.meta ? (JSON.parse(r.meta) as Record<string, unknown>) : null,
-    createdAt: r.created_at,
-  }));
 }
 
 /**

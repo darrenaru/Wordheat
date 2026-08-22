@@ -127,8 +127,8 @@ function migrate(db: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS messages_by_from ON messages(from_id);
     CREATE INDEX IF NOT EXISTS messages_by_to ON messages(to_id, read_at);
 
-    -- Riwayat setiap perubahan saldo Coin (dapat maupun belanja), dipakai
-    -- untuk saldo berjalan (SUM) sekaligus layar "Riwayat Koin" di profil.
+    -- Riwayat setiap perubahan saldo Coin (dapat maupun belanja) -- jejak
+    -- audit internal saja, tidak ada lagi tampilan pemain yang membacanya.
     CREATE TABLE IF NOT EXISTS coin_ledger (
       id          TEXT PRIMARY KEY,
       account_id  TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
