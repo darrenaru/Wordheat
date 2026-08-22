@@ -883,6 +883,41 @@ body {
   }
 }
 
+/* ---------------------------------------------------- modal cara bermain --
+
+   Tiap langkah meluncur masuk dari sisi yang sesuai arah perpindahannya --
+   dari kanan saat "Lanjut", dari kiri saat "Sebelumnya" -- sambil memudar,
+   supaya terasa sebagai satu alur yang berjalan maju-mundur, bukan sekadar
+   isi yang berganti seketika. */
+
+.step-content[data-direction="1"] {
+  animation: step-slide-in-forward 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.step-content[data-direction="-1"] {
+  animation: step-slide-in-backward 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes step-slide-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+}
+
+@keyframes step-slide-in-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-content {
+    animation: none;
+  }
+}
+
 /* ------------------------------------------------------- masuk halaman -- */
 
 @keyframes rise {

@@ -33,7 +33,18 @@ export default function HowToPlayModal({
   onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
+  /** 1 = maju ("Lanjut"), -1 = mundur ("Sebelumnya") -- menentukan arah slide-nya. */
+  const [direction, setDirection] = useState<1 | -1>(1);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  const goNext = () => {
+    setDirection(1);
+    setStep((s) => s + 1);
+  };
+  const goBack = () => {
+    setDirection(-1);
+    setStep((s) => s - 1);
+  };
 
   const steps: Step[] = [
     {
@@ -185,9 +196,15 @@ export default function HowToPlayModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          <p className="text-[18px] font-bold tracking-[-0.01em]">{steps[step].title}</p>
-          <div className="mt-2">{steps[step].body}</div>
+        <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-4">
+          {/* `key={step}` bikin React memasang ulang elemen ini tiap langkah
+              berganti (bukan sekadar memperbarui isinya) -- itu yang membuat
+              animasi CSS-nya main lagi dari awal setiap "Lanjut"/"Sebelumnya"
+              ditekan, alih-alih cuma sekali di kunjungan pertama. */}
+          <div key={step} data-direction={direction} className="step-content">
+            <p className="text-[18px] font-bold tracking-[-0.01em]">{steps[step].title}</p>
+            <div className="mt-2">{steps[step].body}</div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-[var(--line)] px-5 py-4">
@@ -205,7 +222,7 @@ export default function HowToPlayModal({
             {step > 0 && (
               <button
                 type="button"
-                onClick={() => setStep((s) => s - 1)}
+                onClick={goBack}
                 className="rounded-pill border border-[var(--line)] px-4 py-2 text-[13px] font-bold"
               >
                 Sebelumnya
@@ -213,7 +230,7 @@ export default function HowToPlayModal({
             )}
             <button
               type="button"
-              onClick={() => (last ? onClose() : setStep((s) => s + 1))}
+              onClick={() => (last ? onClose() : goNext())}
               className="rounded-pill bg-[var(--btn-bg)] px-4 py-2 text-[13px] font-bold text-[var(--btn-fg)]"
             >
               {last ? "Main sekarang" : "Lanjut"}
