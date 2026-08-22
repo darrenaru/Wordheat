@@ -3,12 +3,21 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { useAccount } from "@/components/AccountProvider";
+import CoinBalance from "@/components/CoinBalance";
 import GuessFxLayer from "@/components/GuessFxLayer";
 import GuessRow from "@/components/GuessRow";
+import { RevealDigitsIcon, RevealInitialIcon, TargetIcon } from "@/components/icons";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { applyAmbientHeat, flarePage } from "@/lib/ambient";
 import { buildGuessFx, useReorderAnimation, type GuessFx } from "@/lib/motion";
+import {
+  POWER_UP_CATALOG,
+  type PowerUpKind,
+  type RevealDigitsPayload,
+  type RevealInitialPayload,
+} from "@/lib/powerup-catalog";
 import { normalizeWord } from "@/lib/word";
 
 type Guess = { word: string; rank: number };
@@ -37,7 +46,12 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
   const [restored, setRestored] = useState(false);
   const [copied, setCopied] = useState(false);
   const [fx, setFx] = useState<GuessFx | null>(null);
+  const [reveals, setReveals] = useState<
+    Partial<Record<PowerUpKind, RevealInitialPayload | RevealDigitsPayload>>
+  >({});
+  const [powerUpBusy, setPowerUpBusy] = useState<PowerUpKind | null>(null);
 
+  const { me } = useAccount();
   const inputRef = useRef<HTMLInputElement>(null);
   // Tebakan boleh dikirim bersamaan, jadi jawaban bisa datang tidak berurutan.
   // Penanda ini memastikan baris "terakhir" menampilkan tebakan yang paling
@@ -82,6 +96,17 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
     setRestored(true);
   }, [puzzleId]);
 
+  // Power-Up sekali-pakai (reveal_initial/reveal_digits) tersimpan di server
+  // (bukan localStorage): mode solo tidak punya sesi, jadi statusnya
+  // dipulihkan lewat panggilan ini supaya muat ulang halaman tidak
+  // menghilangkan wahyu yang sudah dibeli.
+  useEffect(() => {
+    fetch(`/api/powerup/status?puzzleId=${puzzleId}`)
+      .then((res) => (res.ok ? res.json() : {}))
+      .then((data) => setReveals(data ?? {}))
+      .catch(() => {});
+  }, [puzzleId]);
+
   useEffect(() => {
     if (!restored) return;
     try {
@@ -123,7 +148,7 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
         const res = await fetch("/api/guess", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ puzzleId, word }),
+          body: JSON.stringify({ puzzleId, word, guessCount: guesses.length + 1 }),
         });
 
         if (res.status === 404) {
@@ -188,6 +213,47 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
     }
   }, [best, guesses, pending, puzzleId]);
 
+  const usePowerUp = useCallback(
+    async (kind: PowerUpKind) => {
+      if (powerUpBusy || finished) return;
+      setPowerUpBusy(kind);
+      setNotice(null);
+      try {
+        const res = await fetch("/api/powerup/use", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            puzzleId,
+            kind,
+            guessed: guesses.map((g) => g.word),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setNotice({
+            tone: "info",
+            text:
+              data?.error === "insufficient-stock"
+                ? "Stok Power-Up ini habis. Beli dulu di toko."
+                : "Power-Up gagal dipakai.",
+          });
+          return;
+        }
+        if (kind === "closest_guess") {
+          const hint = data as Guess;
+          setGuesses((prev) => (prev.some((g) => g.word === hint.word) ? prev : [...prev, hint]));
+          setLatest(hint);
+          setFreshWord(hint.word);
+        } else {
+          setReveals((prev) => ({ ...prev, [kind]: data.result }));
+        }
+      } finally {
+        setPowerUpBusy(null);
+      }
+    },
+    [finished, guesses, powerUpBusy, puzzleId],
+  );
+
   const giveUp = useCallback(async () => {
     if (finished || pending) return;
     setPending(true);
@@ -231,11 +297,14 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
       <GuessFxLayer fx={fx} vocabSize={vocabSize} />
 
       <header
-        className="rise flex items-center justify-between gap-4"
+        className="rise flex items-center justify-between gap-3"
         style={{ "--step": 0 } as React.CSSProperties}
       >
         <Wordmark />
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <CoinBalance />
+          <ThemeToggle />
+        </div>
       </header>
 
       <div className="flex flex-col gap-1.5">
@@ -331,6 +400,50 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
         </section>
       )}
 
+      {!finished && (reveals.reveal_initial || reveals.reveal_digits) && (
+        <RevealBanner reveals={reveals} />
+      )}
+
+      {!finished && (
+        <div className="flex flex-wrap items-center gap-2">
+          {(["reveal_initial", "reveal_digits", "closest_guess"] as const).map((kind) => {
+            const owned = me?.powerUps[kind] ?? 0;
+            const alreadyUsed = kind !== "closest_guess" && Boolean(reveals[kind]);
+            const icon =
+              kind === "reveal_initial"
+                ? RevealInitialIcon
+                : kind === "reveal_digits"
+                  ? RevealDigitsIcon
+                  : TargetIcon;
+            return (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => void usePowerUp(kind)}
+                disabled={owned === 0 || alreadyUsed || powerUpBusy !== null}
+                aria-label={POWER_UP_CATALOG[kind].label}
+                title={POWER_UP_CATALOG[kind].label}
+                className="flex items-center gap-1.5 rounded-pill border border-[var(--line)] px-3 py-1.5 text-[12px] font-bold transition-colors hover:border-[var(--fg)]/35 disabled:opacity-35"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-[15px]"
+                >
+                  {icon}
+                </svg>
+                {owned}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-4 border-t border-[var(--line)] pt-4 text-[13px]">
         <p className="text-[var(--muted)]">
           {guessCount === 0
@@ -380,5 +493,34 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
         </ol>
       )}
     </main>
+  );
+}
+
+/** Kotak huruf: gabungan hasil reveal_initial (huruf awal) dan reveal_digits (panjang + huruf acak). */
+function RevealBanner({
+  reveals,
+}: {
+  reveals: Partial<Record<PowerUpKind, RevealInitialPayload | RevealDigitsPayload>>;
+}) {
+  const initial = reveals.reveal_initial as RevealInitialPayload | undefined;
+  const digits = reveals.reveal_digits as RevealDigitsPayload | undefined;
+  const length = digits?.length ?? initial?.length;
+  if (!length) return null;
+
+  const known = new Map<number, string>();
+  if (initial) known.set(0, initial.letter);
+  if (digits) for (const { index, char } of digits.letters) known.set(index, char);
+
+  return (
+    <div aria-label="Huruf yang terbuka" className="flex flex-wrap gap-1.5">
+      {Array.from({ length }, (_, i) => (
+        <span
+          key={i}
+          className="grid size-8 place-items-center rounded border border-[var(--line)] text-[15px] font-bold uppercase"
+        >
+          {known.get(i) ?? ""}
+        </span>
+      ))}
+    </div>
   );
 }

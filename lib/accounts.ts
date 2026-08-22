@@ -639,3 +639,79 @@ export function removeFriend(accountId: string, friendId: string): boolean {
     .run(a, b);
   return info.changes > 0;
 }
+
+// ------------------------------------------------------- tambah cepat --
+
+/**
+ * Membuat/menetapkan token acak baru untuk tautan "Tambah Cepat". Coba
+ * ulang beberapa kali kalau tabrakan UNIQUE (peluangnya nyaris nol dengan
+ * 9 byte acak, tapi murah untuk dijaga).
+ */
+function assignQuickAddToken(accountId: string): string {
+  const database = db();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const token = randomBytes(9).toString("base64url");
+    try {
+      database.prepare("UPDATE accounts SET quick_add_token = ? WHERE id = ?").run(token, accountId);
+      return token;
+    } catch {
+      // Tabrakan UNIQUE -- coba token baru.
+    }
+  }
+  throw new Error("gagal membuat token tambah cepat");
+}
+
+/** Token tautan tambah cepat milik akun ini, dibuat sekali lalu dipakai ulang. */
+export function quickAddLinkToken(accountId: string): string {
+  const row = db()
+    .prepare("SELECT quick_add_token FROM accounts WHERE id = ?")
+    .get(accountId) as { quick_add_token: string | null } | undefined;
+  return row?.quick_add_token ?? assignQuickAddToken(accountId);
+}
+
+/** Mengganti token lama -- tautan yang sudah beredar berhenti berfungsi. */
+export function regenerateQuickAddLink(accountId: string): string {
+  return assignQuickAddToken(accountId);
+}
+
+function findAccountByQuickAddToken(token: string): Account | null {
+  const row = db().prepare("SELECT * FROM accounts WHERE quick_add_token = ?").get(token) as
+    | AccountRow
+    | undefined;
+  return row ? toAccount(row) : null;
+}
+
+export type QuickAddError = "not-found" | "self";
+
+/**
+ * Langsung menjadikan dua akun berteman lewat token tautan -- tanpa lewat
+ * `friend_requests` sama sekali, beda dari `sendFriendRequest`. Token
+ * (bukan username) yang jadi kuncinya, supaya cuma orang yang benar-benar
+ * menerima tautan yang dibagikan pemiliknya yang bisa memicu ini.
+ */
+export function quickAddFriend(
+  accountId: string,
+  token: string,
+): { ok: true; friend: Account; alreadyFriends: boolean } | { ok: false; error: QuickAddError } {
+  const target = findAccountByQuickAddToken(token);
+  if (!target) return { ok: false, error: "not-found" };
+  if (target.id === accountId) return { ok: false, error: "self" };
+
+  if (areFriends(accountId, target.id)) {
+    return { ok: true, friend: target, alreadyFriends: true };
+  }
+
+  const database = db();
+  const [a, b] = pair(accountId, target.id);
+  database
+    .prepare("INSERT OR IGNORE INTO friendships (a_id, b_id, created_at) VALUES (?, ?, ?)")
+    .run(a, b, Date.now());
+  // Bersihkan permintaan basi di antara keduanya (arah mana pun), kalau ada.
+  database
+    .prepare(
+      "DELETE FROM friend_requests WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)",
+    )
+    .run(accountId, target.id, target.id, accountId);
+
+  return { ok: true, friend: target, alreadyFriends: false };
+}

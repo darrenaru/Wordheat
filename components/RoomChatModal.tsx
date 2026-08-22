@@ -222,7 +222,11 @@ export default function RoomChatModal({
                     size={26}
                   />
                   <div className={`flex max-w-[72%] flex-col gap-0.5 ${mine ? "items-end" : "items-start"}`}>
-                    {!mine && <span className="px-1 text-[11px] text-[var(--muted)]">{name}</span>}
+                    {!mine && (
+                      <span className="block max-w-full truncate px-1 text-[11px] text-[var(--muted)]">
+                        {name}
+                      </span>
+                    )}
                     <p
                       className={`whitespace-pre-wrap break-words rounded-lg border px-3 py-2 text-[14px] leading-relaxed ${
                         mine

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { randomInt } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -150,6 +151,62 @@ export async function findHint(
       best = { word: words[i], rank };
       if (gap === 0) break;
     }
+  }
+  return best;
+}
+
+/** Power-Up "Buka Huruf Awal": huruf pertama kata rahasia, plus panjangnya. */
+export async function revealInitial(
+  puzzleId: number,
+): Promise<{ letter: string; length: number } | null> {
+  const puzzle = await getPuzzleById(puzzleId);
+  if (!puzzle) return null;
+  return { letter: puzzle.word[0], length: puzzle.word.length };
+}
+
+/**
+ * Power-Up "Buka Jumlah Huruf": panjang kata rahasia plus 1-2 huruf acak di
+ * posisi acak (tidak pernah semua huruf, bahkan untuk kata pendek).
+ */
+export async function revealDigits(
+  puzzleId: number,
+): Promise<{ length: number; letters: { index: number; char: string }[] } | null> {
+  const puzzle = await getPuzzleById(puzzleId);
+  if (!puzzle) return null;
+
+  const word = puzzle.word;
+  const count = Math.min(2, Math.max(1, word.length - 1));
+  const indices = new Set<number>();
+  while (indices.size < count) {
+    indices.add(randomInt(word.length));
+  }
+
+  const letters = [...indices]
+    .sort((a, b) => a - b)
+    .map((index) => ({ index, char: word[index] }));
+
+  return { length: word.length, letters };
+}
+
+/**
+ * Power-Up "Tebakan Terdekat": kata belum-pernah-ditebak dengan peringkat
+ * paling kecil (paling dekat dengan jawaban), tanpa batas kosakata umum
+ * seperti findHint -- ini memang dimaksudkan sebagai jalan pintas "curang",
+ * bukan petunjuk ramah pemula.
+ */
+export async function findClosestGuess(
+  puzzleId: number,
+  alreadyGuessed: string[],
+): Promise<GuessResult | null> {
+  const { words } = await loadVocab();
+  const ranks = await loadRanks(puzzleId);
+  const taken = new Set(alreadyGuessed.map(normalizeWord));
+
+  let best: GuessResult | null = null;
+  for (let i = 0; i < words.length; i++) {
+    const rank = ranks[i] + 1;
+    if (rank === 1 || taken.has(words[i])) continue;
+    if (!best || rank < best.rank) best = { word: words[i], rank };
   }
   return best;
 }

@@ -12,7 +12,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 import FriendSearch from "@/components/FriendSearch";
 import PlayerProfileModal from "@/components/PlayerProfileModal";
 import PresenceDot from "@/components/PresenceDot";
-import { ChatIcon } from "@/components/icons";
+import { AddFriendIcon, ChatIcon } from "@/components/icons";
 import type { FriendPresence, PublicProfile } from "@/lib/profile";
 
 type Notice = { tone: "error" | "info"; text: string } | null;
@@ -85,6 +85,105 @@ function NeedsProfile() {
   );
 }
 
+function QuickAddCard({ token }: { token: string }) {
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [notice, setNotice] = useState<Notice>(null);
+  const [regenerating, setRegenerating] = useState(false);
+
+  const shareLink = useCallback(async () => {
+    if (!token) return;
+    const url = `${window.location.origin}/friend/${token}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Wordheat",
+          text: "Yuk berteman denganku di Wordheat!",
+          url,
+        });
+      } catch {
+        // Dibatalkan pengguna atau gagal diam-diam -- tidak perlu ditindaklanjuti.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      setNotice({ tone: "error", text: "Tautan gagal disalin." });
+    }
+  }, [token]);
+
+  const regenerate = useCallback(async () => {
+    setRegenerating(true);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/friends", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "regenerate-quick-add" }),
+      });
+      if (!res.ok) throw new Error();
+      setNotice({ tone: "info", text: "Tautan lama berhenti berfungsi. Bagikan yang baru." });
+    } catch {
+      setNotice({ tone: "error", text: "Tautan gagal diperbarui." });
+    } finally {
+      setRegenerating(false);
+    }
+  }, []);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-lg border border-[var(--line)] bg-[var(--field)] p-3">
+      <div className="flex items-center gap-2">
+        <span aria-hidden="true" className="text-[var(--muted)]">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="size-[18px]"
+          >
+            {AddFriendIcon}
+          </svg>
+        </span>
+        <p className="text-[14px] font-bold">Tambah cepat</p>
+      </div>
+      <p className="text-[13px] leading-relaxed text-[var(--muted)]">
+        Bagikan tautan ini ke teman lewat WhatsApp, Telegram, atau platform apa pun -- mereka
+        langsung jadi temanmu begitu tautannya dibuka, tanpa permintaan pertemanan.
+      </p>
+      <div className="mt-1 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void shareLink()}
+          disabled={!token}
+          className="rounded-pill bg-[var(--btn-bg)] px-4 py-2 text-[13px] font-bold text-[var(--btn-fg)] disabled:opacity-50"
+        >
+          {linkCopied ? "Tautan tersalin" : "Bagikan tautan"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void regenerate()}
+          disabled={regenerating}
+          className="text-[12px] text-[var(--muted)] underline decoration-dotted disabled:opacity-50"
+        >
+          Buat tautan baru
+        </button>
+      </div>
+      {notice && (
+        <p
+          role="status"
+          className={`text-[12px] ${notice.tone === "error" ? "text-flare" : "text-[var(--muted)]"}`}
+        >
+          {notice.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function FriendsView() {
   const { me } = useAccount();
   const account = me!.account;
@@ -140,9 +239,11 @@ function FriendsView() {
         <div>
           <p className="text-[17px] font-bold">Teman</p>
           <p className="mt-1 text-[13px] text-[var(--muted)]">
-            Cari lewat username, lalu saling undang ke room multiplayer.
+            Bagikan tautan tambah cepat, atau cari lewat username.
           </p>
         </div>
+
+        <QuickAddCard token={me!.quickAddToken} />
 
         <FriendSearch onSubmit={addFriend} />
 

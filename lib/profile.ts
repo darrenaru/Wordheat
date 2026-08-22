@@ -1,6 +1,7 @@
 /** Bentuk data profil yang dipakai bersama server dan browser. */
 
 import type { AvatarChoices } from "@/lib/avatar";
+import type { PowerUpKind } from "@/lib/powerup-catalog";
 
 export type PublicProfile = {
   id: string;
@@ -38,6 +39,12 @@ export type MeState = {
   account: PublicProfile;
   /** Punya credential Google terhubung atau tidak -- detail privat milik pemiliknya sendiri, tidak dimasukkan ke PublicProfile. */
   hasGoogle: boolean;
+  /** Token tautan "Tambah Cepat" milik akun ini sendiri -- juga privat, tidak dimasukkan ke PublicProfile. */
+  quickAddToken: string;
+  /** Saldo Coin milik akun ini sendiri -- privat, tidak dimasukkan ke PublicProfile. */
+  coins: number;
+  /** Stok Power-Up yang dimiliki, per jenis -- privat. */
+  powerUps: Record<PowerUpKind, number>;
   status: AccountStatus;
   friends: FriendPresence[];
   incoming: FriendRequestView[];

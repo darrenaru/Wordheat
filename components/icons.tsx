@@ -206,3 +206,39 @@ export const TrophyIcon = (
     <path d="M10 17.5h4l.7 3H9.3l.7-3Z" />
   </>
 );
+
+// ------------------------------------------------------ Power-Up / Coin --
+
+/** Target/bidikan: Power-Up "Tebakan Terdekat". */
+export const TargetIcon = (
+  <>
+    <circle cx="12" cy="12" r="8.25" />
+    <circle cx="12" cy="12" r="4.75" />
+    <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+  </>
+);
+
+/** Kotak huruf: satu terbuka (solid), sisanya tersembunyi -- Power-Up "Buka Huruf Awal". */
+export const RevealInitialIcon = (
+  <>
+    <rect x="3" y="8" width="6" height="8" rx="1.4" fill="currentColor" stroke="none" />
+    <rect x="11" y="8" width="6" height="8" rx="1.4" />
+    <rect x="19" y="8" width="2" height="8" rx="1" />
+  </>
+);
+
+/** Tanda pagar: hitungan/panjang -- Power-Up "Buka Jumlah Huruf". */
+export const RevealDigitsIcon = (
+  <>
+    <path d="M9 4 7 20M17 4l-2 16M4 9h16M3 15h16" />
+  </>
+);
+
+/** Etalase toko: pintu masuk ke Toko Power-Up. */
+export const ShopIcon = (
+  <>
+    <path d="M4 9 5.5 4h13L20 9" />
+    <path d="M4 9h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9Z" />
+    <path d="M9 13a3 3 0 0 0 6 0" />
+  </>
+);

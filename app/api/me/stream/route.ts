@@ -3,9 +3,12 @@ import {
   currentAccount,
   findAccountById,
   friendState,
+  quickAddLinkToken,
   toPublicProfile,
 } from "@/lib/accounts";
+import { coinBalance } from "@/lib/coins";
 import { unreadCounts } from "@/lib/messages";
+import { inventoryOf } from "@/lib/powerups";
 import {
   getAccountStatus,
   listInvites,
@@ -62,6 +65,9 @@ export async function GET(request: Request) {
         const payload = {
           account: toPublicProfile(fresh),
           hasGoogle: accountHasGoogle(accountId),
+          quickAddToken: quickAddLinkToken(accountId),
+          coins: coinBalance(accountId),
+          powerUps: inventoryOf(accountId),
           status: getAccountStatus(accountId),
           friends: friends.map(withStatus),
           incoming: incoming.map((r) => ({ ...r, profile: withStatus(r.profile) })),

@@ -15,10 +15,17 @@ import ThemeToggle from "@/components/ThemeToggle";
 import WinResultModal from "@/components/WinResultModal";
 import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
-import { ChatIcon, CopyIcon } from "@/components/icons";
+import CoinBalance from "@/components/CoinBalance";
+import { ChatIcon, CopyIcon, RevealDigitsIcon, RevealInitialIcon, TargetIcon } from "@/components/icons";
 import type { AvatarChoices } from "@/lib/avatar";
 import { applyAmbientHeat, flarePage } from "@/lib/ambient";
 import { buildGuessFx, useReorderAnimation, type GuessFx } from "@/lib/motion";
+import {
+  POWER_UP_CATALOG,
+  type PowerUpKind,
+  type RevealDigitsPayload,
+  type RevealInitialPayload,
+} from "@/lib/powerup-catalog";
 import type { AccountStatus } from "@/lib/profile";
 import { forgetMembership, readMembership, rememberMembership } from "@/lib/session";
 import { normalizeWord } from "@/lib/word";
@@ -59,6 +66,7 @@ type RoomView = {
     deadline: number;
     responses: Record<string, "accept" | "reject">;
   };
+  myPowerUps?: Partial<Record<PowerUpKind, RevealInitialPayload | RevealDigitsPayload>>;
 };
 
 type Notice = { tone: "error" | "info"; text: string } | null;
@@ -86,6 +94,7 @@ export default function RoomBoard({ code }: { code: string }) {
   const [surrenderModalOpen, setSurrenderModalOpen] = useState(false);
   const [winModalOpen, setWinModalOpen] = useState(false);
   const [fx, setFx] = useState<GuessFx | null>(null);
+  const [powerUpBusy, setPowerUpBusy] = useState<PowerUpKind | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const submitSeq = useRef(0);
@@ -378,6 +387,37 @@ export default function RoomBoard({ code }: { code: string }) {
     [code, playerId, respondingSurrender],
   );
 
+  const usePowerUp = useCallback(
+    async (kind: PowerUpKind) => {
+      if (!playerId || powerUpBusy) return;
+      setPowerUpBusy(kind);
+      setNotice(null);
+      try {
+        const res = await fetch("/api/room/powerup/use", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, playerId, kind }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setNotice({
+            tone: "info",
+            text:
+              data?.error === "insufficient-stock"
+                ? "Stok Power-Up ini habis. Beli dulu di toko."
+                : "Power-Up gagal dipakai.",
+          });
+        }
+        // Keadaan lengkap (wahyu privat, tebakan baru) sampai lewat aliran SSE room.
+      } catch {
+        setNotice({ tone: "error", text: "Power-Up gagal dipakai. Coba lagi." });
+      } finally {
+        setPowerUpBusy(null);
+      }
+    },
+    [code, playerId, powerUpBusy],
+  );
+
   const inviteFriend = useCallback(
     async (friendId: string) => {
       const res = await fetch("/api/friends/invite", {
@@ -450,11 +490,14 @@ export default function RoomBoard({ code }: { code: string }) {
   const header = (
     <>
       <header
-        className="rise flex items-center justify-between gap-4"
+        className="rise flex items-center justify-between gap-3"
         style={{ "--step": 0 } as React.CSSProperties}
       >
         <Wordmark />
-        <ThemeToggle />
+        <div className="flex items-center gap-2">
+          <CoinBalance />
+          <ThemeToggle />
+        </div>
       </header>
       <div className="flex flex-col gap-1.5">
         <Link href="/" className="text-[13px] font-bold text-[var(--muted)]">
@@ -483,7 +526,7 @@ export default function RoomBoard({ code }: { code: string }) {
       <main className="mx-auto flex min-h-dvh w-full max-w-[34rem] flex-col gap-6 px-4 py-8 sm:px-6">
         {header}
         <section className="rounded-lg border border-[var(--line)] bg-[var(--card)] p-5">
-          <p className="flex items-center gap-2 text-[15px]">
+          <p className="flex flex-wrap items-center gap-2 text-[15px]">
             <Avatar
               seed={me.account.avatarSeed}
               bg={me.account.avatarBg}
@@ -492,7 +535,7 @@ export default function RoomBoard({ code }: { code: string }) {
               size={24}
             />
             Bergabung ke room {code} sebagai{" "}
-            <strong className="text-[var(--fg)]">{me.account.displayName}</strong>…
+            <strong className="break-words text-[var(--fg)]">{me.account.displayName}</strong>…
           </p>
           {joinError && (
             <>
@@ -552,6 +595,49 @@ export default function RoomBoard({ code }: { code: string }) {
       <GuessFxLayer fx={fx} vocabSize={room.vocabSize} />
 
       {header}
+
+      {playing && (
+        <div className="-mt-3 flex flex-wrap items-center gap-2">
+          {(["reveal_initial", "reveal_digits", "closest_guess"] as const).map((kind) => {
+            const owned = me?.powerUps[kind] ?? 0;
+            const alreadyUsed = kind !== "closest_guess" && Boolean(room.myPowerUps?.[kind]);
+            const icon =
+              kind === "reveal_initial"
+                ? RevealInitialIcon
+                : kind === "reveal_digits"
+                  ? RevealDigitsIcon
+                  : TargetIcon;
+            return (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => void usePowerUp(kind)}
+                disabled={owned === 0 || alreadyUsed || powerUpBusy !== null}
+                aria-label={POWER_UP_CATALOG[kind].label}
+                title={POWER_UP_CATALOG[kind].label}
+                className="flex shrink-0 items-center gap-1.5 rounded-pill border border-[var(--line)] px-3 py-1.5 text-[12px] font-bold transition-colors hover:border-[var(--fg)]/35 disabled:opacity-35"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.7"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="size-[15px]"
+                >
+                  {icon}
+                </svg>
+                {owned}
+              </button>
+            );
+          })}
+          {(room.myPowerUps?.reveal_initial || room.myPowerUps?.reveal_digits) && (
+            <RoomRevealBanner myPowerUps={room.myPowerUps} />
+          )}
+        </div>
+      )}
 
       {room.status !== "countdown" && (
         <div className="-mt-3 flex items-center justify-end gap-2">
@@ -953,5 +1039,34 @@ export default function RoomBoard({ code }: { code: string }) {
         </p>
       )}
     </main>
+  );
+}
+
+/** Kotak huruf privat -- hanya dilihat pemain yang membeli Power-Up-nya sendiri. */
+function RoomRevealBanner({
+  myPowerUps,
+}: {
+  myPowerUps: RoomView["myPowerUps"];
+}) {
+  const initial = myPowerUps?.reveal_initial as RevealInitialPayload | undefined;
+  const digits = myPowerUps?.reveal_digits as RevealDigitsPayload | undefined;
+  const length = digits?.length ?? initial?.length;
+  if (!length) return null;
+
+  const known = new Map<number, string>();
+  if (initial) known.set(0, initial.letter);
+  if (digits) for (const { index, char } of digits.letters) known.set(index, char);
+
+  return (
+    <div aria-label="Huruf yang terbuka" className="flex flex-wrap gap-1">
+      {Array.from({ length }, (_, i) => (
+        <span
+          key={i}
+          className="grid size-6 place-items-center rounded border border-[var(--line)] text-[12px] font-bold uppercase"
+        >
+          {known.get(i) ?? ""}
+        </span>
+      ))}
+    </div>
   );
 }

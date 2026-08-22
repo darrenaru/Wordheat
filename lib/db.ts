@@ -126,12 +126,67 @@ function migrate(db: DatabaseSync) {
     );
     CREATE INDEX IF NOT EXISTS messages_by_from ON messages(from_id);
     CREATE INDEX IF NOT EXISTS messages_by_to ON messages(to_id, read_at);
+
+    -- Riwayat setiap perubahan saldo Coin (dapat maupun belanja), dipakai
+    -- untuk saldo berjalan (SUM) sekaligus layar "Riwayat Koin" di profil.
+    CREATE TABLE IF NOT EXISTS coin_ledger (
+      id          TEXT PRIMARY KEY,
+      account_id  TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      delta       INTEGER NOT NULL, -- positif = dapat, negatif = belanja
+      reason      TEXT NOT NULL,
+      meta        TEXT,
+      created_at  INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS coin_ledger_by_account ON coin_ledger(account_id, created_at DESC);
+
+    -- Stok Power-Up yang dimiliki tiap akun, per jenis.
+    CREATE TABLE IF NOT EXISTS power_up_inventory (
+      account_id  TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      kind        TEXT NOT NULL,
+      count       INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (account_id, kind)
+    );
+
+    -- Penanda Power-Up sekali-pakai (reveal_initial/reveal_digits) yang sudah
+    -- dipakai di puzzle solo tertentu -- mode solo tidak punya sesi server,
+    -- jadi ini sekaligus mencegah pemain membeli ulang efek yang sama di
+    -- puzzle yang sama, dan menyimpan hasilnya supaya muat ulang halaman
+    -- tidak menghilangkan (atau mengacak ulang) apa yang sudah terbuka.
+    CREATE TABLE IF NOT EXISTS solo_power_up_usage (
+      account_id  TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      puzzle_id   INTEGER NOT NULL,
+      kind        TEXT NOT NULL,
+      result      TEXT,
+      created_at  INTEGER NOT NULL,
+      PRIMARY KEY (account_id, puzzle_id, kind)
+    );
+
+    -- Satu baris per kemenangan solo yang sudah dihadiahi Coin -- mencegah
+    -- pemain mengirim ulang kata yang sama berkali-kali demi Coin, karena
+    -- mode solo tidak melacak status permainan di server sama sekali.
+    CREATE TABLE IF NOT EXISTS solo_wins (
+      account_id   TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      puzzle_id    INTEGER NOT NULL,
+      guess_count  INTEGER NOT NULL,
+      created_at   INTEGER NOT NULL,
+      PRIMARY KEY (account_id, puzzle_id)
+    );
   `);
 
   addColumn(db, "accounts", "avatar_options", "TEXT NOT NULL DEFAULT '{}'");
   // NULL berarti belum pernah diganti sejak dibuat -- pergantian pertama
   // tidak boleh kena cooldown, hanya pergantian berikutnya.
   addColumn(db, "accounts", "username_changed_at", "INTEGER");
+  // Token acak (bukan username) untuk tautan "Tambah Cepat" -- sengaja tidak
+  // bisa ditebak dari username publik, supaya menjadi teman lewat tautan ini
+  // benar-benar butuh persetujuan pemiliknya (membagikan tautannya sendiri),
+  // bukan sekadar tahu username orang lain. NULL sampai dibuat pertama kali.
+  addColumn(db, "accounts", "quick_add_token", "TEXT");
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS accounts_quick_add_token ON accounts(quick_add_token) WHERE quick_add_token IS NOT NULL`,
+  );
+  // Saldo mata uang dalam game ("Coin"), dipakai untuk membeli Power-Up.
+  addColumn(db, "accounts", "coins", "INTEGER NOT NULL DEFAULT 0");
 }
 
 /**

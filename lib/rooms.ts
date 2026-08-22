@@ -4,9 +4,20 @@ import { randomBytes, randomInt } from "node:crypto";
 
 import type { PublicProfile } from "@/lib/accounts";
 import type { AvatarChoices } from "@/lib/avatar";
+import { earnCoins } from "@/lib/coins";
 import { recordRoomResult } from "@/lib/leaderboard";
 import type { AccountStatus } from "@/lib/profile";
-import { getPuzzleById, loadManifest, rankGuess, type PuzzleMeta } from "@/lib/puzzles";
+import type { PowerUpKind, RevealPayload } from "@/lib/powerup-catalog";
+import { decrementInventory, incrementInventory } from "@/lib/powerups";
+import {
+  findClosestGuess,
+  getPuzzleById,
+  loadManifest,
+  rankGuess,
+  revealDigits,
+  revealInitial,
+  type PuzzleMeta,
+} from "@/lib/puzzles";
 
 /**
  * Room multiplayer, disimpan di memori proses.
@@ -74,6 +85,15 @@ type Player = {
   removalTimer?: NodeJS.Timeout;
   guesses: { word: string; rank: number }[];
   solvedAt?: number;
+  /**
+   * Hasil Power-Up sekali-pakai (reveal_initial/reveal_digits) yang sudah
+   * dipakai pemain ini di pertandingan berjalan -- privat, hanya dikirim ke
+   * pemiliknya sendiri lewat viewOf(room, viewerId). Nilai "pending" adalah
+   * sentinel anti-race: dipasang sinkron sebelum satu pun `await` dijalankan
+   * untuk menghitung wahyunya, supaya klik ganda tidak lolos memotong stok
+   * dua kali (lihat useRoomPowerUp).
+   */
+  powerUps?: Partial<Record<PowerUpKind, RevealPayload | "pending">>;
 };
 
 type Room = {
@@ -200,6 +220,8 @@ export type RoomView = {
     deadline: number;
     responses: Record<string, "accept" | "reject">;
   };
+  /** Hasil Power-Up milik pemain yang meminta view ini sendiri -- kosong untuk pemain lain. */
+  myPowerUps?: Partial<Record<PowerUpKind, RevealPayload>>;
 };
 
 function newId(): string {
@@ -249,7 +271,7 @@ function surrenderThresholdOf(room: Room): number {
   return Math.floor(room.players.size / 2) + 1;
 }
 
-export function viewOf(room: Room): RoomView {
+export function viewOf(room: Room, viewerId?: string): RoomView {
   const players = [...room.players.values()]
     .sort((a, b) => a.joinedAt - b.joinedAt)
     .map((p) => ({
@@ -268,6 +290,14 @@ export function viewOf(room: Room): RoomView {
     }));
 
   const winner = room.winnerId ? room.players.get(room.winnerId) : undefined;
+
+  const viewerPowerUps = viewerId ? room.players.get(viewerId)?.powerUps : undefined;
+  const myPowerUps: Partial<Record<PowerUpKind, RevealPayload>> = {};
+  if (viewerPowerUps) {
+    for (const [kind, value] of Object.entries(viewerPowerUps) as [PowerUpKind, RevealPayload | "pending"][]) {
+      if (value !== "pending") myPowerUps[kind] = value;
+    }
+  }
 
   return {
     code: room.code,
@@ -293,12 +323,13 @@ export function viewOf(room: Room): RoomView {
           responses: Object.fromEntries(room.surrenderRequest.responses),
         }
       : undefined,
+    myPowerUps: Object.keys(myPowerUps).length ? myPowerUps : undefined,
   };
 }
 
-export async function publicView(room: Room): Promise<RoomView> {
+export async function publicView(room: Room, viewerId?: string): Promise<RoomView> {
   const { vocabSize } = await loadManifest();
-  return { ...viewOf(room), vocabSize };
+  return { ...viewOf(room, viewerId), vocabSize };
 }
 
 export function getRoom(code: string): Room | undefined {
@@ -445,23 +476,24 @@ type GuessOutcome = {
   duplicate: boolean;
 };
 
-export async function submitRoomGuess(
-  code: string,
-  playerId: string,
-  rawWord: string,
-): Promise<Result<GuessOutcome, GuessError>> {
-  const room = getRoom(code);
-  if (!room) return { ok: false, error: "not-found" };
-  if (room.status !== "playing") return { ok: false, error: "not-playing" };
+/** Hadiah kemenangan room: max(3, 15 - floor((tebakan-1)/2)), hanya untuk pemenang berakun. */
+function roomWinReward(guessCount: number): number {
+  return Math.max(3, 15 - Math.floor((guessCount - 1) / 2));
+}
 
-  const player = room.players.get(playerId);
-  if (!player) return { ok: false, error: "not-member" };
-
-  const result = await rankGuess(room.puzzle.id, rawWord);
-  if (!result) return { ok: false, error: "unknown-word" };
-
+/**
+ * Menerapkan satu tebakan (manual maupun hasil Power-Up "Tebakan Terdekat")
+ * ke room: papan bersama, deteksi menang, dan pencatatan/hadiah kemenangan.
+ * Diekstrak dari submitRoomGuess supaya jalur Power-Up bisa memicu kemenangan
+ * (dan tetap dapat coin) lewat kode yang sama persis, bukan duplikat.
+ */
+function applyRoomGuess(
+  room: Room,
+  player: Player,
+  result: { word: string; rank: number },
+): GuessOutcome {
   const already = player.guesses.find((g) => g.word === result.word);
-  if (already) return { ok: true, value: { room, result: already, duplicate: true } };
+  if (already) return { room, result: already, duplicate: true };
 
   player.guesses.push(result);
 
@@ -489,12 +521,117 @@ export async function submitRoomGuess(
         .filter((p) => p.accountId)
         .map((p) => ({ id: p.id, accountId: p.accountId, guessCount: p.guesses.length })),
     });
+
+    if (player.accountId) {
+      earnCoins(player.accountId, roomWinReward(player.guesses.length), "room_win", {
+        roomCode: room.code,
+      });
+    }
   }
 
   touch(room);
   broadcast(room);
+  // Ditaruh setelah earnCoins() di atas (sinkron, tanpa await di antaranya):
+  // notifyMatchStatus memberi tahu setiap accountId di room lewat presence.ts,
+  // jadi saldo coin terbaru pemenang sudah ikut terbawa di push berikutnya
+  // tanpa perlu notifyAccount() terpisah di sini.
   if (room.status === "finished") notifyMatchStatus(room, "finished");
-  return { ok: true, value: { room, result, duplicate: false } };
+  return { room, result, duplicate: false };
+}
+
+export async function submitRoomGuess(
+  code: string,
+  playerId: string,
+  rawWord: string,
+): Promise<Result<GuessOutcome, GuessError>> {
+  const room = getRoom(code);
+  if (!room) return { ok: false, error: "not-found" };
+  if (room.status !== "playing") return { ok: false, error: "not-playing" };
+
+  const player = room.players.get(playerId);
+  if (!player) return { ok: false, error: "not-member" };
+
+  const result = await rankGuess(room.puzzle.id, rawWord);
+  if (!result) return { ok: false, error: "unknown-word" };
+
+  return { ok: true, value: applyRoomGuess(room, player, result) };
+}
+
+export type PowerUpError =
+  | "not-found"
+  | "not-playing"
+  | "not-member"
+  | "insufficient-stock"
+  | "no-candidates";
+
+type PowerUpOutcome = {
+  room: Room;
+  reveal?: RevealPayload;
+  guess?: GuessOutcome;
+};
+
+/**
+ * Pakai Power-Up selama pertandingan room berjalan.
+ *
+ * reveal_initial/reveal_digits: privat untuk pemain ini saja (lihat
+ * viewOf/RoomView.myPowerUps), sekali per pertandingan -- ditegakkan lewat
+ * `player.powerUps[kind]`, bukan tabel DB, karena state room memang sudah
+ * sepenuhnya di memori. Sentinel "pending" dipasang SINKRON tepat setelah
+ * stok dipotong, sebelum `await` menghitung wahyunya, supaya dua klik
+ * beruntun tidak lolos memotong stok dua kali (pola yang sama dengan
+ * useSoloRevealPowerUp di lib/powerups.ts).
+ *
+ * closest_guess: konsumsi 1 stok per pakai, hasilnya diterapkan lewat
+ * applyRoomGuess yang sama dengan tebakan manual -- transparan ke papan
+ * bersama, dan tetap bisa memicu kemenangan + hadiah coin.
+ */
+export async function useRoomPowerUp(
+  code: string,
+  playerId: string,
+  kind: PowerUpKind,
+): Promise<Result<PowerUpOutcome, PowerUpError>> {
+  const room = getRoom(code);
+  if (!room) return { ok: false, error: "not-found" };
+  if (room.status !== "playing") return { ok: false, error: "not-playing" };
+
+  const player = room.players.get(playerId);
+  if (!player) return { ok: false, error: "not-member" };
+
+  if (kind === "closest_guess") {
+    if (!player.accountId || !decrementInventory(player.accountId, kind)) {
+      return { ok: false, error: "insufficient-stock" };
+    }
+    const result = await findClosestGuess(room.puzzle.id, player.guesses.map((g) => g.word));
+    if (!result) {
+      incrementInventory(player.accountId, kind, 1);
+      return { ok: false, error: "no-candidates" };
+    }
+    return { ok: true, value: { room, guess: applyRoomGuess(room, player, result) } };
+  }
+
+  const existing = player.powerUps?.[kind];
+  if (existing && existing !== "pending") {
+    return { ok: true, value: { room, reveal: existing } };
+  }
+
+  if (!player.accountId || !decrementInventory(player.accountId, kind)) {
+    return { ok: false, error: "insufficient-stock" };
+  }
+
+  player.powerUps ??= {};
+  player.powerUps[kind] = "pending";
+
+  const reveal = kind === "reveal_initial" ? await revealInitial(room.puzzle.id) : await revealDigits(room.puzzle.id);
+  if (!reveal) {
+    delete player.powerUps[kind];
+    incrementInventory(player.accountId, kind, 1);
+    return { ok: false, error: "insufficient-stock" };
+  }
+
+  player.powerUps[kind] = reveal;
+  touch(room);
+  broadcast(room);
+  return { ok: true, value: { room, reveal } };
 }
 
 export type SurrenderError = "not-found" | "not-playing" | "not-member" | "already-active";

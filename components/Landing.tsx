@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import Avatar from "@/components/Avatar";
+import CoinBalance from "@/components/CoinBalance";
 import HowToPlayModal from "@/components/HowToPlayModal";
 import ModeCard, { type ModeCardProps } from "@/components/ModeCard";
 import ThemeToggle from "@/components/ThemeToggle";
 import Wordmark from "@/components/Wordmark";
 import { useAccount } from "@/components/AccountProvider";
-import { FriendsIcon, HelpIcon, PartyIcon, SoloIcon, TrophyIcon } from "@/components/icons";
+import { FriendsIcon, HelpIcon, PartyIcon, ShopIcon, SoloIcon, TrophyIcon } from "@/components/icons";
 import { rememberMembership } from "@/lib/session";
 
 type Mode = "idle" | "creating" | "joining";
@@ -87,15 +88,11 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
    * tantangan harian -- cukup menambah satu entri di sini; tata letaknya
    * mengalir sendiri.
    */
+  // "Main bareng" muncul lebih dulu dan jadi kartu unggulan (lihat
+  // <ModeCard featured>) -- sisanya dirender sebagai baris kartu kecil di
+  // bawahnya lewat cards.slice(1), jadi urutan di sini yang menentukan tata
+  // letaknya, bukan indeks tetap.
   const cards: ModeCardProps[] = [
-    {
-      icon: SoloIcon,
-      title: "Main sendiri",
-      description: "Satu kata rahasia tiap hari, sama untuk semua pemain. Tanpa batas waktu.",
-      action: "Mulai",
-      accent: "var(--accent-warm)",
-      href: "/solo",
-    },
     {
       icon: PartyIcon,
       title: "Main bareng",
@@ -106,12 +103,28 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
       disabled: mode !== "idle",
     },
     {
+      icon: SoloIcon,
+      title: "Main sendiri",
+      description: "Satu kata rahasia tiap hari, sama untuk semua pemain. Tanpa batas waktu.",
+      action: "Mulai",
+      accent: "var(--accent-warm)",
+      href: "/solo",
+    },
+    {
       icon: TrophyIcon,
       title: "Papan peringkat",
       description: "Lihat siapa paling sering menang di room multiplayer, dan di mana posisimu.",
       action: "Lihat papan",
       accent: "var(--accent-gold)",
       href: "/leaderboard",
+    },
+    {
+      icon: ShopIcon,
+      title: "Toko Power-Up",
+      description: "Tukar Coin yang kamu kumpulkan dengan Power-Up untuk membantu menebak.",
+      action: "Buka toko",
+      accent: "var(--accent-silver)",
+      href: "/shop",
     },
   ];
 
@@ -173,6 +186,7 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
             Buat profil
           </Link>
         )}
+        <CoinBalance />
         <ThemeToggle />
         </div>
       </div>
@@ -267,13 +281,16 @@ export default function Landing({ vocabSize }: { vocabSize: number }) {
       </section>
 
       <section
-        className="rise grid gap-3 sm:grid-cols-2"
+        className="rise flex flex-col gap-3"
         aria-label="Pilih mode permainan"
         style={{ "--step": 4 } as React.CSSProperties}
       >
-        {cards.map((card) => (
-          <ModeCard key={card.title} {...card} />
-        ))}
+        <ModeCard {...cards[0]} featured />
+        <div className="grid gap-3 sm:grid-cols-3">
+          {cards.slice(1).map((card) => (
+            <ModeCard key={card.title} {...card} />
+          ))}
+        </div>
       </section>
     </main>
   );

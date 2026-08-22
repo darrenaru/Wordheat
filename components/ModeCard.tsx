@@ -13,6 +13,8 @@ export type ModeCardProps = {
   disabled?: boolean;
   /** Baris kecil di kaki kartu, misalnya tanggal kata harian. */
   footnote?: string;
+  /** Kartu unggulan: lebih besar, berdiri sendiri di baris atas grid. */
+  featured?: boolean;
 };
 
 /**
@@ -31,6 +33,7 @@ export default function ModeCard({
   onClick,
   disabled,
   footnote,
+  featured,
 }: ModeCardProps) {
   const body = (
     <>
@@ -46,14 +49,28 @@ export default function ModeCard({
           strokeWidth="1.7"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="size-6"
+          className={featured ? "size-7" : "size-6"}
         >
           {icon}
         </svg>
       </span>
 
-      <span className="mt-3 block text-[19px] font-bold tracking-[-0.01em]">{title}</span>
-      <span className="mt-1 block text-[13px] leading-relaxed text-[var(--muted)]">
+      <span
+        className={
+          featured
+            ? "mt-4 block text-[26px] font-bold tracking-[-0.01em]"
+            : "mt-3 block text-[19px] font-bold tracking-[-0.01em]"
+        }
+      >
+        {title}
+      </span>
+      <span
+        className={
+          featured
+            ? "mt-1.5 block max-w-[28rem] text-[14px] leading-relaxed text-[var(--muted)]"
+            : "mt-1 block text-[13px] leading-relaxed text-[var(--muted)]"
+        }
+      >
         {description}
       </span>
 
@@ -72,8 +89,9 @@ export default function ModeCard({
     </>
   );
 
-  const className =
-    "mode-card group flex h-full flex-col rounded-xl border border-[var(--line)] bg-[var(--card)] p-5 text-left disabled:opacity-50";
+  const className = `mode-card group flex h-full flex-col rounded-xl border border-[var(--line)] bg-[var(--card)] text-left disabled:opacity-50 ${
+    featured ? "p-6 sm:p-7" : "p-5"
+  }`;
   const style = { "--accent": accent } as React.CSSProperties;
 
   if (href) {

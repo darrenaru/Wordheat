@@ -6,6 +6,7 @@ import {
   dropFriendRequest,
   findAccountById,
   friendState,
+  regenerateQuickAddLink,
   removeFriend,
   sendFriendRequest,
   toPublicProfile,
@@ -94,6 +95,12 @@ export async function POST(request: Request) {
       notifyAccount(account.id);
       if (findAccountById(body.friendId)) notifyAccount(body.friendId);
       return NextResponse.json(friendState(account.id));
+    }
+
+    case "regenerate-quick-add": {
+      const token = regenerateQuickAddLink(account.id);
+      notifyAccount(account.id);
+      return NextResponse.json({ ...friendState(account.id), quickAddToken: token });
     }
 
     default:

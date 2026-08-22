@@ -50,7 +50,7 @@ export default function InviteBanner() {
               name={invite.from.displayName}
               size={36}
             />
-            <p className="min-w-0 flex-1 text-[14px] leading-snug">
+            <p className="min-w-0 flex-1 break-words text-[14px] leading-snug">
               <strong>{invite.from.displayName}</strong> mengundangmu ke room{" "}
               <span className="font-mono tracking-[0.12em]">{invite.code}</span>
             </p>

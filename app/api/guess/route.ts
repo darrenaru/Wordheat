@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+import { currentAccount } from "@/lib/accounts";
+import { awardSoloWin } from "@/lib/coins";
+import { notifyAccount } from "@/lib/presence";
 import { getPuzzleById, loadManifest, rankGuess } from "@/lib/puzzles";
 
 /**
@@ -16,7 +19,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "bad-request" }, { status: 400 });
   }
 
-  const { puzzleId, word } = (body ?? {}) as { puzzleId?: number; word?: string };
+  const { puzzleId, word, guessCount } = (body ?? {}) as {
+    puzzleId?: number;
+    word?: string;
+    guessCount?: number;
+  };
 
   if (typeof puzzleId !== "number" || typeof word !== "string" || !word.trim()) {
     return NextResponse.json({ error: "bad-request" }, { status: 400 });
@@ -30,6 +37,14 @@ export async function POST(request: Request) {
   const result = await rankGuess(puzzleId, word);
   if (!result) {
     return NextResponse.json({ error: "unknown-word" }, { status: 404 });
+  }
+
+  if (result.rank === 1) {
+    const account = await currentAccount();
+    if (account) {
+      const award = awardSoloWin(account.id, puzzleId, guessCount ?? 1);
+      if (award.awarded) notifyAccount(account.id);
+    }
   }
 
   const { vocabSize } = await loadManifest();

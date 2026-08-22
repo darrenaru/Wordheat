@@ -53,7 +53,7 @@ export async function GET(request: Request) {
           controller.enqueue(encoder.encode("event: gone\ndata: {}\n\n"));
           return;
         }
-        const view = withPlayerPresence(await publicView(current));
+        const view = withPlayerPresence(await publicView(current, playerId));
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(view)}\n\n`));
       };
 

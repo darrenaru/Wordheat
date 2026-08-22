@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 
+import { emptyInventory } from "@/lib/powerup-catalog";
 import type { MeState, PublicProfile } from "@/lib/profile";
 
 type AccountContextValue = {
@@ -133,6 +134,9 @@ export default function AccountProvider({
     setMe({
       account,
       hasGoogle: false,
+      quickAddToken: "",
+      coins: 0,
+      powerUps: emptyInventory(),
       status: "online",
       friends: [],
       incoming: [],
