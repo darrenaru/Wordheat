@@ -495,7 +495,7 @@ export default function RoomBoard({ code }: { code: string }) {
       >
         <Wordmark />
         <div className="flex items-center gap-2">
-          <CoinBalance />
+          <CoinBalance asModal />
           <ThemeToggle />
         </div>
       </header>

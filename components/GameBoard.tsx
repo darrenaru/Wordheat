@@ -274,7 +274,7 @@ export default function GameBoard({ puzzleId, puzzleLabel, vocabSize }: Props) {
       >
         <Wordmark />
         <div className="flex items-center gap-2">
-          <CoinBalance />
+          <CoinBalance asModal />
           <ThemeToggle />
         </div>
       </header>
