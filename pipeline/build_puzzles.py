@@ -63,8 +63,10 @@ def main() -> None:
                         help="jumlah puzzle yang dibangkitkan (default 30)")
     parser.add_argument("--start", default=date.today().isoformat(),
                         help="tanggal puzzle pertama, format YYYY-MM-DD")
-    parser.add_argument("--pool", type=int, default=1200,
-                        help="ambil kata rahasia dari sekian kandidat teratas")
+    parser.add_argument("--pool", type=int, default=500,
+                        help="ambil kata rahasia dari sekian kandidat teratas "
+                             "(kandidat terurut dari yang paling sering dipakai; "
+                             "angka kecil = kata rahasia lebih umum dan lebih mudah ditebak)")
     parser.add_argument("--seed", type=int, default=20260815,
                         help="benih pengacakan; tetap sama agar jadwal reprodusibel")
     parser.add_argument("--words", nargs="*", default=None,
