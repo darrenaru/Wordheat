@@ -161,7 +161,13 @@ export default function HowToPlayModal({
         aria-modal="true"
         aria-label="Cara bermain"
         tabIndex={-1}
-        className="flex max-h-[86dvh] w-full max-w-[30rem] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--card)] outline-none"
+        // `h-[42rem]` dipatok tetap -- tanpa ini dialog cuma menyusut/melebar
+        // mengikuti konten tiap langkah (GIF di langkah 2 jauh lebih tinggi
+        // daripada satu paragraf di langkah 4), jadi ukurannya melompat tiap
+        // "Lanjut" ditekan. `max-h-[86dvh]` tetap jadi batas aman di layar
+        // pendek -- begitu terpotong, area konten (flex-1 + overflow-y-auto
+        // di bawah) yang menggulir sendiri, bukan dialognya yang berubah tinggi.
+        className="flex h-[42rem] max-h-[86dvh] w-full max-w-[30rem] flex-col overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--card)] outline-none"
       >
         <div className="flex items-center justify-between gap-3 border-b border-[var(--line)] px-5 py-4">
           <p className="text-[13px] font-mono uppercase tracking-[0.12em] text-[var(--muted)]">
